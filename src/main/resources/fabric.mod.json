@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "id": "minekt",
+  "version": "${version}",
+  "name": "Minekt",
+  "description": "Kotlin scripting for Minecraft. Drop .kts files into .minecraft/minekt and run them from chat with \\name.",
+  "authors": ["ilgax"],
+  "contact": {
+    "sources": "https://github.com/ilgax/KraftScript"
+  },
+  "license": "GPL-3.0-or-later",
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      {
+        "adapter": "kotlin",
+        "value": "dev.ilgax.minekt.MinektClient"
+      }
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "minecraft": "~${minecraft_version}",
+    "java": ">=25",
+    "fabric-api": "*",
+    "fabric-language-kotlin": ">=${fabric_kotlin_version}"
+  },
+  "suggests": {
+    "baritone": "*"
+  }
+}
