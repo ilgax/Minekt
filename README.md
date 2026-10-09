@@ -86,6 +86,7 @@ Everything below is in scope in every script, no imports needed.
 | Timers | `every(5.seconds) { }`, `after(30.seconds) { }`, `everyTicks(n) { }`, `afterTicks(n) { }`, `at("18:00") { }`, `atDaytime(13000) { }` |
 | Packets | `onPacket<T> { }`, `onPacketSent<T> { }`, `interceptPacket<T> { it or null }`, `interceptPacketSent<T> { }`, `awaitPacket<T>()`, `sendPacket(p)` |
 | Method hooks | `hook<Class>("method") { call -> }`, `hookAfter<Class>("method") { call -> }` (change `args`, `cancel(value)`, replace `result`) |
+| Walking | `walkTo(x, y, z)`, `walkTo(pos)`, `walkToNearest { pos -> … }`, `pathTo(x, y, z)` |
 | Libraries | `@file:DependsOn("group:artifact:version")`, `@file:Repository("https://…")` |
 | Macros | `macro(step(ticks, "forward jump", yaw, pitch, slot), …)`; `\record` writes these for you |
 | World rendering | `highlight(pos)`, `box(min, max)`, `line(a, b)`, `arrow(a, b)`, `text(pos, "…")`, `clearShapes()` |
@@ -395,6 +396,31 @@ macro(
 - Replays are close, not exact: in testing, a recorded 6.2-block walk replayed as 6.0 to 7.6 blocks, because
   timing and momentum differ slightly between runs. Fine for routines, not for pixel-perfect parkour.
 
+### Walking somewhere
+
+```kotlin
+walkTo(100, 64, -20)                                     // blocks until there, or until it gives up
+val r = walkTo(chest.pos, sprint = true)                  // a block you can't stand in: stops next to it
+if (!r.arrived) echo("couldn't get there: ${r.reason}")
+walkToNearest { pos -> getBlock(pos.offset(dy = -1)) == "minecraft:grass_block" }
+val route = pathTo(0, 64, 0)                              // just plan (a list of feet positions), e.g. to draw it
+```
+
+- Minekt plans the route itself through loaded chunks: walking (also diagonally, never cutting corners), jumping
+  up one block, dropping down up to 3 blocks (any height into water) and swimming. It never walks into or onto
+  lava, fire, cactus, magma, berry bushes, powder snow or cobwebs; add your own with `avoid = listOf("…")`.
+- It walks the route with the normal movement keys, steered every tick on the game thread, and re-plans when it
+  gets stuck or pushed off course. `showPath = true` draws the route while walking.
+- `walkTo` returns a `WalkResult`: `arrived`, plus `status` (`ARRIVED`, `NO_PATH`, `STUCK`, `TIMED_OUT`) and a
+  readable `reason`. The default `timeout` is 2 minutes.
+- **Baritone fallback:** if Baritone is installed, targets beyond loaded chunks, or ones Minekt finds no route to,
+  are handed to Baritone (`usedBaritone` in the result). Turn that off with `useBaritone = false`. Without
+  Baritone, far targets are approached in stages: walk to the closest visible spot, look again as chunks load.
+- It doesn't break or place blocks, open doors, climb ladders, or do parkour. For those, and for mining or
+  building, use Baritone directly (`baritone.*`).
+- A target that can't be reached at all is only known once the search has looked everywhere it could go (up to
+  40,000 spots, spread over a few ticks), so `NO_PATH` can take a moment in open terrain.
+
 ### Libraries from Maven
 
 Any JVM library on Maven Central (or another Maven repository) can be used from a script:
@@ -531,6 +557,7 @@ then open a singleplayer world. Each one reports `OK`/`FAIL` lines in chat and c
   restart.
 - `\features`: inventory and containers, interaction, events, chat filters, world info, scans and coroutines. It
   uses the singleplayer server to give items, deal damage and teleport.
+- `\walk`: builds an obstacle course on a platform in the sky and walks it with `walkTo` / `walkToNearest`.
 - `\more`: timers, packet hooks, method hooks, recording and replaying a macro, and the script manager. Needs
   `xdo-runner.sh` too.
 - `\ui`: the watchdog (`\kill` on `while (true) {}`, the CPU warning), messages

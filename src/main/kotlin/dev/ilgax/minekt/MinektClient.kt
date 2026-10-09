@@ -2,6 +2,7 @@ package dev.ilgax.minekt
 
 import com.mojang.blaze3d.platform.InputConstants
 import dev.ilgax.minekt.api.ScriptHud
+import dev.ilgax.minekt.api.Steering
 import dev.ilgax.minekt.hooks.GameEventSource
 import dev.ilgax.minekt.hooks.InstallUi
 import dev.ilgax.minekt.hooks.MacroRecorder
@@ -81,6 +82,7 @@ object MinektClient : ClientModInitializer, Host {
             if (mc.level != null) ScriptRenderer.submitTick()
             gameEvents.tick(mc)
             recorder.tick(mc)
+            Steering.tickAll(mc)
             if (ScriptKeys.consumeManagerKey()) openManager = true
             if (openManager) {
                 openManager = false
