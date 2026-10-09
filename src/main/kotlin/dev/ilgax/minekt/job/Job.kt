@@ -3,6 +3,7 @@ package dev.ilgax.minekt.job
 import dev.ilgax.minekt.api.GameEvent
 import dev.ilgax.minekt.api.Minekt
 import dev.ilgax.minekt.hooks.MethodHooks
+import dev.ilgax.minekt.script.CompilerSetup
 import dev.ilgax.minekt.script.ScriptCompiler
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineExceptionHandler
@@ -266,6 +267,12 @@ class Job internal constructor(
 
     private fun run() {
         try {
+            try {
+                CompilerSetup.awaitReady { status -> host.echo("[$name] $status… the script starts when it's done", MessageKind.INFO) }
+            } catch (e: IllegalStateException) {
+                host.echo("[$name] Scripts can't run yet: ${e.message}", MessageKind.ERROR)
+                return
+            }
             // Watchdog-instrumented, so \kill works even on loops that never call the API.
             val compiled = when (val result = ScriptCompiler.compile(source)) {
                 is ResultWithDiagnostics.Success -> ScriptCompiler.instrumented(result.value)

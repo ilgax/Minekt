@@ -17,7 +17,10 @@ import dev.ilgax.minekt.job.JobManager
 import dev.ilgax.minekt.job.MessageKind
 import dev.ilgax.minekt.job.TickClock
 import dev.ilgax.minekt.script.ScriptClasspath
+import dev.ilgax.minekt.script.CompilerSetup
 import dev.ilgax.minekt.script.ScriptCompiler
+import net.fabricmc.loader.impl.launch.FabricLauncherBase
+import net.minecraft.client.gui.components.toasts.SystemToast
 import net.fabricmc.api.ClientModInitializer
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
@@ -81,17 +84,23 @@ object MinektClient : ClientModInitializer, Host {
                 manager.open(mc)
             }
         }
-        ClientLifecycleEvents.CLIENT_STARTED.register {
-            Thread({
+        // Find (or, in the small build, download) the compiler while the game loads, then warm it up.
+        Thread({
+            CompilerSetup.run(
+                libDir = scriptDir.resolve("lib"),
+                addToClassPath = { jar -> FabricLauncherBase.getLauncher().addToClassPath(jar) },
+                notify = ::notifyCompiler,
+            )
+            if (CompilerSetup.status == null) {
                 val started = System.nanoTime()
                 runCatching { ScriptCompiler.warmUp() }
                     .onSuccess { logger.info("Kotlin script compiler ready in {} ms", (System.nanoTime() - started) / 1_000_000) }
                     .onFailure { logger.error("Kotlin script compiler warm-up failed", it) }
-            }, "minekt-warmup").apply {
-                isDaemon = true
-                contextClassLoader = MinektClient::class.java.classLoader
-            }.start()
-        }
+            }
+        }, "minekt-compiler").apply {
+            isDaemon = true
+            contextClassLoader = MinektClient::class.java.classLoader
+        }.start()
         ClientLifecycleEvents.CLIENT_STOPPING.register {
             jobs.storage.saveAll() // jobs save as they end, but the JVM may exit before they get to
             jobs.killAll()
@@ -218,6 +227,19 @@ object MinektClient : ClientModInitializer, Host {
             }
         }
         logger.info("Created {} with example scripts", scriptDir)
+    }
+
+    /** Compiler download news: a toast (it may happen before any world is open) and the log. */
+    private fun notifyCompiler(message: String, failed: Boolean) {
+        val mc = Minecraft.getInstance()
+        mc.execute {
+            SystemToast.add(
+                mc.gui.toastManager(),
+                SystemToast.SystemToastId(if (failed) 15_000L else 6_000L),
+                Component.literal(if (failed) "Minekt: no Kotlin compiler" else "Minekt"),
+                Component.literal(if (failed) "Scripts can't run. See the log for how to fix it." else message),
+            )
+        }
     }
 
     // ---- Host ---------------------------------------------------------------------------------

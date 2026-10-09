@@ -31,6 +31,7 @@ object ScriptCompiler {
     fun compile(source: SourceCode): ResultWithDiagnostics<CompiledScript> {
         val key = cacheKey(source)
         cache[key]?.let { return it.asSuccess() }
+        CompilerSetup.awaitReady()
         // The embedded compiler isn't designed for concurrent use; compiles are serialized.
         val result = synchronized(lock) { runBlocking { compiler(source, configuration) } }
         // Scripts with @file:Import depend on other files, so only cache self-contained ones.

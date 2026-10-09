@@ -19,8 +19,23 @@ findBlocks(radius) { it.endsWith("_ore") }
 1. Install [Fabric Loader](https://fabricmc.net/use/) for Minecraft 26.3, plus
    [Fabric API](https://modrinth.com/mod/fabric-api) and
    [Fabric Language Kotlin](https://modrinth.com/mod/fabric-language-kotlin).
-2. Drop `minekt-<version>.jar` into `.minecraft/mods`.
+2. Drop one of the two Minekt jars into `.minecraft/mods`:
+   - `minekt-<version>.jar` (about 3 MB) gets the Kotlin compiler on first launch (see below).
+   - `minekt-<version>-full.jar` (about 56 MB) has the compiler built in: for offline use, or modpacks that
+     don't allow downloads.
 3. Start the game. On first launch Minekt creates `.minecraft/minekt/` and fills it with example scripts.
+
+**The compiler (small jar only).** Scripts are compiled by the Kotlin compiler, which is most of Minekt's size,
+so the small jar fetches it once while the game loads. It needs exactly the version Minekt was built with, and
+only accepts a file whose SHA-256 matches the one recorded in the build. It looks in this order:
+1. `.minecraft/minekt/lib/`
+2. Gradle and Maven caches (`~/.gradle/caches`, `~/.m2`), in case you've built Kotlin projects before
+3. Maven Central (or a mirror), saving the file into `minekt/lib/`
+
+After that, nothing is downloaded again until a Minekt update changes the Kotlin version, so scripts work
+offline. If there's no compiler and no connection, the game runs normally and scripts explain how to fix it:
+connect once, or put `kotlin-compiler-embeddable-<version>.jar` from Maven Central into `minekt/lib/`. A toast
+shows when a download starts and finishes.
 
 ## Chat commands
 
@@ -460,7 +475,9 @@ Notes:
 - Script code that runs on the game thread (`game { }` blocks, chat filters, live screen text) is never cut
   short. An endless loop there freezes the game, and `\kill` can't be typed while it's frozen.
 - Screens are a single column.
-- The jar is about 55 MB because it bundles the Kotlin compiler.
+- The small jar adds Minekt's compiler jar to Fabric's class loader through a Fabric Loader internal
+  (`FabricLauncherBase.addToClassPath`), which a future loader version could change. The full jar doesn't
+  use it.
 - No sandbox: scripts can do anything the game can. Only run scripts you trust.
 - Client-only and Fabric-only for now.
 - Some servers ban automation mods. Check a server's rules before using it there.
@@ -470,7 +487,9 @@ Notes:
 Requires JDK 25.
 
 ```sh
-./gradlew build          # jar in build/libs/, runs the engine tests
+./gradlew build          # both jars in build/libs/, runs the engine tests
+./gradlew runClient -PsmallRun                         # dev client without the compiler, like the small jar
+./gradlew runClient -PsmallRun -PsmallRunHome=/tmp/x   # …and with Gradle/Maven caches hidden: forces a download
 ./gradlew runClient      # dev client
 ```
 
