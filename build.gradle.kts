@@ -17,16 +17,16 @@ repositories {
 }
 
 // The Kotlin scripting host + embeddable compiler are not shipped by fabric-language-kotlin,
-// so we bundle them (jar-in-jar). Everything FLK already provides is excluded to avoid duplicates.
-val bundled: Configuration by configurations.creating {
-    exclude(group = "org.jetbrains.kotlin", module = "kotlin-stdlib")
-    exclude(group = "org.jetbrains.kotlin", module = "kotlin-stdlib-jdk7")
-    exclude(group = "org.jetbrains.kotlin", module = "kotlin-stdlib-jdk8")
-    exclude(group = "org.jetbrains.kotlin", module = "kotlin-reflect")
-    exclude(group = "org.jetbrains.kotlinx")
-    exclude(group = "org.jetbrains", module = "annotations")
-}
+// so we bundle them (jar-in-jar). Everything FLK already provides is skipped to avoid duplicates.
+val bundled: Configuration = configurations.create("bundled")
 configurations.implementation { extendsFrom(bundled) }
+val providedByFabricKotlin = setOf(
+    "org.jetbrains.kotlin:kotlin-stdlib",
+    "org.jetbrains.kotlin:kotlin-stdlib-jdk7",
+    "org.jetbrains.kotlin:kotlin-stdlib-jdk8",
+    "org.jetbrains.kotlin:kotlin-reflect",
+    "org.jetbrains:annotations",
+)
 
 dependencies {
     minecraft("com.mojang:minecraft:${property("minecraft_version")}")
@@ -39,23 +39,26 @@ dependencies {
     bundled("org.jetbrains.kotlin:kotlin-scripting-common:$kotlinVersion")
 
     testImplementation(kotlin("test"))
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
 // Jar-in-jar every resolved artifact of `bundled` (Loom's `include` is not transitive).
 afterEvaluate {
-    bundled.resolvedConfiguration.resolvedArtifacts.forEach { artifact ->
-        val id = artifact.moduleVersion.id
-        dependencies.add("include", "${id.group}:${id.name}:${id.version}")
-    }
+    bundled.resolvedConfiguration.resolvedArtifacts
+        .map { it.moduleVersion.id }
+        .filterNot { "${it.group}:${it.name}" in providedByFabricKotlin || it.group == "org.jetbrains.kotlinx" }
+        .forEach { dependencies.add("include", "${it.group}:${it.name}:${it.version}") }
 }
 
+val resourceProps = mapOf(
+    "version" to project.version.toString(),
+    "minecraft_version" to property("minecraft_version") as String,
+    "loader_version" to property("loader_version") as String,
+    "fabric_kotlin_version" to property("fabric_kotlin_version") as String,
+)
+
 tasks.processResources {
-    val props = mapOf(
-        "version" to project.version,
-        "minecraft_version" to property("minecraft_version"),
-        "loader_version" to property("loader_version"),
-        "fabric_kotlin_version" to property("fabric_kotlin_version"),
-    )
+    val props = resourceProps
     inputs.properties(props)
     filesMatching("fabric.mod.json") { expand(props) }
 }
