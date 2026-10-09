@@ -15,6 +15,7 @@ import net.minecraft.resources.Identifier
  */
 internal object ScriptKeys {
     private lateinit var mappings: List<KeyMapping>
+    private lateinit var managerKey: KeyMapping
 
     fun register() {
         val category = KeyMapping.Category.register(Identifier.fromNamespaceAndPath("minekt", "scripts"))
@@ -23,6 +24,9 @@ internal object ScriptKeys {
                 KeyMapping("key.minekt.script_$slot", InputConstants.Type.KEYBOARD, InputConstants.UNKNOWN.value, category),
             )
         }
+        managerKey = KeyMappingHelper.registerKeyMapping(
+            KeyMapping("key.minekt.manager", InputConstants.Type.KEYBOARD, InputConstants.UNKNOWN.value, category),
+        )
     }
 
     /** Called every client tick: turn presses into events for listening scripts. */
@@ -30,6 +34,13 @@ internal object ScriptKeys {
         mappings.forEachIndexed { index, mapping ->
             while (mapping.consumeClick()) jobs.dispatch(Job.Event.Binding(index + 1))
         }
+    }
+
+    /** Whether the "Script manager" key was pressed since the last call. */
+    fun consumeManagerKey(): Boolean {
+        var pressed = false
+        while (managerKey.consumeClick()) pressed = true
+        return pressed
     }
 
     fun keyName(slot: Int): String {

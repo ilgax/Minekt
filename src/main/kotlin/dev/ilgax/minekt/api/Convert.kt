@@ -1,5 +1,6 @@
 package dev.ilgax.minekt.api
 
+import net.minecraft.client.KeyMapping
 import net.minecraft.core.Direction
 import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.world.entity.Entity
@@ -32,3 +33,18 @@ internal fun McVec3.toApi() = Vec3(x, y, z)
 
 internal fun Face.toMc(): Direction = Direction.valueOf(name)
 internal fun Direction.toApi(): Face = Face.valueOf(name)
+
+/** The game's key binding behind a Minekt [Key]. */
+internal fun net.minecraft.client.Options.mapping(key: Key): KeyMapping = when (key) {
+    Key.FORWARD -> keyUp
+    Key.BACK -> keyDown
+    Key.LEFT -> keyLeft
+    Key.RIGHT -> keyRight
+    Key.JUMP -> keyJump
+    Key.SNEAK -> keyShift
+    Key.SPRINT -> keySprint
+    Key.ATTACK -> keyAttack
+    Key.USE -> keyUse
+    Key.DROP -> keyDrop
+    Key.SWAP_OFFHAND -> keySwapOffhand
+}

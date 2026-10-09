@@ -2,6 +2,7 @@ package dev.ilgax.minekt.job
 
 import dev.ilgax.minekt.api.GameEvent
 import dev.ilgax.minekt.api.Minekt
+import dev.ilgax.minekt.hooks.MethodHooks
 import dev.ilgax.minekt.script.ScriptCompiler
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineExceptionHandler
@@ -55,6 +56,7 @@ class Job internal constructor(
         data class Key(val watch: KeyWatch) : Event
         data class Game(val event: GameEvent) : Event
         data class Message(val topic: String, val value: Any?, val from: String) : Event
+        data class Packet(val packet: net.minecraft.network.protocol.Packet<*>, val incoming: Boolean) : Event
     }
 
     enum class State { COMPILING, RUNNING, LISTENING, DONE }
@@ -83,6 +85,16 @@ class Job internal constructor(
     internal val bindingHandlers = ConcurrentHashMap<Int, CopyOnWriteArrayList<() -> Unit>>()
     internal val gameHandlers = CopyOnWriteArrayList<(GameEvent) -> Unit>()
     internal val messageHandlers = ConcurrentHashMap<String, CopyOnWriteArrayList<(Any?) -> Unit>>()
+
+    /** A packet listener or filter for packets of [type] in one direction. */
+    class PacketHook(val type: Class<*>, val incoming: Boolean, val handler: (net.minecraft.network.protocol.Packet<*>) -> Any?) {
+        fun matches(packet: net.minecraft.network.protocol.Packet<*>, incoming: Boolean) = incoming == this.incoming && type.isInstance(packet)
+    }
+
+    /** `onPacket` / `onPacketSent`: run on this job's thread. */
+    internal val packetHandlers = CopyOnWriteArrayList<PacketHook>()
+    /** `interceptPacket` / `interceptPacketSent`: run synchronously on the network thread; see [JobManager]. */
+    internal val packetFilters = CopyOnWriteArrayList<PacketHook>()
 
     /** Run synchronously on the client thread for each incoming / outgoing chat line. See [JobManager]. */
     internal val incomingInterceptors = CopyOnWriteArrayList<(String) -> String?>()
@@ -188,6 +200,12 @@ class Job internal constructor(
         scope.launch(callbackDispatcher) { action() }
     }
 
+    /** Start a coroutine that runs its callbacks in line with [runCallback]'s (timers). */
+    internal fun launchSerial(block: suspend CoroutineScope.() -> Unit): kotlinx.coroutines.Job {
+        checkAlive()
+        return scope.launch(callbackDispatcher, block = block)
+    }
+
     /** Script screens currently open; the job stays alive while any are. */
     internal val openScreens = java.util.concurrent.atomic.AtomicInteger()
 
@@ -239,6 +257,7 @@ class Job internal constructor(
             is Event.Binding -> bindingHandlers[event.slot]?.isNotEmpty() == true
             is Event.Game -> gameHandlers.isNotEmpty()
             is Event.Message -> messageHandlers[event.topic]?.isNotEmpty() == true
+            is Event.Packet -> packetHandlers.any { it.matches(event.packet, event.incoming) }
         }
         if (wanted) events.offer(event)
     }
@@ -304,6 +323,7 @@ class Job internal constructor(
                     is Event.Binding -> bindingHandlers[event.slot]?.forEach { it() }
                     is Event.Game -> gameHandlers.forEach { it(event.event) }
                     is Event.Message -> messageHandlers[event.topic]?.forEach { it(event.value) }
+                    is Event.Packet -> packetHandlers.forEach { if (it.matches(event.packet, event.incoming)) it.handler(event.packet) }
                 }
             }
         } catch (t: Throwable) {
@@ -315,6 +335,7 @@ class Job internal constructor(
         tickHandlers.isNotEmpty() || chatHandlers.isNotEmpty() || commandHandlers.isNotEmpty() ||
             keyWatches.isNotEmpty() || gameHandlers.isNotEmpty() || bindingHandlers.values.any { it.isNotEmpty() } ||
             messageHandlers.values.any { it.isNotEmpty() } || openScreens.get() > 0 ||
+            packetHandlers.isNotEmpty() || packetFilters.isNotEmpty() || MethodHooks.hasHooks(this) ||
             incomingInterceptors.isNotEmpty() || outgoingInterceptors.isNotEmpty()
 
     internal fun handleThrowable(t: Throwable) {
@@ -344,6 +365,8 @@ class Job internal constructor(
         waiters.forEach { it.result.cancel() }
         incomingInterceptors.clear()
         outgoingInterceptors.clear()
+        packetFilters.clear()
+        MethodHooks.removeAll(this)
         try {
             storage.release(this) // final save of `by persistent` values
         } catch (e: Exception) {

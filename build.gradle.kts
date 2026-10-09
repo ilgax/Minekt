@@ -37,6 +37,8 @@ dependencies {
     bundled("org.jetbrains.kotlin:kotlin-scripting-jvm-host:$kotlinVersion")
     bundled("org.jetbrains.kotlin:kotlin-scripting-jvm:$kotlinVersion")
     bundled("org.jetbrains.kotlin:kotlin-scripting-common:$kotlinVersion")
+    // Attaches a Java agent at runtime so scripts can hook methods of already-loaded game classes.
+    bundled("net.bytebuddy:byte-buddy-agent:${property("byte_buddy_version")}")
 
     testImplementation(kotlin("test"))
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")

@@ -4,9 +4,12 @@ import com.mojang.blaze3d.platform.InputConstants
 import dev.ilgax.minekt.api.ScriptHud
 import dev.ilgax.minekt.hooks.GameEventSource
 import dev.ilgax.minekt.hooks.InstallUi
+import dev.ilgax.minekt.hooks.MacroRecorder
+import dev.ilgax.minekt.hooks.PacketHooks
 import dev.ilgax.minekt.share.ScriptInstaller
 import dev.ilgax.minekt.hooks.ScriptCommands
 import dev.ilgax.minekt.hooks.ScriptKeys
+import dev.ilgax.minekt.hooks.ScriptManager
 import dev.ilgax.minekt.hooks.ScriptRenderer
 import dev.ilgax.minekt.job.Host
 import dev.ilgax.minekt.job.Job
@@ -33,11 +36,19 @@ import kotlin.io.path.exists
 object MinektClient : ClientModInitializer, Host {
     private val logger = LoggerFactory.getLogger("minekt")
     private const val PREFIX = "\\"
+    private const val RECENT_ERRORS = 5
     private val EXAMPLES = listOf("hello", "whereami", "ores", "autowalk", "chatbot", "hud", "commands", "deathpoint", "stash", "waypoints", "baritone_mine")
 
     override val scriptDir: Path = FabricLoader.getInstance().gameDir.resolve("minekt")
     val jobs = JobManager(this)
     private val installs by lazy { InstallUi(ScriptInstaller(scriptDir), scriptDir, ::echo) }
+    private val recorder by lazy { MacroRecorder(scriptDir) }
+
+    /** The last few errors shown in chat, for the script manager. */
+    private val recentErrors = java.util.concurrent.ConcurrentLinkedDeque<String>()
+    private val manager by lazy { ScriptManager(jobs, scriptDir, { installs.install(listOf(it)) }, { recentErrors.toList() }) }
+    /** Set by `\menu`; the manager opens on the next tick, once the chat screen has closed. */
+    @Volatile private var openManager = false
 
     override fun onInitializeClient() {
         ScriptClasspath.scriptDir = scriptDir
@@ -55,6 +66,7 @@ object MinektClient : ClientModInitializer, Host {
             jobs.dispatch(Job.Event.Chat(message.string))
         }
         val gameEvents = GameEventSource(jobs, onJoin = ::runAutorun).apply { register() }
+        PacketHooks.filter = PacketHooks.Filter(jobs::filterPacket)
         ClientTickEvents.END_CLIENT_TICK.register { mc ->
             TickClock.advance()
             jobs.dispatch(Job.Event.Tick)
@@ -62,6 +74,12 @@ object MinektClient : ClientModInitializer, Host {
             if (mc.gui.screen() == null) jobs.pollKeys(InputConstants::isKeyDown)
             if (mc.level != null) ScriptRenderer.submitTick()
             gameEvents.tick(mc)
+            recorder.tick(mc)
+            if (ScriptKeys.consumeManagerKey()) openManager = true
+            if (openManager) {
+                openManager = false
+                manager.open(mc)
+            }
         }
         ClientLifecycleEvents.CLIENT_STARTED.register {
             Thread({
@@ -151,6 +169,16 @@ object MinektClient : ClientModInitializer, Host {
             "install" -> installs.install(parts.drop(1))
             "update" -> installs.update(parts.getOrNull(1))
             "share" -> installs.share(parts.getOrNull(1))
+            "menu" -> openManager = true
+            "record" -> echo(
+                when (val what = parts.getOrNull(1)) {
+                    null -> "Usage: \\record <name> to start, \\record stop to save, \\record cancel"
+                    "stop" -> recorder.stop()
+                    "cancel" -> recorder.cancel()
+                    else -> ScriptInstaller.sanitizeName(what).takeIf { it.isNotEmpty() }?.let(recorder::start) ?: "Pick a name with letters and digits"
+                },
+                MessageKind.INFO,
+            )
             "scripts" -> echo("Scripts: " + jobs.availableScripts().joinToString(", ").ifEmpty { "(none)" }, MessageKind.INFO)
             else -> jobs.runScript(command, parts.drop(1))
         }
@@ -160,12 +188,14 @@ object MinektClient : ClientModInitializer, Host {
         listOf(
             "Minekt — Kotlin scripts from ${scriptDir.fileName}/",
             "\\<script> [args]  run <script>.kts",
+            "\\menu             open the script manager (or bind a key in Controls → Minekt)",
             "\\eval <code>      run a line of Kotlin",
             "\\jobs             list running scripts",
             "\\kill <id|all>    stop scripts",
             "\\scripts          list available scripts",
             "\\install <url>    install a script from a link (\\install for more)",
             "\\share <script>   copy a script to share it",
+            "\\record <name>    record your movement as a macro script (\\record stop saves it)",
         ).forEach { echo(it, MessageKind.INFO) }
     }
 
@@ -197,6 +227,10 @@ object MinektClient : ClientModInitializer, Host {
             MessageKind.SCRIPT -> Component.literal(message)
             MessageKind.INFO -> Component.literal(message).withStyle(ChatFormatting.GRAY)
             MessageKind.ERROR -> Component.literal(message).withStyle(ChatFormatting.RED)
+        }
+        if (kind == MessageKind.ERROR) {
+            recentErrors.addFirst(message)
+            while (recentErrors.size > RECENT_ERRORS) recentErrors.pollLast()
         }
         val mc = Minecraft.getInstance()
         mc.execute {

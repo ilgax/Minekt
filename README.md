@@ -28,6 +28,7 @@ findBlocks(radius) { it.endsWith("_ore") }
 |---|---|
 | `\<script> [args…]` | run `minekt/<script>.kts` (`"quoted args"` are grouped) |
 | `\eval <code>` | run one line of Kotlin and print its result, e.g. `\eval player.position` |
+| `\menu` | open the script manager (also a key you can bind in Controls → Minekt) |
 | `\jobs` | list running scripts, with their CPU use |
 | `\kill <id\|all>` | stop scripts |
 | `\scripts` | list available scripts |
@@ -35,9 +36,14 @@ findBlocks(radius) { it.endsWith("_ore") }
 | `\install clipboard [name]` | install a script someone shared with you |
 | `\update <script>` | get a newer version from where it was installed from |
 | `\share <script>` | copy a script to the clipboard to share it |
+| `\record <name>` / `\record stop` | record your movement and clicks as a macro script (see below) |
 | `\help` | show this list |
 
 Lines starting with `\` never reach the server.
+
+**Script manager:** `\menu`, or a key you bind under Controls → Minekt → Script manager, opens a screen with
+the running scripts (CPU use and a Stop button each), every script with Run and Edit (opens it in your editor),
+arguments, New script, Open folder, installing from a link, and the last few errors.
 
 **Autorun:** each `\command` line in `minekt/autorun.txt` runs whenever you join a world (`#` starts a comment).
 
@@ -62,6 +68,10 @@ Everything below is in scope in every script, no imports needed.
 | Commands | `command("name", completions) { args -> }` registers a real `/name` |
 | Screens | `showScreen(title) { text(…); toggle(…); slider(…); textField(…); choice(…); button(…) { }; row { } }` |
 | Messages | `publish(topic, value)`, `subscribe<T>(topic) { }`, `awaitMessage<T>(topic)`, `lastMessage<T>(topic)` |
+| Timers | `every(5.seconds) { }`, `after(30.seconds) { }`, `everyTicks(n) { }`, `afterTicks(n) { }`, `at("18:00") { }`, `atDaytime(13000) { }` |
+| Packets | `onPacket<T> { }`, `onPacketSent<T> { }`, `interceptPacket<T> { it or null }`, `interceptPacketSent<T> { }`, `awaitPacket<T>()`, `sendPacket(p)` |
+| Method hooks | `hook<Class>("method") { call -> }`, `hookAfter<Class>("method") { call -> }` (change `args`, `cancel(value)`, replace `result`) |
+| Macros | `macro(step(ticks, "forward jump", yaw, pitch, slot), …)`; `\record` writes these for you |
 | World rendering | `highlight(pos)`, `box(min, max)`, `line(a, b)`, `arrow(a, b)`, `text(pos, "…")`, `clearShapes()` |
 | Mods | `isModLoaded(id)`, `modVersion(id)`, `baritone.*` |
 | Raw access | `game { mc -> … }` runs on the client thread with the live `Minecraft` instance |
@@ -261,6 +271,7 @@ onBinding(1) {
 - `showScreen` returns a handle: `close()`, `refresh()` (runs the block again, e.g. after a list changed),
   `isOpen`, `onClose { }`, `awaitClose()` (suspend) and `waitForClose()` (blocking).
 - The script stays alive while its screen is open. The screen doesn't pause the game.
+- Screens taller than the window scroll with the mouse wheel.
 - The bundled `waypoints.kts` is a complete example: a per-world waypoint list with add/delete buttons that
   redraws itself with `refresh()` and publishes the waypoints for other scripts.
 
@@ -285,6 +296,88 @@ subscribe<Stats>("stats", latest = true) { hud("HP: ${it.health}", "In: ${it.dim
 - `awaitMessage<T>(topic)` waits for the next one inside a coroutine.
 - Each script has its own classes, so declare the same data class in both scripts (or use lists, maps,
   strings, numbers, Minekt's types). When the types differ, the value is copied across by its fields.
+
+### Timers
+
+```kotlin
+every(5.seconds) { hud("HP ${player.health}") }
+after(30.seconds) { echo("half a minute later") }
+everyTicks(10) { … }
+at("18:00") { toast("Dinner time") }               // your computer's clock, every day
+atDaytime(13000) { echo("Night is falling") }       // in-game time, every Minecraft day
+```
+
+- `5.seconds`, `200.milliseconds`, `2.minutes` and `1.hours` work without imports.
+- Timer actions run alongside the script body, one at a time (together with screen callbacks), so they can use
+  the whole API. The script stays alive while it has timers; each returns a handle with `cancel()`.
+
+### Packets
+
+Raw network packets, both directions. The classes are Minecraft's own (`net.minecraft.network.protocol.game.*`):
+
+```kotlin
+import net.minecraft.network.protocol.game.*
+
+onPacket<ClientboundSetHealthPacket> { echo("health now ${it.health}") }
+onPacketSent<ServerboundMovePlayerPacket> { moves++ }
+interceptPacket<ClientboundSoundPacket> { null }                              // drop every sound
+interceptPacket<ClientboundSystemChatPacket> { if ("spam" in it.content().string) null else it }
+sendPacket(ServerboundClientCommandPacket(ServerboundClientCommandPacket.Action.REQUEST_STATS))
+val stats = runBlocking { withTimeoutOrNull(5_000) { awaitPacket<ClientboundAwardStatsPacket>() } }
+```
+
+- `onPacket…` listeners run on the script thread after the body, like other events. `onPacket<Packet<*>>` sees
+  everything.
+- `intercept…` filters run right away on the network thread, before the game sees the packet: return it, a
+  replacement, or `null` to drop it. Keep them quick. A filter that throws is removed and the packet goes through.
+- Bundled packets are taken apart, so filters and listeners see each packet inside a bundle.
+
+### Hooking game methods
+
+Run code before or after any method of Minecraft or another mod, even though the game is already running:
+
+```kotlin
+hook<LivingEntity>("jumpFromGround") { call -> if (call.self is LocalPlayer) echo("jump!") }
+hook<LivingEntity>("jumpFromGround") { it.cancel() }                         // skip the method
+hookAfter<LivingEntity>("getSpeed") { it.result = (it.result as Float) * 2 }  // change what it returns
+hook<Hud>("setOverlayMessage", Component::class.java, Boolean::class.java) {   // overloaded: name the types
+    it.args[0] = Component.literal("rewritten")
+}
+```
+
+- `call.self` is the object (null for static methods), `call.args` the arguments (change them in `hook`),
+  `call.cancel(value)` skips the method and returns `value`, and in `hookAfter`, `call.result` can be replaced.
+  Numbers are converted to the method's types for you.
+- Handlers run right then, on whichever thread called the method (usually the game thread or the integrated
+  server's), so keep them quick. Calls a handler makes to hooked methods don't trigger hooks again.
+- Only the class that declares the method is hooked, not subclasses that override it: hook the class that has
+  the code. A class name works too: `hook("net.minecraft.client.player.LocalPlayer", "aiStep") { … }`.
+- Hooks come off when the script ends (or `handle.remove()`), and the method's original code is put back. A
+  handler that throws is removed.
+- How: Minekt attaches a Java agent at runtime and rewrites the method. That needs a Java runtime that allows
+  attaching agents (a full JDK does; some minimal runtimes don't, and then `hook` says so).
+
+### Macros
+
+`\record farm` starts recording. Play normally, then `\record stop` saves `farm.kts`, and `\farm` replays it.
+`\record cancel` throws a recording away. The saved script is plain Kotlin you can edit:
+
+```kotlin
+macro(
+    step(20, "forward sprint", yaw = 90.0f, pitch = 10.0f, slot = 0),
+    step(1, "forward sprint jump", yaw = 90.0f, pitch = 10.0f),
+    step(8, "attack", yaw = 92.5f, pitch = 40.0f, slot = 2),
+    speed = 1.0,
+)
+```
+
+- Each step holds exactly the listed keys for some ticks (20 per second) while looking at yaw/pitch. A key that
+  goes down at the start of a step also counts as a click, so `attack` hits mobs and `use` places blocks.
+- Recorded: movement keys, jump, sneak, sprint, attack, use, drop, swap hands, the camera and the hotbar slot.
+  A macro replays inputs, not positions, so start it where you started recording.
+- Clicks shorter than a tick (50 ms) can be missed while recording.
+- Replays are close, not exact: in testing, a recorded 6.2-block walk replayed as 6.0 to 7.6 blocks, because
+  timing and momentum differ slightly between runs. Fine for routines, not for pixel-perfect parkour.
 
 ### Sharing code
 
@@ -366,7 +459,7 @@ Notes:
   Java library (a huge regex, say) stops once that call returns.
 - Script code that runs on the game thread (`game { }` blocks, chat filters, live screen text) is never cut
   short. An endless loop there freezes the game, and `\kill` can't be typed while it's frozen.
-- Screens are a single column with no scrolling, so very long ones run off the bottom.
+- Screens are a single column.
 - The jar is about 55 MB because it bundles the Kotlin compiler.
 - No sandbox: scripts can do anything the game can. Only run scripts you trust.
 - Client-only and Fabric-only for now.
@@ -391,6 +484,8 @@ then open a singleplayer world. Each one reports `OK`/`FAIL` lines in chat and c
   restart.
 - `\features`: inventory and containers, interaction, events, chat filters, world info, scans and coroutines. It
   uses the singleplayer server to give items, deal damage and teleport.
+- `\more`: timers, packet hooks, method hooks, recording and replaying a macro, and the script manager. Needs
+  `xdo-runner.sh` too.
 - `\ui`: the watchdog (`\kill` on `while (true) {}`, the CPU warning), messages
   between scripts, and script screens. The screen part clicks and types for real: run the client with
   `dev/selftest/xdo-runner.sh --quickPlaySingleplayer <world>` (needs X11 and `xdotool`), which performs the

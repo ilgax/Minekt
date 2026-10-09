@@ -138,7 +138,7 @@ class ScriptScreen internal constructor(
         job.cleanups += ::closeNow
         try {
             api.game { mc ->
-                val screen = ScriptScreenView(title, items, doneButton, job, ::removed)
+                val screen = ScriptScreenView(title, items, doneButton, job::runCallback, ::removed)
                 view = screen
                 mc.gui.setScreen(screen)
             }

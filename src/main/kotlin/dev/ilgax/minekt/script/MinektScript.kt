@@ -33,6 +33,11 @@ class MinektCompilationConfiguration : ScriptCompilationConfiguration({
         "dev.ilgax.minekt.api.*",
         "kotlin.math.*",
         "kotlinx.coroutines.*",
+        "kotlin.time.Duration",
+        "kotlin.time.Duration.Companion.milliseconds",
+        "kotlin.time.Duration.Companion.seconds",
+        "kotlin.time.Duration.Companion.minutes",
+        "kotlin.time.Duration.Companion.hours",
     )
     defaultImports(Import::class)
     // Same bytecode target as the mod, so scripts can inline Minekt's inline helpers.

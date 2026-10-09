@@ -309,19 +309,6 @@ class Minekt internal constructor(internal val job: Job) {
 
     private fun Int.sq() = this * this
 
-    private fun net.minecraft.client.Options.mapping(key: Key): KeyMapping = when (key) {
-        Key.FORWARD -> keyUp
-        Key.BACK -> keyDown
-        Key.LEFT -> keyLeft
-        Key.RIGHT -> keyRight
-        Key.JUMP -> keyJump
-        Key.SNEAK -> keyShift
-        Key.SPRINT -> keySprint
-        Key.ATTACK -> keyAttack
-        Key.USE -> keyUse
-        Key.DROP -> keyDrop
-        Key.SWAP_OFFHAND -> keySwapOffhand
-    }
 }
 
 /** Number of "Script key N" slots in the Controls menu. */

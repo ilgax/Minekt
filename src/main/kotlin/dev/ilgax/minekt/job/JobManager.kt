@@ -72,6 +72,31 @@ class JobManager(private val host: Host) {
     /** Same for chat the player sends (not commands). */
     fun interceptOutgoing(text: String): String? = intercept(text, Job::outgoingInterceptors)
 
+    /**
+     * Network thread, for every packet the client receives ([incoming]) or sends. Every script's
+     * packet filters run in turn, then listeners are notified. Returns the packet to use (possibly
+     * replaced) or null to drop it.
+     */
+    fun filterPacket(packet: net.minecraft.network.protocol.Packet<*>, incoming: Boolean): net.minecraft.network.protocol.Packet<*>? {
+        var current = packet
+        for (job in running.values) {
+            for (filter in job.packetFilters) {
+                if (!filter.matches(current, incoming)) continue
+                val result = try {
+                    filter.handler(current)
+                } catch (t: Throwable) {
+                    job.packetFilters.remove(filter) // a broken filter must not break the connection
+                    job.handleThrowable(t)
+                    continue
+                }
+                current = result as? net.minecraft.network.protocol.Packet<*> ?: return null
+            }
+        }
+        val event = Job.Event.Packet(current, incoming)
+        for (job in running.values) job.post(event) // cheap when nobody listens; also wakes awaitPacket
+        return current
+    }
+
     private fun intercept(text: String, select: (Job) -> MutableList<(String) -> String?>): String? {
         var current = text
         for (job in running.values) {

@@ -1,9 +1,9 @@
 package dev.ilgax.minekt.hooks
 
 import dev.ilgax.minekt.api.ScreenItem
-import dev.ilgax.minekt.job.Job
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.components.AbstractSliderButton
+import net.minecraft.client.gui.components.AbstractWidget
 import net.minecraft.client.gui.components.Button
 import net.minecraft.client.gui.components.CycleButton
 import net.minecraft.client.gui.components.EditBox
@@ -15,103 +15,136 @@ import java.math.BigDecimal
 import kotlin.math.roundToInt
 
 /**
- * The Minecraft screen behind `showScreen`. Lives on the game thread; every change the player
- * makes is stored in its [ScreenItem] and handed to the script with [Job.runCallback].
+ * The Minecraft screen behind `showScreen` (and Minekt's own script manager). Lives on the game
+ * thread; every change the player makes is stored in its [ScreenItem] and handed to [runCallback].
+ * Content taller than the screen scrolls with the mouse wheel.
  */
 internal class ScriptScreenView(
     title: String,
     private var items: List<ScreenItem>,
     private val doneButton: Boolean,
-    private val job: Job,
-    private val onRemoved: () -> Unit,
+    /** Runs widget callbacks: on the script's side for script screens, right away for Minekt's own. */
+    private val runCallback: (() -> Unit) -> Unit,
+    private val onRemoved: () -> Unit = {},
+    /** If set, the items are rebuilt with [rebuild] whenever [signature] changes (checked twice a second). */
+    private val rebuild: (() -> List<ScreenItem>)? = null,
+    private val signature: (() -> Any?)? = null,
 ) : Screen(Component.literal(title)) {
 
     /** Text drawn by [extractRenderState]: static lines, live text and text-field labels. */
-    private class TextSlot(val item: ScreenItem.Text?, val x: Int, val y: Int, val centered: Boolean, var lines: List<String>)
+    private class TextSlot(val item: ScreenItem.Text?, val x: Int, val y: Int, val width: Int, val centered: Boolean, var lines: List<String>)
 
     private val texts = mutableListOf<TextSlot>()
+    /** Widgets that scroll with the content (everything but the Done button). */
+    private val scrolling = mutableListOf<AbstractWidget>()
+    private var scroll = 0
+    private var maxScroll = 0
+    private var lastSignature: Any? = signature?.invoke()
+    private var ticks = 0
+
+    private val viewBottom get() = if (doneButton) height - ROW - 2 * GAP else height - GAP
 
     override fun init() {
-        texts.clear()
         val columnWidth = minOf(COLUMN_WIDTH, width - 2 * MARGIN)
         val left = (width - columnWidth) / 2
-        var y = TOP
-        for (item in items) y = place(item, left, y, columnWidth) + GAP
+        var bottom = layout(left, columnWidth)
+        maxScroll = (bottom + scroll - TOP - (viewBottom - TOP)).coerceAtLeast(0)
+        if (scroll > maxScroll) {
+            scroll = maxScroll
+            clearWidgets()
+            bottom = layout(left, columnWidth)
+        }
+        // Only what fits between the title and the bottom is shown and clickable.
+        for (widget in scrolling) widget.visible = widget.y >= TOP && widget.y + widget.height <= viewBottom
         if (doneButton) {
-            val buttonY = (y + GAP).coerceAtMost(height - ROW - GAP).coerceAtLeast(y)
+            val buttonY = if (maxScroll > 0) viewBottom + GAP else (bottom + GAP).coerceAtMost(height - ROW - GAP)
             addRenderableWidget(Button.builder(CommonComponents.GUI_DONE) { onClose() }.bounds(width / 2 - 100, buttonY, 200, ROW).build())
         }
+    }
+
+    /** Place every item, shifted up by [scroll]; returns the bottom edge. */
+    private fun layout(left: Int, columnWidth: Int): Int {
+        texts.clear()
+        scrolling.clear()
+        var y = TOP - scroll
+        for (item in items) y = place(item, left, y, columnWidth) + GAP
+        return y
+    }
+
+    private fun <T : AbstractWidget> add(widget: T): T {
+        scrolling += widget
+        return addRenderableWidget(widget)
     }
 
     /** Lay out [item] in the box starting at ([x], [y]) with width [w]; returns its bottom edge. */
     private fun place(item: ScreenItem, x: Int, y: Int, w: Int): Int = when (item) {
         is ScreenItem.Text -> {
             val lines = textOf(item)
-            texts += TextSlot(item, x + w / 2, y, centered = true, lines)
+            texts += TextSlot(item, x + w / 2, y, w, centered = true, lines)
             y + lines.size * font.lineHeight
         }
         is ScreenItem.Button -> {
-            val button = Button.builder(Component.literal(item.label)) { job.runCallback(item.onClick) }.bounds(x, y, w, ROW)
+            val button = Button.builder(Component.literal(item.label)) { runCallback(item.onClick) }.bounds(x, y, w, ROW)
             item.tooltip?.let { button.tooltip(Tooltip.create(Component.literal(it))) }
-            addRenderableWidget(button.build())
+            add(button.build())
             y + ROW
         }
         is ScreenItem.Toggle -> {
-            addRenderableWidget(
+            add(
                 CycleButton.onOffBuilder(item.value).create(x, y, w, ROW, Component.literal(item.label)) { _, value ->
                     item.value = value
-                    job.runCallback { item.onChange(value) }
+                    runCallback { item.onChange(value) }
                 },
             )
             y + ROW
         }
         is ScreenItem.IntSlider -> {
             val span = (item.range.last - item.range.first).coerceAtLeast(1)
-            addRenderableWidget(
+            add(
                 Slider(x, y, w, item.label, (item.value - item.range.first).toDouble() / span,
                     toValue = { item.range.first + (it * span).roundToInt() },
                     format = { it.toString() },
                     current = { item.value },
-                    set = { value: Int -> item.value = value; job.runCallback { item.onChange(value) } }),
+                    set = { value: Int -> item.value = value; runCallback { item.onChange(value) } }),
             )
             y + ROW
         }
         is ScreenItem.DoubleSlider -> {
             val (start, end) = item.range.start to item.range.endInclusive
             val decimals = BigDecimal.valueOf(item.step).stripTrailingZeros().scale().coerceAtLeast(0)
-            addRenderableWidget(
+            add(
                 Slider(x, y, w, item.label, (item.value - start) / (end - start),
                     toValue = { (start + ((it * (end - start)) / item.step).roundToInt() * item.step).coerceIn(start, end) },
                     format = { "%.${decimals}f".format(it) },
                     current = { item.value },
-                    set = { value: Double -> item.value = value; job.runCallback { item.onChange(value) } }),
+                    set = { value: Double -> item.value = value; runCallback { item.onChange(value) } }),
             )
             y + ROW
         }
         is ScreenItem.TextField -> {
             val labelWidth = (font.width(item.label) + 6).coerceAtMost(w / 2)
-            texts += TextSlot(null, x, y + (ROW - font.lineHeight) / 2 + 1, centered = false, listOf(item.label))
+            texts += TextSlot(null, x, y + (ROW - font.lineHeight) / 2 + 1, labelWidth, centered = false, listOf(item.label))
             val box = EditBox(font, x + labelWidth, y, w - labelWidth, ROW, Component.literal(item.label))
             box.setMaxLength(item.maxLength)
             box.setValue(item.value)
             box.setResponder { value ->
                 if (value != item.value) {
                     item.value = value
-                    job.runCallback { item.onChange(value) }
+                    runCallback { item.onChange(value) }
                 }
             }
-            addRenderableWidget(box)
+            add(box)
             y + ROW
         }
         is ScreenItem.Choice -> {
             // Cycles over option indices: the options themselves may be null, which CycleButton can't hold.
-            addRenderableWidget(
+            add(
                 CycleButton.builder<Int>({ Component.literal(item.display(item.options[it])) }, item.options.indexOf(item.value).coerceAtLeast(0))
                     .withValues(item.options.indices.toList())
                     .create(x, y, w, ROW, Component.literal(item.label)) { _, index ->
                         val value = item.options[index]
                         item.value = value
-                        job.runCallback { item.onChange(value) }
+                        runCallback { item.onChange(value) }
                     },
             )
             y + ROW
@@ -138,6 +171,14 @@ internal class ScriptScreenView(
 
     override fun tick() {
         super.tick()
+        if (rebuild != null && signature != null && ++ticks % 10 == 0) {
+            val now = signature.invoke()
+            if (now != lastSignature) {
+                lastSignature = now
+                replaceItems(rebuild.invoke())
+                return
+            }
+        }
         var relayout = false
         for (slot in texts) {
             val item = slot.item ?: continue
@@ -155,10 +196,36 @@ internal class ScriptScreenView(
         for (slot in texts) {
             slot.lines.forEachIndexed { i, line ->
                 val y = slot.y + i * font.lineHeight
-                if (slot.centered) graphics.centeredText(font, line, slot.x, y, WHITE) else graphics.text(font, line, slot.x, y, LABEL)
+                if (y < TOP || y + font.lineHeight > viewBottom) return@forEachIndexed
+                val text = fit(line, slot.width)
+                if (slot.centered) graphics.centeredText(font, text, slot.x, y, WHITE) else graphics.text(font, text, slot.x, y, LABEL)
             }
         }
+        if (maxScroll > 0) {
+            // A thin scrollbar right of the column.
+            val columnWidth = minOf(COLUMN_WIDTH, width - 2 * MARGIN)
+            val x = (width + columnWidth) / 2 + 3
+            val track = viewBottom - TOP
+            val thumb = (track * track / (track + maxScroll)).coerceAtLeast(10)
+            val thumbY = TOP + (track - thumb) * scroll / maxScroll
+            graphics.fill(x, TOP, x + 2, viewBottom, TRACK)
+            graphics.fill(x, thumbY, x + 2, thumbY + thumb, LABEL)
+        }
     }
+
+    override fun mouseScrolled(mouseX: Double, mouseY: Double, scrollX: Double, scrollY: Double): Boolean {
+        if (maxScroll == 0) return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY)
+        val target = (scroll - (scrollY * SCROLL_STEP).roundToInt()).coerceIn(0, maxScroll)
+        if (target != scroll) {
+            scroll = target
+            rebuildWidgets()
+        }
+        return true
+    }
+
+    /** [line] cut to [width] pixels, with an ellipsis if it didn't fit. */
+    private fun fit(line: String, width: Int): String =
+        if (font.width(line) <= width) line else font.plainSubstrByWidth(line, (width - font.width("…")).coerceAtLeast(0)) + "…"
 
     override fun isPauseScreen() = false
 
@@ -201,5 +268,7 @@ internal class ScriptScreenView(
         const val GAP = 4
         const val WHITE = -0x1 // 0xFFFFFFFF
         const val LABEL = -0x5f5f60 // 0xFFA0A0A0
+        const val TRACK = 0x40FFFFFF
+        const val SCROLL_STEP = 24
     }
 }
