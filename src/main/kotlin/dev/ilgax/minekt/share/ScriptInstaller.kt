@@ -191,6 +191,7 @@ class ScriptInstaller(
             """\b(clickSlot|shiftClick|swapWithHotbar|dropSlot)\s*\(""" to "move or drop items in your inventory",
             """\b(press|hold|setOrientation|turnTo|turnToward|lookAt)\s*\(""" to "move you and turn your camera",
             """\bbaritone\b""" to "control Baritone",
+            """@file:DependsOn""" to "download and run code libraries from Maven (@file:DependsOn)",
             """@file:Import""" to "load other script files",
         ).map { (pattern, label) -> Regex(pattern) to label }
 

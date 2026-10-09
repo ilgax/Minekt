@@ -8,7 +8,7 @@ import java.util.concurrent.ExecutionException
  * Makes sure the Kotlin compiler is loadable before any script compiles.
  *
  * The full build bundles it, so there is nothing to do. The small build looks for (or downloads)
- * the pinned jar with [CompilerProvider] and adds it to Fabric's mod class loader at runtime, so
+ * the pinned jar with [PinnedJarProvider] and adds it to Fabric's mod class loader at runtime, so
  * from then on everything works exactly as in the full build. Runs once, in the background.
  */
 object CompilerSetup {
@@ -33,8 +33,8 @@ object CompilerSetup {
         started = true
         try {
             if (!isPresent()) {
-                val pin = CompilerProvider.Pin.fromResource() ?: error("This Minekt build has no compiler and no download information")
-                val provider = CompilerProvider(pin, libDir)
+                val pin = PinnedJarProvider.Pin.fromResource("minekt-compiler.txt").singleOrNull() ?: error("This Minekt build has no compiler and no download information")
+                val provider = PinnedJarProvider(pin, libDir)
                 val jar = provider.locate() ?: run {
                     notify("Downloading the Kotlin compiler (${pin.size / 1_000_000} MB, first launch only)", false)
                     var lastShown = -1L

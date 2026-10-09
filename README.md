@@ -86,6 +86,7 @@ Everything below is in scope in every script, no imports needed.
 | Timers | `every(5.seconds) { }`, `after(30.seconds) { }`, `everyTicks(n) { }`, `afterTicks(n) { }`, `at("18:00") { }`, `atDaytime(13000) { }` |
 | Packets | `onPacket<T> { }`, `onPacketSent<T> { }`, `interceptPacket<T> { it or null }`, `interceptPacketSent<T> { }`, `awaitPacket<T>()`, `sendPacket(p)` |
 | Method hooks | `hook<Class>("method") { call -> }`, `hookAfter<Class>("method") { call -> }` (change `args`, `cancel(value)`, replace `result`) |
+| Libraries | `@file:DependsOn("group:artifact:version")`, `@file:Repository("https://…")` |
 | Macros | `macro(step(ticks, "forward jump", yaw, pitch, slot), …)`; `\record` writes these for you |
 | World rendering | `highlight(pos)`, `box(min, max)`, `line(a, b)`, `arrow(a, b)`, `text(pos, "…")`, `clearShapes()` |
 | Mods | `isModLoaded(id)`, `modVersion(id)`, `baritone.*` |
@@ -393,6 +394,33 @@ macro(
 - Clicks shorter than a tick (50 ms) can be missed while recording.
 - Replays are close, not exact: in testing, a recorded 6.2-block walk replayed as 6.0 to 7.6 blocks, because
   timing and momentum differ slightly between runs. Fine for routines, not for pixel-perfect parkour.
+
+### Libraries from Maven
+
+Any JVM library on Maven Central (or another Maven repository) can be used from a script:
+
+```kotlin
+@file:DependsOn("org.apache.commons:commons-text:1.12.0")
+@file:Repository("https://jitpack.io")                 // optional: more repositories
+
+import org.apache.commons.text.WordUtils
+echo(WordUtils.capitalizeFully("hello from maven"))
+```
+
+- Libraries are resolved with Kotlin's own Maven resolver, so the full Maven rules apply: the libraries they
+  need in turn, parent POMs, BOMs, version conflicts, and your `~/.m2/settings.xml` (mirrors, private
+  repositories with passwords).
+- Downloads go into the standard Maven cache, `~/.m2/repository`: once per version, shared with any Java or
+  Kotlin tools on the computer, and available offline afterwards.
+- Each script sees only the libraries it asked for, so two scripts can use different versions of one library.
+  Things the game already has (Gson, Guava, the Kotlin standard library, …) come from the game.
+- Use exact versions (`1.12.0`, not `1.+`), so a script behaves the same everywhere.
+- Kotlin multiplatform libraries need their JVM artifact: `org.jetbrains.kotlinx:kotlinx-datetime-jvm:…`.
+- The resolver itself is a few MB of Maven code that's only loaded when a script first uses `@DependsOn`.
+  The full jar has it built in; the small jar downloads it on first use (pinned and hash-checked, like the
+  compiler).
+- A library is code from the internet, like a script. The `\install` preview lists `@DependsOn` among what a
+  script can do.
 
 ### Sharing code
 

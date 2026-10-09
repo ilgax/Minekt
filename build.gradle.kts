@@ -30,6 +30,25 @@ val providedByFabricKotlin = setOf(
     "org.jetbrains:annotations",
 )
 
+/**
+ * Jars of the Maven resolver used by `@file:DependsOn`. Loaded in their own class loader the first
+ * time a script needs them: bundled as plain files in the full jar, downloaded by the small one.
+ * Anything the game, Fabric or Fabric Language Kotlin already provides is left out.
+ */
+val resolverRuntime: Configuration = configurations.create("resolverRuntime") {
+    exclude(group = "org.jetbrains.kotlin", module = "kotlin-stdlib")
+    exclude(group = "org.jetbrains.kotlin", module = "kotlin-scripting-common")
+    exclude(group = "org.jetbrains.kotlin", module = "kotlin-scripting-dependencies")
+    exclude(group = "org.jetbrains.kotlinx")
+    exclude(group = "org.jetbrains", module = "annotations")
+    exclude(group = "com.google.code.gson")
+    exclude(group = "com.google.guava")
+    exclude(group = "commons-io")
+    exclude(group = "commons-codec")
+    exclude(group = "org.slf4j", module = "slf4j-api")
+    exclude(group = "org.ow2.asm")
+}
+
 dependencies {
     minecraft("com.mojang:minecraft:${property("minecraft_version")}")
     implementation("net.fabricmc:fabric-loader:${property("loader_version")}")
@@ -39,6 +58,10 @@ dependencies {
     bundled("org.jetbrains.kotlin:kotlin-scripting-jvm-host:$kotlinVersion")
     bundled("org.jetbrains.kotlin:kotlin-scripting-jvm:$kotlinVersion")
     bundled("org.jetbrains.kotlin:kotlin-scripting-common:$kotlinVersion")
+    // @file:DependsOn / @file:Repository annotations and the resolver interfaces (small).
+    bundled("org.jetbrains.kotlin:kotlin-scripting-dependencies:$kotlinVersion")
+    // The Maven resolver behind them: not on the mod classpath, loaded on first use (see resolverRuntime).
+    resolverRuntime("org.jetbrains.kotlin:kotlin-scripting-dependencies-maven:$kotlinVersion")
     // Attaches a Java agent at runtime so scripts can hook methods of already-loaded game classes.
     bundled("net.bytebuddy:byte-buddy-agent:${property("byte_buddy_version")}")
 
@@ -76,32 +99,32 @@ val compilerJar = bundled.incoming.artifactView {
     componentFilter { it is org.gradle.api.artifacts.component.ModuleComponentIdentifier && it.module == compilerModule }
 }.files
 
-/** Pins the exact compiler file (version + SHA-256) so the small build accepts nothing else. */
+/** Pins exact files (coordinates, SHA-256, size) so Minekt accepts nothing else at runtime. */
+fun pinLines(artifacts: Iterable<ResolvedArtifact>): String = artifacts.sortedBy { it.file.name }.joinToString("") { artifact ->
+    val id = artifact.moduleVersion.id
+    val digest = MessageDigest.getInstance("SHA-256").digest(artifact.file.readBytes()).joinToString("") { "%02x".format(it) }
+    val classifier = artifact.classifier?.let { ":$it" } ?: ""
+    "${id.group}:${id.name}:${id.version}$classifier $digest ${artifact.file.length()}\n"
+}
+
 val compilerPin = tasks.register("compilerPin") {
     val outDir = layout.buildDirectory.dir("generated/compilerPin")
-    val version = kotlinVersion
-    inputs.files(compilerJar)
+    inputs.files(compilerJar, resolverRuntime)
     outputs.dir(outDir)
     doLast {
-        val jar = compilerJar.singleFile
-        val digest = MessageDigest.getInstance("SHA-256").digest(jar.readBytes())
-        val file = outDir.get().file("minekt-compiler.properties").asFile
-        file.parentFile.mkdirs()
-        file.writeText(
-            """
-            group=org.jetbrains.kotlin
-            name=$compilerModule
-            version=$version
-            sha256=${digest.joinToString("") { "%02x".format(it) }}
-            size=${jar.length()}
-            """.trimIndent() + "\n",
-        )
+        val dir = outDir.get().asFile.apply { mkdirs() }
+        val compiler = bundled.resolvedConfiguration.resolvedArtifacts.filter { it.moduleVersion.id.name == compilerModule }
+        dir.resolve("minekt-compiler.txt").writeText(pinLines(compiler))
+        dir.resolve("minekt-resolver.txt").writeText(pinLines(resolverRuntime.resolvedConfiguration.resolvedArtifacts))
     }
 }
 sourceSets.main { resources.srcDir(compilerPin) }
 
 // The jar Loom builds bundles everything: that's the full one.
-tasks.jar { archiveClassifier = "full" }
+tasks.jar {
+    archiveClassifier = "full"
+    from(resolverRuntime) { into("minekt-resolver") }
+}
 
 /** fabric.mod.json of the full jar minus the bundled compiler. */
 val smallModJson = tasks.register("smallModJson") {
@@ -125,7 +148,7 @@ val smallJar = tasks.register<Zip>("smallJar") {
     val full = tasks.jar.flatMap { it.archiveFile }
     dependsOn(smallModJson)
     from(zipTree(full)) {
-        exclude("META-INF/jars/$compilerModule-*.jar", "fabric.mod.json")
+        exclude("META-INF/jars/$compilerModule-*.jar", "minekt-resolver/**", "fabric.mod.json")
     }
     from(smallModJson)
     archiveBaseName = base.archivesName

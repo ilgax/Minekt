@@ -3,6 +3,8 @@ package dev.ilgax.minekt.script
 import dev.ilgax.minekt.api.Minekt
 import java.io.File
 import kotlin.script.experimental.annotations.KotlinScript
+import kotlin.script.experimental.dependencies.DependsOn
+import kotlin.script.experimental.dependencies.Repository
 import kotlin.script.experimental.api.*
 import kotlin.script.experimental.host.FileBasedScriptSource
 import kotlin.script.experimental.host.FileScriptSource
@@ -39,7 +41,7 @@ class MinektCompilationConfiguration : ScriptCompilationConfiguration({
         "kotlin.time.Duration.Companion.minutes",
         "kotlin.time.Duration.Companion.hours",
     )
-    defaultImports(Import::class)
+    defaultImports(Import::class, DependsOn::class, Repository::class)
     // Same bytecode target as the mod, so scripts can inline Minekt's inline helpers.
     compilerOptions("-jvm-target", "25")
     jvm {
@@ -49,6 +51,7 @@ class MinektCompilationConfiguration : ScriptCompilationConfiguration({
     }
     refineConfiguration {
         onAnnotations(Import::class, handler = ::resolveImports)
+        onAnnotations(DependsOn::class, Repository::class, handler = ScriptDependencies::refine)
     }
     ide { acceptedLocations(ScriptAcceptedLocation.Everywhere) }
 })

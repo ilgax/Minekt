@@ -10,39 +10,47 @@ import java.nio.file.Path
 import java.nio.file.StandardCopyOption
 import java.security.MessageDigest
 import java.time.Duration
-import java.util.Properties
 import kotlin.io.path.exists
 import kotlin.io.path.isRegularFile
 import kotlin.io.path.listDirectoryEntries
 
 /**
- * Finds or downloads the Kotlin compiler jar for the small Minekt build, which ships without it.
+ * Finds or downloads a library jar Minekt doesn't always ship: the Kotlin compiler (small build) and
+ * the Maven resolver behind `@file:DependsOn` (fetched on first use).
  *
  * The exact file is pinned at build time ([Pin]: version and SHA-256). Any copy with that hash is
- * accepted, wherever it comes from: `minekt/lib/`, a Gradle or Maven cache, or a download from
- * Maven Central (or a mirror). Anything else is ignored, so a wrong or tampered file never loads.
+ * accepted, wherever it comes from: `minekt/lib/`, a Gradle or Maven cache, a copy shipped inside
+ * the full jar ([embedded]), or a download from Maven Central (or a mirror). Anything else is
+ * ignored, so a wrong or tampered file never loads.
  */
-class CompilerProvider(
+class PinnedJarProvider(
     private val pin: Pin,
     /** Where downloaded copies are kept (`.minecraft/minekt/lib`). */
     private val libDir: Path,
     /** Extra places to look for an existing copy (Gradle / Maven caches). */
     private val caches: List<Path> = defaultCaches(pin),
     private val mirrors: List<String> = MIRRORS,
+    /** A copy bundled with the mod, if this build has one. */
+    private val embedded: () -> java.io.InputStream? = { null },
     private val fetch: (URI, Path, (Long) -> Unit) -> Unit = ::download,
 ) {
-    /** The compiler jar Minekt was built against. */
-    data class Pin(val group: String, val name: String, val version: String, val sha256: String, val size: Long) {
-        val fileName get() = "$name-$version.jar"
+    /** One exact jar from Maven Central. */
+    data class Pin(val group: String, val name: String, val version: String, val sha256: String, val size: Long, val classifier: String? = null) {
+        val fileName get() = "$name-$version${classifier?.let { "-$it" } ?: ""}.jar"
         val mavenPath get() = "${group.replace('.', '/')}/$name/$version/$fileName"
 
         companion object {
-            /** Written into the jar by the build; null when it's missing (e.g. in tests). */
-            fun fromResource(): Pin? {
-                val props = Properties()
-                val stream = CompilerProvider::class.java.getResourceAsStream("/minekt-compiler.properties") ?: return null
-                stream.use(props::load)
-                return Pin(props.getProperty("group"), props.getProperty("name"), props.getProperty("version"), props.getProperty("sha256"), props.getProperty("size").toLong())
+            /**
+             * Pins written into the jar by the build, one per line: `group:name:version[:classifier] sha256 size`.
+             * Empty when the resource is missing.
+             */
+            fun fromResource(name: String): List<Pin> {
+                val stream = PinnedJarProvider::class.java.getResourceAsStream("/$name") ?: return emptyList()
+                return stream.bufferedReader().readLines().filter { it.isNotBlank() }.map { line ->
+                    val (coordinates, sha256, size) = line.trim().split(Regex("\\s+"))
+                    val parts = coordinates.split(':')
+                    Pin(parts[0], parts[1], parts[2], sha256, size.toLong(), parts.getOrNull(3))
+                }
             }
         }
     }
@@ -59,6 +67,14 @@ class CompilerProvider(
         Files.createDirectories(libDir)
         val target = libDir.resolve(pin.fileName)
         val temp = libDir.resolve("${pin.fileName}.part")
+        embedded()?.use { input ->
+            Files.copy(input, temp, StandardCopyOption.REPLACE_EXISTING)
+            if (matches(temp)) {
+                Files.move(temp, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
+                return target
+            }
+            Files.deleteIfExists(temp)
+        }
         val problems = mutableListOf<String>()
         for (mirror in mirrors) {
             try {
@@ -74,7 +90,7 @@ class CompilerProvider(
             }
         }
         throw IOException(
-            "Couldn't download the Kotlin compiler ${pin.version} (${problems.joinToString("; ")}). " +
+            "Couldn't download ${pin.fileName} (${problems.joinToString("; ")}). " +
                 "Connect to the internet once, or download ${pin.fileName} from Maven Central into $libDir",
         )
     }

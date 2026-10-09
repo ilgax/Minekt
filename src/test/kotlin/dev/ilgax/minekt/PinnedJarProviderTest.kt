@@ -1,7 +1,7 @@
 package dev.ilgax.minekt
 
 import com.sun.net.httpserver.HttpServer
-import dev.ilgax.minekt.script.CompilerProvider
+import dev.ilgax.minekt.script.PinnedJarProvider
 import java.io.IOException
 import java.net.InetSocketAddress
 import java.nio.file.Files
@@ -15,9 +15,9 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /** Finding and downloading the pinned compiler jar, against a local web server. */
-class CompilerProviderTest {
+class PinnedJarProviderTest {
     private val content = ByteArray(300_000) { (it * 31 % 251).toByte() }
-    private val pin = CompilerProvider.Pin(
+    private val pin = PinnedJarProvider.Pin(
         "org.jetbrains.kotlin", "kotlin-compiler-embeddable", "9.9.9",
         MessageDigest.getInstance("SHA-256").digest(content).joinToString("") { "%02x".format(it) }, content.size.toLong(),
     )
@@ -50,8 +50,18 @@ class CompilerProviderTest {
     @AfterTest
     fun stop() = server.stop(0)
 
-    private fun provider(vararg mirrors: String, caches: List<Path> = emptyList()) =
-        CompilerProvider(pin, lib, caches, mirrors.map(::mirror))
+    private fun provider(vararg mirrors: String, caches: List<Path> = emptyList(), embedded: ByteArray? = null) =
+        PinnedJarProvider(pin, lib, caches, mirrors.map(::mirror), embedded = { embedded?.inputStream() })
+
+    @Test
+    fun `a copy shipped in the mod is used without downloading, if its hash matches`() {
+        assertEquals(lib.resolve(pin.fileName), provider("down", embedded = content).obtain())
+        assertTrue(requests.isEmpty())
+        Files.delete(lib.resolve(pin.fileName))
+        // A broken embedded copy is skipped in favour of a download.
+        assertEquals(lib.resolve(pin.fileName), provider("good", embedded = content.copyOf(10)).obtain())
+        assertEquals(listOf("/good/${pin.mavenPath}"), requests)
+    }
 
     @Test
     fun `downloads from the next mirror when one is down, and keeps the file`() {

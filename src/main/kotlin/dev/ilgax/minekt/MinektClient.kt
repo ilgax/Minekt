@@ -19,6 +19,7 @@ import dev.ilgax.minekt.job.TickClock
 import dev.ilgax.minekt.script.ScriptClasspath
 import dev.ilgax.minekt.script.CompilerSetup
 import dev.ilgax.minekt.script.ScriptCompiler
+import dev.ilgax.minekt.script.ScriptDependencies
 import net.fabricmc.loader.impl.launch.FabricLauncherBase
 import net.minecraft.client.gui.components.toasts.SystemToast
 import net.fabricmc.api.ClientModInitializer
@@ -55,6 +56,8 @@ object MinektClient : ClientModInitializer, Host {
 
     override fun onInitializeClient() {
         ScriptClasspath.scriptDir = scriptDir
+        ScriptDependencies.libDir = scriptDir.resolve("lib")
+        ScriptDependencies.onDownload = { notifyCompiler(it, false) }
         installExamples()
         ScriptHud.register()
         ScriptCommands.register()
