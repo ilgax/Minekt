@@ -6,7 +6,7 @@
   "description": "Kotlin scripting for Minecraft. Drop .kts files into .minecraft/minekt and run them from chat with \\name.",
   "authors": ["ilgax"],
   "contact": {
-    "sources": "https://github.com/ilgax/KraftScript"
+    "sources": "https://github.com/ilgax/Minekt"
   },
   "license": "GPL-3.0-or-later",
   "environment": "client",
