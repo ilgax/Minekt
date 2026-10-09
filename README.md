@@ -31,6 +31,10 @@ findBlocks(radius) { it.endsWith("_ore") }
 | `\jobs` | list running scripts |
 | `\kill <id\|all>` | stop scripts |
 | `\scripts` | list available scripts |
+| `\install <url> [name]` | install a script from a link, after a preview (see below) |
+| `\install clipboard [name]` | install a script someone shared with you |
+| `\update <script>` | get a newer version from where it was installed from |
+| `\share <script>` | copy a script to the clipboard to share it |
 | `\help` | show this list |
 
 Lines starting with `\` never reach the server.
@@ -44,6 +48,7 @@ Everything below is in scope in every script, no imports needed.
 | Area | API |
 |---|---|
 | Output | `echo(vararg parts)`, `chat(msg)` (a leading `/` makes it a command), `execute(cmd)`, `hud(vararg lines)` |
+| Feedback | `playSound(id)`, `toast(title, message)`, `actionBar(text)`, `title(title, subtitle)`, `screenshot(name)` |
 | Control | `args`, `jobId`, `sleep(ms)`, `waitTicks(n)`, `stop()` |
 | Player | `player` (name, position, yaw/pitch, health, dimension, selectedSlot), `position`, `setOrientation(yaw, pitch)`, `lookAt(x, y, z)`, `turnTo(yaw, pitch, ticks)`, `turnToward(x, y, z, ticks)` |
 | Input | `press(Key.FORWARD)`, `release(key)`, `hold(key, ms)`; held keys are released when the script ends |
@@ -228,6 +233,30 @@ var motd by persistent(store = "shared") { "" }                         // share
 echo(shout("hello"))
 ```
 
+## Installing and sharing scripts
+
+```
+\install https://github.com/someone/scripts/blob/main/autofarm.kts
+```
+
+Minekt downloads the script but **doesn't install it yet**. First it shows a preview in chat:
+- the script's name and size, and whether it replaces one you already have
+- a plain-language list of what it can do: "send chat messages or commands as you", "connect to the internet",
+  "read or write files on your computer", "use raw game access", ...
+- whether it compiles
+
+Then click **[Install]**, **[View source]** (opens it in your editor) or **[Cancel]**, or type `\install yes` /
+`\install no`. A preview expires after 10 minutes. Installed scripts remember where they came from, so
+`\update autofarm` fetches the latest version through the same preview.
+
+- GitHub, gist and pastebin page links are turned into raw-file links automatically; any raw link works.
+- Only `https://` is accepted (plain `http` only for `localhost`), at most 512 KB, and web pages are rejected.
+- **To share** a script, `\share autofarm` copies it to your clipboard. Paste it anywhere: Discord, a gist, a
+  message. Others install it with `\install clipboard` (the name comes from its `// \autofarm` first line,
+  or add one: `\install clipboard autofarm`).
+- The capability list is a quick scan of the source, not a sandbox. A script can do anything the game can, so
+  only install scripts from people you trust.
+
 ## Other mods (Baritone and anything else)
 
 Scripts compile against **every loaded mod's jar**, so any mod's public API can be used directly:
@@ -286,6 +315,8 @@ Requires JDK 25.
 then open a singleplayer world. Each one reports `OK`/`FAIL` lines in chat and closes the game.
 - `\hooktest` then `\selftest`: core API, commands, keys and rendering. When it prints `PRESS KEYS NOW`, press
   J and K so the key hooks get exercised.
+- `\sharing`: feedback, and installing, updating and sharing. Needs a local web server on 127.0.0.1:8765 (see
+  the top of the file).
 - `\persist`: run it in two separate launches. The first stores values; the second checks they survived the
   restart.
 - `\features`: inventory and containers, interaction, events, chat filters, world info, scans and coroutines. It

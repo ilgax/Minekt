@@ -3,6 +3,8 @@ package dev.ilgax.minekt
 import com.mojang.blaze3d.platform.InputConstants
 import dev.ilgax.minekt.api.ScriptHud
 import dev.ilgax.minekt.hooks.GameEventSource
+import dev.ilgax.minekt.hooks.InstallUi
+import dev.ilgax.minekt.share.ScriptInstaller
 import dev.ilgax.minekt.hooks.ScriptCommands
 import dev.ilgax.minekt.hooks.ScriptKeys
 import dev.ilgax.minekt.hooks.ScriptRenderer
@@ -35,6 +37,7 @@ object MinektClient : ClientModInitializer, Host {
 
     override val scriptDir: Path = FabricLoader.getInstance().gameDir.resolve("minekt")
     val jobs = JobManager(this)
+    private val installs by lazy { InstallUi(ScriptInstaller(scriptDir), scriptDir, ::echo) }
 
     override fun onInitializeClient() {
         ScriptClasspath.scriptDir = scriptDir
@@ -42,6 +45,7 @@ object MinektClient : ClientModInitializer, Host {
         ScriptHud.register()
         ScriptCommands.register()
         ScriptKeys.register()
+        installs.register()
 
         registerChatHooks()
         ClientReceiveMessageEvents.GAME.register { message, overlay ->
@@ -141,6 +145,9 @@ object MinektClient : ClientModInitializer, Host {
                 val code = line.removePrefix("eval").trim()
                 if (code.isEmpty()) echo("Usage: \\eval <kotlin code>", MessageKind.ERROR) else jobs.eval(code)
             }
+            "install" -> installs.install(parts.drop(1))
+            "update" -> installs.update(parts.getOrNull(1))
+            "share" -> installs.share(parts.getOrNull(1))
             "scripts" -> echo("Scripts: " + jobs.availableScripts().joinToString(", ").ifEmpty { "(none)" }, MessageKind.INFO)
             else -> jobs.runScript(command, parts.drop(1))
         }
@@ -154,6 +161,8 @@ object MinektClient : ClientModInitializer, Host {
             "\\jobs             list running scripts",
             "\\kill <id|all>    stop scripts",
             "\\scripts          list available scripts",
+            "\\install <url>    install a script from a link (\\install for more)",
+            "\\share <script>   copy a script to share it",
         ).forEach { echo(it, MessageKind.INFO) }
     }
 

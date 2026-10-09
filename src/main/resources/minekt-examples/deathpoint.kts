@@ -1,11 +1,12 @@
 // \deathpoint — remembers where you die and points you back after respawning.
-// Shows: game events, coroutines, world rendering, persistent values.
+// Shows: game events, coroutines, world rendering, persistent values, toasts and sounds.
 var lastDeath by persistent<Vec3?>(perWorld = true) { null } // survives restarts
 var marker: List<ShapeHandle> = emptyList()
 
 onDeath {
     lastDeath = position
     echo("Died at ${position.blockPos} in ${world.dimension}")
+    toast("You died", "at ${position.blockPos}")
 }
 onRespawn {
     val spot = lastDeath ?: return@onRespawn
@@ -25,7 +26,8 @@ onRespawn {
         }
         arrow?.remove()
         marker.forEach { it.remove() }
-        echo("Found it!")
+        playSound("minecraft:entity.player.levelup")
+        actionBar("Found it!")
     }
 }
 echo("Death point tracker running (\\kill $jobId to stop)")
