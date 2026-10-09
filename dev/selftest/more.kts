@@ -218,12 +218,14 @@ check("Stop a running script from the manager") {
     if (!waitFor(10) { MinektClient.jobs.jobs.any { it.name == "eval" } }) return@check "FALSE eval didn't start"
     if (game { it.gui.screen()?.title?.string } != "Minekt scripts") chat("\\menu")
     waitFor(5) { widgetCenter("Stop") != null && game { mc -> mc.gui.screen()!!.children().filterIsInstance<AbstractWidget>().count { it.message.string == "Stop" } } >= 2 }
-    // Back to the top, where the running scripts are listed.
+    // The eval job is the newest, so its Stop button is the last one. Scroll up until it's on screen: clicking
+    // another visible Stop would stop this test instead.
+    fun evalStop() = game { mc -> mc.gui.screen()!!.children().filterIsInstance<AbstractWidget>().last { it.message.string == "Stop" } }
     val (cx, cy) = game { mc -> (mc.window.width / 2) to (mc.window.height / 2) }
-    xdo("mousemove --window WIN $cx $cy click 4 click 4 click 4 click 4 click 4 click 4 click 4 click 4")
-    // The eval job is the newest, so its Stop button is the last one.
+    repeat(5) { if (!evalStop().visible) xdo("mousemove --window WIN $cx $cy click 4 click 4 click 4 click 4 click 4 click 4 click 4 click 4") }
+    if (!evalStop().visible) return@check "FALSE couldn't scroll the eval job's Stop button into view"
     val (x, y) = game { mc ->
-        val w = mc.gui.screen()!!.children().filterIsInstance<AbstractWidget>().last { it.visible && it.message.string == "Stop" }
+        val w = evalStop()
         val scale = mc.window.guiScale.toDouble()
         ((w.x + w.width / 2.0) * scale).toInt() to ((w.y + w.height / 2.0) * scale).toInt()
     }
