@@ -70,7 +70,10 @@ object MinektClient : ClientModInitializer, Host {
                 contextClassLoader = MinektClient::class.java.classLoader
             }.start()
         }
-        ClientLifecycleEvents.CLIENT_STOPPING.register { jobs.killAll() }
+        ClientLifecycleEvents.CLIENT_STOPPING.register {
+            jobs.storage.saveAll() // jobs save as they end, but the JVM may exit before they get to
+            jobs.killAll()
+        }
     }
 
     /**

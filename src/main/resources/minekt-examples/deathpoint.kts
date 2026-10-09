@@ -1,6 +1,6 @@
 // \deathpoint — remembers where you die and points you back after respawning.
-// Shows: game events, coroutines, world rendering.
-var lastDeath: Vec3? = null
+// Shows: game events, coroutines, world rendering, persistent values.
+var lastDeath by persistent<Vec3?>(perWorld = true) { null } // survives restarts
 var marker: List<ShapeHandle> = emptyList()
 
 onDeath {

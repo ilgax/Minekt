@@ -42,6 +42,7 @@ class Job internal constructor(
     val args: List<String>,
     private val source: SourceCode,
     internal val host: Host,
+    internal val storage: PersistentStore,
     private val onExit: (Job) -> Unit,
 ) {
     sealed interface Event {
@@ -285,6 +286,12 @@ class Job internal constructor(
         waiters.forEach { it.result.cancel() }
         incomingInterceptors.clear()
         outgoingInterceptors.clear()
+        try {
+            storage.release(this) // final save of `by persistent` values
+        } catch (e: Exception) {
+            host.echo("[$name] Couldn't save persistent data: ${e.message}", MessageKind.ERROR)
+            LOGGER.error("Saving persistent data of {} failed", name, e)
+        }
         cleanups.forEach { runCatching(it) }
         commandHandlers.keys.forEach { name -> runCatching { host.unregisterCommand(name, this) } }
         if (heldKeys.isNotEmpty()) {

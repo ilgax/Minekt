@@ -14,6 +14,9 @@ class JobManager(private val host: Host) {
     private val nextId = AtomicInteger(1)
     private val running = ConcurrentSkipListMap<Int, Job>()
 
+    /** Backing files for `by persistent` values, in `<scriptDir>/data`. */
+    val storage = PersistentStore(host.scriptDir.resolve("data"))
+
     val jobs: Collection<Job> get() = running.values
 
     /** Start `<scriptDir>/<name>.kts`; returns null (after telling the player) if it doesn't exist. */
@@ -29,7 +32,7 @@ class JobManager(private val host: Host) {
     fun eval(code: String): Job = start(Job.EVAL_NAME, emptyList(), code.toScriptSource("eval.kts"))
 
     fun start(name: String, args: List<String>, source: SourceCode): Job {
-        val job = Job(nextId.getAndIncrement(), name, args, source, host) { running.remove(it.id) }
+        val job = Job(nextId.getAndIncrement(), name, args, source, host, storage) { running.remove(it.id) }
         running[job.id] = job
         job.start()
         return job

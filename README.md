@@ -52,6 +52,7 @@ Everything below is in scope in every script, no imports needed.
 | World | `world` (dimension, timeOfDay, gameTime, isDay, rain, thunder), `getBlock(x, y, z)`, `findBlocks(radius) { id -> … }`, `scanRegion(from, to) { id -> … }`, `isLoaded(x, z)`, `entities(radius)`, `players()` |
 | Events | `onChat`, `onTick`, `onKey("k")`, `onBinding(1)`, `onDamage`, `onDeath`, `onRespawn`, `onJoinWorld`, `onLeaveWorld`, `onDimensionChange`, `onScreenOpen`, `onScreenClose`, `onChunkLoad`, `onItemGained`, `onEvent` |
 | Chat filters | `interceptChat { text -> text or null }` (incoming), `interceptSend { … }` (outgoing) |
+| Persistence | `val x by persistent { default }` (options `perWorld`, `store`, `key`), `save()` |
 | Coroutines | `launch { }`, `async { }`, `awaitTicks(n)`, `awaitChat { }`, `awaitEvent { }`, `awaitEventOf<T>()`, `awaitScreen { }`, `awaitBinding(n)` (+ all of `kotlinx.coroutines`) |
 | Commands | `command("name", completions) { args -> }` registers a real `/name` |
 | World rendering | `highlight(pos)`, `box(min, max)`, `line(a, b)`, `arrow(a, b)`, `text(pos, "…")`, `clearShapes()` |
@@ -201,6 +202,24 @@ clearShapes()                                                   // or drop them 
 - Shapes use Minecraft's built-in gizmo renderer. They're redrawn every tick from data the script sets, so
   scripts never run code on the render thread.
 
+### Remembering things between runs
+
+```kotlin
+val homes by persistent { mutableMapOf<String, Vec3>() }               // in-place changes are saved too
+var runs by persistent { 0 }; runs++
+val seen by persistent(perWorld = true) { mutableSetOf<String>() }     // one value per world/server
+var motd by persistent(store = "shared") { "" }                         // shared between scripts
+```
+
+- The value is restored when the script starts, or created by the `{ default }` the first time.
+- Saved to `.minecraft/minekt/data/<script>.json` (readable JSON). That happens when you assign a `var`, every
+  few seconds for in-place changes, when the script ends, and when the game closes. Call `save()` to force it.
+- Lists, sets, maps, strings, numbers, booleans, Minekt's types (`Vec3`, `BlockPos`, ...) and your own data
+  classes all work, and come back as their declared types.
+- `perWorld` keys singleplayer worlds by save folder and servers by address.
+- If a saved value no longer fits the declared type (you changed it), the script warns and starts from the
+  default. An unreadable file is moved aside to `<name>.json.broken`, not deleted.
+
 ### Sharing code
 
 ```kotlin
@@ -267,6 +286,8 @@ Requires JDK 25.
 then open a singleplayer world. Each one reports `OK`/`FAIL` lines in chat and closes the game.
 - `\hooktest` then `\selftest`: core API, commands, keys and rendering. When it prints `PRESS KEYS NOW`, press
   J and K so the key hooks get exercised.
+- `\persist`: run it in two separate launches. The first stores values; the second checks they survived the
+  restart.
 - `\features`: inventory and containers, interaction, events, chat filters, world info, scans and coroutines. It
   uses the singleplayer server to give items, deal damage and teleport.
 

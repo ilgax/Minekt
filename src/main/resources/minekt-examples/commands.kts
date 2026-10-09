@@ -1,7 +1,7 @@
 // \commands — adds real /commands (with Tab completion) while this script runs.
 //   /coords                 → print your position
 //   /mark <name>, /goto <name>  → remember a spot and look towards it
-val marks = mutableMapOf<String, Vec3>()
+val marks by persistent(perWorld = true) { mutableMapOf<String, Vec3>() } // kept per world, across restarts
 
 command("coords") { echo("You're at ${player.position}") }
 command("mark") { args ->
