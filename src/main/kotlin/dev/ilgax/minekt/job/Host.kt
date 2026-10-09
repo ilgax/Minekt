@@ -24,6 +24,9 @@ interface Host {
 
     /** Display name of the key bound to script keybind [slot] (1-based), e.g. "K" or "Not Bound". */
     fun bindingKeyName(slot: Int): String
+
+    /** Show a script error. Defaults to its one-line [ErrorReport.headline]. */
+    fun showError(report: ErrorReport) = echo(report.headline, MessageKind.ERROR)
 }
 
 enum class MessageKind { SCRIPT, INFO, ERROR }

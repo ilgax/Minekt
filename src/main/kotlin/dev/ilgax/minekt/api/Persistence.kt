@@ -2,6 +2,7 @@ package dev.ilgax.minekt.api
 
 import com.google.gson.reflect.TypeToken
 import dev.ilgax.minekt.job.MessageKind
+import dev.ilgax.minekt.job.ScriptLogs
 import net.minecraft.world.level.storage.LevelResource
 import java.lang.reflect.Type
 import kotlin.properties.ReadWriteProperty
@@ -53,7 +54,7 @@ class PersistentProperty<T> @PublishedApi internal constructor(
         val initial: T = try {
             job.storage.read<T>(storeName, fullKey, type)
         } catch (e: Exception) {
-            job.host.echo("[${job.name}] Saved '$fullKey' doesn't fit its type any more (${e.message}); starting fresh", MessageKind.ERROR)
+            job.log(ScriptLogs.Level.WARN, "Saved '$fullKey' doesn't fit its type any more (${e.message}); starting fresh", chat = MessageKind.ERROR)
             null
         } ?: default()
         val holder = Holder(initial)

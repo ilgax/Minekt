@@ -47,6 +47,7 @@ class Job internal constructor(
     internal val host: Host,
     internal val storage: PersistentStore,
     internal val bus: MessageBus,
+    internal val logs: ScriptLogs,
     private val onExit: (Job) -> Unit,
 ) {
     sealed interface Event {
@@ -119,6 +120,18 @@ class Job internal constructor(
         if (killed) throw JobKilledException()
     }
 
+    /** Write to this script's log, and with [chat] also to chat as `[name] text`. */
+    internal fun log(level: ScriptLogs.Level, text: String, detail: String? = null, chat: MessageKind? = null) {
+        logs.add(name, level, text, detail, id)
+        if (chat != null) host.echo("[$name] $text", chat)
+    }
+
+    /** What the script itself prints with `echo`. */
+    internal fun output(text: String) {
+        logs.add(name, ScriptLogs.Level.ECHO, text, run = id)
+        host.echo(text)
+    }
+
     // ---- CPU use --------------------------------------------------------------------------------
 
     private var lastCpuNanos = -1L
@@ -141,7 +154,7 @@ class Job internal constructor(
             cpuPercent = percent
             if (percent >= CPU_WARN_PERCENT && !warnedCpu) {
                 warnedCpu = true
-                host.echo("[$name] is keeping a CPU core busy ($percent%). \\kill $id stops it.", MessageKind.ERROR)
+                log(ScriptLogs.Level.WARN, "is keeping a CPU core busy ($percent%). \\kill $id stops it.", chat = MessageKind.ERROR)
             }
         }
         lastCpuNanos = if (compiling) -1 else cpu
@@ -270,9 +283,10 @@ class Job internal constructor(
             try {
                 CompilerSetup.awaitReady { status -> host.echo("[$name] $status… the script starts when it's done", MessageKind.INFO) }
             } catch (e: IllegalStateException) {
-                host.echo("[$name] Scripts can't run yet: ${e.message}", MessageKind.ERROR)
+                log(ScriptLogs.Level.ERROR, "Scripts can't run yet: ${e.message}", chat = MessageKind.ERROR)
                 return
             }
+            log(ScriptLogs.Level.INFO, "Started" + if (args.isEmpty()) "" else " with ${args.joinToString(" ")}")
             // Watchdog-instrumented, so \kill works even on loops that never call the API.
             val compiled = when (val result = ScriptCompiler.compile(source)) {
                 is ResultWithDiagnostics.Success -> ScriptCompiler.instrumented(result.value)
@@ -295,7 +309,10 @@ class Job internal constructor(
                     is ResultValue.Error -> handleThrowable(value.error)
                     is ResultValue.Value -> {
                         // `\eval launch { … }` returns a coroutine handle; not worth echoing.
-                        if (name == EVAL_NAME && value.value !is kotlinx.coroutines.Job) host.echo("= ${value.value}", MessageKind.INFO)
+                        if (name == EVAL_NAME && value.value !is kotlinx.coroutines.Job) {
+                            logs.add(name, ScriptLogs.Level.ECHO, "= ${value.value}", run = id)
+                            host.echo("= ${value.value}", MessageKind.INFO)
+                        }
                         listen()
                     }
                     else -> listen()
@@ -306,8 +323,22 @@ class Job internal constructor(
         } finally {
             state = State.DONE
             cleanup()
+            logEnd()
             onExit(this)
         }
+    }
+
+    private val startedNanos = System.nanoTime()
+    @Volatile private var failed = false
+
+    private fun logEnd() {
+        val seconds = (System.nanoTime() - startedNanos) / 1e9
+        val how = when {
+            killed -> "Killed"
+            failed -> "Ended by an error"
+            else -> "Finished"
+        }
+        logs.add(name, ScriptLogs.Level.INFO, "%s after %.1f s".format(how, seconds), run = id)
     }
 
     private fun keepAlive() = !killed && !stopRequested && (hasHandlers() || coroutinesActive())
@@ -351,20 +382,29 @@ class Job internal constructor(
             killed || root is JobKilledException || root is InterruptedException -> Unit
             t is JobStopException || root is JobStopException -> stopRequested = true
             else -> {
-                val frame = root.stackTrace.firstOrNull { it.className.startsWith("Script") || it.fileName?.endsWith(".kts") == true }
-                val where = frame?.let { " (line ${it.lineNumber})" }.orEmpty()
-                host.echo("[$name] ${root.javaClass.simpleName}: ${root.message}$where", MessageKind.ERROR)
+                failed = true
+                val report = ErrorReport.fromThrowable(name, t, source)
+                logs.add(name, ScriptLogs.Level.ERROR, report.headline.substringAfter("] "), report.detail, id)
+                host.showError(report)
                 LOGGER.error("Script {} failed", name, t)
             }
         }
     }
 
     private fun reportDiagnostics(reports: List<ScriptDiagnostic>) {
-        reports.filter { it.severity >= ScriptDiagnostic.Severity.ERROR }.forEach { diagnostic ->
-            val line = diagnostic.location?.start?.let { ":${it.line}:${it.col}" }.orEmpty()
-            host.echo("[$name$line] ${diagnostic.message}", MessageKind.ERROR)
-            diagnostic.exception?.let { LOGGER.error("Script {} compile error", name, it) }
+        failed = true
+        val errors = reports.filter { it.severity >= ScriptDiagnostic.Severity.ERROR }.map { ErrorReport.fromDiagnostic(name, it, source) }
+        reports.filter { it.severity == ScriptDiagnostic.Severity.WARNING }.forEach { warning ->
+            val report = ErrorReport.fromDiagnostic(name, warning, source)
+            logs.add(name, ScriptLogs.Level.WARN, "line ${report.line ?: "?"}: ${report.summary}", run = id)
         }
+        errors.forEach { report ->
+            logs.add(name, ScriptLogs.Level.ERROR, "line ${report.line ?: "?"}: ${report.summary}", report.detail.takeIf { '\n' in it }, id)
+        }
+        // A broken line often causes several errors: show the first few, the rest are in the log.
+        errors.take(MAX_ERRORS_SHOWN).forEach(host::showError)
+        if (errors.size > MAX_ERRORS_SHOWN) host.echo("[$name] …and ${errors.size - MAX_ERRORS_SHOWN} more errors (\\log $name)", MessageKind.ERROR)
+        reports.mapNotNull { it.exception }.forEach { LOGGER.error("Script {} compile error", name, it) }
     }
 
     private fun cleanup() {
@@ -377,7 +417,7 @@ class Job internal constructor(
         try {
             storage.release(this) // final save of `by persistent` values
         } catch (e: Exception) {
-            host.echo("[$name] Couldn't save persistent data: ${e.message}", MessageKind.ERROR)
+            log(ScriptLogs.Level.ERROR, "Couldn't save persistent data: ${e.message}", chat = MessageKind.ERROR)
             LOGGER.error("Saving persistent data of {} failed", name, e)
         }
         cleanups.forEach { runCatching(it) }
@@ -391,6 +431,7 @@ class Job internal constructor(
     companion object {
         const val EVAL_NAME = "eval"
         private const val CPU_WARN_PERCENT = 90
+        private const val MAX_ERRORS_SHOWN = 3
         private val LOGGER = org.slf4j.LoggerFactory.getLogger("minekt")
     }
 }

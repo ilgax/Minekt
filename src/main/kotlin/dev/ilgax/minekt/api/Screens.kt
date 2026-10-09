@@ -54,6 +54,11 @@ class ScreenBuilder internal constructor() {
         items += ScreenItem.Text(live, live = true)
     }
 
+    /** Left-aligned text that wraps; `§` color codes work. Used by Minekt's own screens. */
+    internal fun leftText(text: String) {
+        items += ScreenItem.Text({ text }, live = false, left = true)
+    }
+
     fun button(label: String, tooltip: String? = null, onClick: () -> Unit) {
         items += ScreenItem.Button(label, tooltip, onClick)
     }
@@ -108,7 +113,8 @@ class ScreenBuilder internal constructor() {
 
 /** Widget descriptions. Values are updated in place as the player edits them, so rebuilding a layout keeps them. */
 internal sealed interface ScreenItem {
-    class Text(val text: () -> String, val live: Boolean) : ScreenItem
+    /** [left]: left-aligned and wrapped instead of centered and cut (Minekt's log viewer). */
+    class Text(val text: () -> String, val live: Boolean, val left: Boolean = false) : ScreenItem
     class Button(val label: String, val tooltip: String?, val onClick: () -> Unit) : ScreenItem
     class Toggle(val label: String, var value: Boolean, val onChange: (Boolean) -> Unit) : ScreenItem
     class IntSlider(val label: String, val range: IntRange, var value: Int, val onChange: (Int) -> Unit) : ScreenItem

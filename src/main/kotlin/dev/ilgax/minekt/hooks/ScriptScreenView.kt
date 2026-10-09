@@ -29,6 +29,8 @@ internal class ScriptScreenView(
     /** If set, the items are rebuilt with [rebuild] whenever [signature] changes (checked twice a second). */
     private val rebuild: (() -> List<ScreenItem>)? = null,
     private val signature: (() -> Any?)? = null,
+    /** Use the whole width instead of a centered column (log viewer). */
+    private val wide: Boolean = false,
 ) : Screen(Component.literal(title)) {
 
     /** Text drawn by [extractRenderState]: static lines, live text and text-field labels. */
@@ -43,9 +45,9 @@ internal class ScriptScreenView(
     private var ticks = 0
 
     private val viewBottom get() = if (doneButton) height - ROW - 2 * GAP else height - GAP
+    private val columnWidth get() = if (wide) width - 2 * MARGIN - 6 else minOf(COLUMN_WIDTH, width - 2 * MARGIN)
 
     override fun init() {
-        val columnWidth = minOf(COLUMN_WIDTH, width - 2 * MARGIN)
         val left = (width - columnWidth) / 2
         var bottom = layout(left, columnWidth)
         maxScroll = (bottom + scroll - TOP - (viewBottom - TOP)).coerceAtLeast(0)
@@ -80,7 +82,7 @@ internal class ScriptScreenView(
     private fun place(item: ScreenItem, x: Int, y: Int, w: Int): Int = when (item) {
         is ScreenItem.Text -> {
             val lines = textOf(item)
-            texts += TextSlot(item, x + w / 2, y, w, centered = true, lines)
+            texts += TextSlot(item, if (item.left) x else x + w / 2, y, w, centered = !item.left, lines)
             y + lines.size * font.lineHeight
         }
         is ScreenItem.Button -> {
@@ -158,9 +160,30 @@ internal class ScriptScreenView(
 
     /** Text lines of [item]; live text runs script code here, on the game thread. */
     private fun textOf(item: ScreenItem.Text): List<String> = try {
-        item.text().split('\n')
+        item.text().split('\n').let { lines -> if (item.left) lines.flatMap { wrap(it, columnWidth) } else lines }
     } catch (t: Throwable) {
         listOf("⚠ ${t.message ?: t.javaClass.simpleName}")
+    }
+
+    /** [line] broken into pieces at most [width] pixels wide, preferably at spaces; `§` colors carry over. */
+    private fun wrap(line: String, width: Int): List<String> {
+        if (font.width(line) <= width) return listOf(line)
+        val out = mutableListOf<String>()
+        var rest = line
+        var style = ""
+        while (rest.isNotEmpty()) {
+            var cut = (font.plainSubstrByWidth(style + rest, width).length - style.length).coerceIn(1, rest.length)
+            if (cut < rest.length) {
+                val space = rest.lastIndexOf(' ', cut)
+                if (space > cut / 2) cut = space + 1
+                if (rest[cut - 1] == '§' && cut > 1) cut--
+            }
+            val piece = rest.substring(0, cut)
+            out += style + piece
+            style = FORMAT.findAll(style + piece).lastOrNull()?.value?.takeIf { it != "§r" }.orEmpty()
+            rest = rest.substring(cut)
+        }
+        return out
     }
 
     /** Swap in a rebuilt layout (from `refresh()`). */
@@ -198,12 +221,11 @@ internal class ScriptScreenView(
                 val y = slot.y + i * font.lineHeight
                 if (y < TOP || y + font.lineHeight > viewBottom) return@forEachIndexed
                 val text = fit(line, slot.width)
-                if (slot.centered) graphics.centeredText(font, text, slot.x, y, WHITE) else graphics.text(font, text, slot.x, y, LABEL)
+                if (slot.centered) graphics.centeredText(font, text, slot.x, y, WHITE) else graphics.text(font, text, slot.x, y, if (slot.item != null) WHITE else LABEL)
             }
         }
         if (maxScroll > 0) {
             // A thin scrollbar right of the column.
-            val columnWidth = minOf(COLUMN_WIDTH, width - 2 * MARGIN)
             val x = (width + columnWidth) / 2 + 3
             val track = viewBottom - TOP
             val thumb = (track * track / (track + maxScroll)).coerceAtLeast(10)
@@ -270,5 +292,6 @@ internal class ScriptScreenView(
         const val LABEL = -0x5f5f60 // 0xFFA0A0A0
         const val TRACK = 0x40FFFFFF
         const val SCROLL_STEP = 24
+        val FORMAT = Regex("§[0-9a-fk-or]")
     }
 }

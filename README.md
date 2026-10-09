@@ -45,6 +45,7 @@ shows when a download starts and finishes.
 | `\eval <code>` | run one line of Kotlin and print its result, e.g. `\eval player.position` |
 | `\menu` | open the script manager (also a key you can bind in Controls → Minekt) |
 | `\jobs` | list running scripts, with their CPU use |
+| `\log [script]` | show a script's log: output, errors with stack traces (no name: the last script that failed) |
 | `\kill <id\|all>` | stop scripts |
 | `\scripts` | list available scripts |
 | `\install <url> [name]` | install a script from a link, after a preview (see below) |
@@ -58,9 +59,33 @@ Lines starting with `\` never reach the server.
 
 **Script manager:** `\menu`, or a key you bind under Controls → Minekt → Script manager, opens a screen with
 the running scripts (CPU use and a Stop button each), every script with Run and Edit (opens it in your editor),
-arguments, New script, Open folder, installing from a link, and the last few errors.
+arguments, New script, Open folder, installing from a link, and the last few errors. Every script has a Log
+button, and clicking a recent error opens that script's log.
 
 **Autorun:** each `\command` line in `minekt/autorun.txt` runs whenever you join a world (`#` starts a comment).
+
+### Errors and logs
+
+When a script fails, chat says what went wrong in words, where, and shows the line:
+
+```
+[miner] "abc" isn't a number (line 3) [log] [edit]
+  3 │ return parts[1].toInt()
+```
+
+- **Compile errors** underline the offending code in red (`[miner:2:17] Unresolved reference 'oers'.`). Only the
+  first three are shown; the rest are in the log.
+- **Hover** over the error to see where in the script it happened (`at line 3 in load`, `at line 7`), **click**
+  it or `[log]` to open the log, and `[edit]` to open the file in your editor.
+- Common exceptions are explained instead of named: `"abc" isn't a number`, `A value was null`, `Out of range: …`,
+  `Endless recursion…`. `error("…")`, `require` and `check` show just your message.
+- A misspelled script name suggests the closest one: `\autowlak` → `Did you mean \autowalk?`
+
+**Logs.** Each script has a log, `minekt/logs/<script>.log`, recording when it started and ended, what it
+echoed, every error with its stack trace (cut after the last line of your script), and anything it writes with
+`writeLog(…)`, which goes to the log only, not chat. `\log <script>` or the manager's Log button opens it in the
+game, newest first; the screen can open the file, copy it or clear it. Files over 1 MB are moved to
+`<script>.old.log`.
 
 ## Script API
 
@@ -68,7 +93,7 @@ Everything below is in scope in every script, no imports needed.
 
 | Area | API |
 |---|---|
-| Output | `echo(vararg parts)`, `chat(msg)` (a leading `/` makes it a command), `execute(cmd)`, `hud(vararg lines)` |
+| Output | `echo(vararg parts)`, `chat(msg)` (a leading `/` makes it a command), `execute(cmd)`, `hud(vararg lines)`, `hudPanel { … }`, `writeLog(vararg parts)` |
 | Feedback | `playSound(id)`, `toast(title, message)`, `actionBar(text)`, `title(title, subtitle)`, `screenshot(name)` |
 | Control | `args`, `jobId`, `sleep(ms)`, `waitTicks(n)`, `stop()` |
 | Player | `player` (name, position, yaw/pitch, health, dimension, selectedSlot), `position`, `setOrientation(yaw, pitch)`, `lookAt(x, y, z)`, `turnTo(yaw, pitch, ticks)`, `turnToward(x, y, z, ticks)` |
@@ -235,6 +260,38 @@ clearShapes()                                                   // or drop them 
   (`onBinding(1) { stop() }`) to leave them up until you're done (see `ores.kts`).
 - Shapes use Minecraft's built-in gizmo renderer. They're redrawn every tick from data the script sets, so
   scripts never run code on the render thread.
+
+### HUD panels
+
+`hud("line", …)` puts plain text in the top-left corner. `hudPanel` does more: boxes with titles, live text,
+progress bars, item icons and images, in any corner or edge of the screen:
+
+```kotlin
+var ores = 0
+val panel = hudPanel(Anchor.TOP_RIGHT) {
+    title("Miner")
+    text { "Ores: $ores" }                                    // live: re-read every tick
+    bar("Durability", Color.GREEN) { durabilityLeft() }       // 0.0–1.0 (or pass max = …)
+    separator()
+    row {
+        item("diamond", count = 12)                           // an icon with its count
+        item("minecraft:iron_ingot") { "$iron" }              // an icon with live text
+    }
+    image("icons/pick.png", 32, 32)                           // a PNG from the minekt folder
+}
+panel.update { title("Done") }      // replace what it shows
+panel.move(Anchor.BOTTOM_RIGHT)     // or panel.visible = false, panel.remove()
+```
+
+- **Anchors:** `TOP_LEFT`, `TOP`, `TOP_RIGHT`, `LEFT`, `CENTER`, `RIGHT`, `BOTTOM_LEFT`, `BOTTOM` (above the
+  hotbar), `BOTTOM_RIGHT`. Panels at the same anchor stack instead of overlapping. `x`/`y` nudge a panel,
+  `scale` resizes it, `background = false` drops the dark box.
+- **Text** takes a `color` and `§` color codes (`"§aok §cfail"`). `title` is bold.
+- **Live parts** (`{ … }`) are re-read every tick on the game thread, so `game { }` inside them is direct. Keep
+  them quick: read variables and the player, don't sleep or wait. If one throws, it shows `⚠ message` and
+  the error goes to the script's log once.
+- **Images** are reloaded when the file changes. A missing image draws a magenta box, with a note in the log.
+- Panels hide with the rest of the HUD (F1) and go away when the script ends.
 
 ### Remembering things between runs
 
@@ -526,7 +583,7 @@ Notes:
 
 - Stopping works inside script code only: a script stuck inside a single call into the game, another mod or a
   Java library (a huge regex, say) stops once that call returns.
-- Script code that runs on the game thread (`game { }` blocks, chat filters, live screen text) is never cut
+- Script code that runs on the game thread (`game { }` blocks, chat filters, live screen and HUD values) is never cut
   short. An endless loop there freezes the game, and `\kill` can't be typed while it's frozen.
 - Screens are a single column.
 - The small jar adds Minekt's compiler jar to Fabric's class loader through a Fabric Loader internal

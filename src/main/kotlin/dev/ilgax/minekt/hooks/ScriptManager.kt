@@ -18,8 +18,12 @@ internal class ScriptManager(
     private val jobs: JobManager,
     private val scriptDir: Path,
     private val install: (String) -> Unit,
-    private val recentErrors: () -> List<String>,
+    private val recentErrors: () -> List<RecentError>,
+    private val openLog: (Minecraft, String) -> Unit,
 ) {
+    /** An error shown in chat, and the script it came from if known. */
+    data class RecentError(val script: String?, val text: String)
+
     private var args = ""
     private var link = ""
 
@@ -36,6 +40,7 @@ internal class ScriptManager(
         for (job in running) row {
             text { "[${job.id}] ${job.name} ${job.args.joinToString(" ")} · ${job.state.name.lowercase()}" + (job.cpuPercent?.let { " · $it% CPU" } ?: "") }
             button("Stop", tooltip = "\\kill ${job.id}") { jobs.kill(job.id) }
+            button("Log", tooltip = "\\log ${job.name}") { openLog(Minecraft.getInstance(), job.name) }
         }
 
         text("\nScripts in ${scriptDir.fileName}/")
@@ -45,6 +50,7 @@ internal class ScriptManager(
         for (name in scripts) row {
             button("▶ $name", tooltip = "Run \\$name with the arguments above") { jobs.runScript(name, splitArgs(args)) }
             button("Edit", tooltip = "Open $name.kts in your editor") { Blaze3D.openPath(scriptDir.resolve("$name.kts")) }
+            button("Log", tooltip = "Its output and errors, also from earlier runs") { openLog(Minecraft.getInstance(), name) }
         }
         row {
             button("Open folder") { Files.createDirectories(scriptDir); Blaze3D.openPath(scriptDir) }
@@ -64,7 +70,11 @@ internal class ScriptManager(
         val errors = recentErrors()
         if (errors.isNotEmpty()) {
             text("\nRecent errors")
-            errors.forEach { text(it) }
+            for (error in errors) {
+                val script = error.script
+                if (script == null) text(error.text)
+                else button(error.text, tooltip = "Open $script's log for the details") { openLog(Minecraft.getInstance(), script) }
+            }
         }
     }.items
 

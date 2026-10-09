@@ -4,7 +4,9 @@ import com.mojang.blaze3d.platform.InputConstants
 import dev.ilgax.minekt.api.ScriptHud
 import dev.ilgax.minekt.api.Steering
 import dev.ilgax.minekt.hooks.GameEventSource
+import dev.ilgax.minekt.hooks.ErrorChat
 import dev.ilgax.minekt.hooks.InstallUi
+import dev.ilgax.minekt.hooks.LogViewer
 import dev.ilgax.minekt.hooks.MacroRecorder
 import dev.ilgax.minekt.hooks.PacketHooks
 import dev.ilgax.minekt.share.ScriptInstaller
@@ -12,6 +14,8 @@ import dev.ilgax.minekt.hooks.ScriptCommands
 import dev.ilgax.minekt.hooks.ScriptKeys
 import dev.ilgax.minekt.hooks.ScriptManager
 import dev.ilgax.minekt.hooks.ScriptRenderer
+import com.mojang.brigadier.arguments.StringArgumentType
+import dev.ilgax.minekt.job.ErrorReport
 import dev.ilgax.minekt.job.Host
 import dev.ilgax.minekt.job.Job
 import dev.ilgax.minekt.job.JobManager
@@ -24,6 +28,8 @@ import dev.ilgax.minekt.script.ScriptDependencies
 import net.fabricmc.loader.impl.launch.FabricLauncherBase
 import net.minecraft.client.gui.components.toasts.SystemToast
 import net.fabricmc.api.ClientModInitializer
+import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback
+import net.fabricmc.fabric.api.client.command.v2.ClientCommands
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents
@@ -42,6 +48,8 @@ object MinektClient : ClientModInitializer, Host {
     private val logger = LoggerFactory.getLogger("minekt")
     private const val PREFIX = "\\"
     private const val RECENT_ERRORS = 5
+    /** `[miner] …` or `[miner:3:5] …`: which script a chat message is about. */
+    private val SCRIPT_PREFIX = Regex("^\\[([A-Za-z0-9_.-]+)(?::\\d+)*] ")
     private val EXAMPLES = listOf("hello", "whereami", "ores", "autowalk", "chatbot", "hud", "commands", "deathpoint", "stash", "waypoints", "baritone_mine")
 
     override val scriptDir: Path = FabricLoader.getInstance().gameDir.resolve("minekt")
@@ -50,10 +58,13 @@ object MinektClient : ClientModInitializer, Host {
     private val recorder by lazy { MacroRecorder(scriptDir) }
 
     /** The last few errors shown in chat, for the script manager. */
-    private val recentErrors = java.util.concurrent.ConcurrentLinkedDeque<String>()
-    private val manager by lazy { ScriptManager(jobs, scriptDir, { installs.install(listOf(it)) }, { recentErrors.toList() }) }
-    /** Set by `\menu`; the manager opens on the next tick, once the chat screen has closed. */
-    @Volatile private var openManager = false
+    private val recentErrors = java.util.concurrent.ConcurrentLinkedDeque<ScriptManager.RecentError>()
+    private val logViewer by lazy { LogViewer(jobs.logs) }
+    private val manager: ScriptManager by lazy {
+        ScriptManager(jobs, scriptDir, { installs.install(listOf(it)) }, { recentErrors.toList() }, openLog = { mc, script -> logViewer.open(mc, script, back = { manager.open(mc) }) })
+    }
+    /** A screen to open on the next tick, once the chat screen has closed (`\menu`, `\log`). */
+    @Volatile private var pendingScreen: ((Minecraft) -> Unit)? = null
 
     override fun onInitializeClient() {
         ScriptClasspath.scriptDir = scriptDir
@@ -64,6 +75,7 @@ object MinektClient : ClientModInitializer, Host {
         ScriptCommands.register()
         ScriptKeys.register()
         installs.register()
+        registerLogCommand()
 
         registerChatHooks()
         ClientReceiveMessageEvents.GAME.register { message, overlay ->
@@ -80,13 +92,14 @@ object MinektClient : ClientModInitializer, Host {
             ScriptKeys.dispatch(jobs)
             if (mc.gui.screen() == null) jobs.pollKeys(InputConstants::isKeyDown)
             if (mc.level != null) ScriptRenderer.submitTick()
+            ScriptHud.tick()
             gameEvents.tick(mc)
             recorder.tick(mc)
             Steering.tickAll(mc)
-            if (ScriptKeys.consumeManagerKey()) openManager = true
-            if (openManager) {
-                openManager = false
-                manager.open(mc)
+            if (ScriptKeys.consumeManagerKey()) pendingScreen = manager::open
+            pendingScreen?.let { open ->
+                pendingScreen = null
+                open(mc)
             }
         }
         // Find (or, in the small build, download) the compiler while the game loads, then warm it up.
@@ -183,7 +196,8 @@ object MinektClient : ClientModInitializer, Host {
             "install" -> installs.install(parts.drop(1))
             "update" -> installs.update(parts.getOrNull(1))
             "share" -> installs.share(parts.getOrNull(1))
-            "menu" -> openManager = true
+            "menu" -> pendingScreen = manager::open
+            "log" -> showLog(parts.getOrNull(1))
             "record" -> echo(
                 when (val what = parts.getOrNull(1)) {
                     null -> "Usage: \\record <name> to start, \\record stop to save, \\record cancel"
@@ -205,12 +219,35 @@ object MinektClient : ClientModInitializer, Host {
             "\\menu             open the script manager (or bind a key in Controls → Minekt)",
             "\\eval <code>      run a line of Kotlin",
             "\\jobs             list running scripts",
+            "\\log <script>     show a script's log: output, errors with details",
             "\\kill <id|all>    stop scripts",
             "\\scripts          list available scripts",
             "\\install <url>    install a script from a link (\\install for more)",
             "\\share <script>   copy a script to share it",
             "\\record <name>    record your movement as a macro script (\\record stop saves it)",
         ).forEach { echo(it, MessageKind.INFO) }
+    }
+
+    /** `\log <script>`, or the log of the script that failed last. Also `/minekt log`, which error messages link to. */
+    private fun showLog(script: String?) {
+        val name = script ?: recentErrors.firstNotNullOfOrNull { it.script }
+            ?: return echo("Usage: \\log <script>. Logs are in ${scriptDir.fileName}/logs/", MessageKind.ERROR)
+        pendingScreen = { mc -> logViewer.open(mc, name) }
+    }
+
+    private fun registerLogCommand() {
+        ClientCommandRegistrationCallback.EVENT.register { dispatcher, _ ->
+            dispatcher.register(
+                ClientCommands.literal("minekt").then(
+                    ClientCommands.literal("log").then(
+                        ClientCommands.argument("script", StringArgumentType.word()).executes { ctx ->
+                            showLog(StringArgumentType.getString(ctx, "script"))
+                            1
+                        },
+                    ),
+                ),
+            )
+        }
     }
 
     /** Run each `\command` line of `autorun.txt` when joining a world. `#` starts a comment. */
@@ -255,14 +292,25 @@ object MinektClient : ClientModInitializer, Host {
             MessageKind.INFO -> Component.literal(message).withStyle(ChatFormatting.GRAY)
             MessageKind.ERROR -> Component.literal(message).withStyle(ChatFormatting.RED)
         }
-        if (kind == MessageKind.ERROR) {
-            recentErrors.addFirst(message)
-            while (recentErrors.size > RECENT_ERRORS) recentErrors.pollLast()
-        }
+        if (kind == MessageKind.ERROR) rememberError(SCRIPT_PREFIX.find(message)?.groupValues?.get(1), message)
+        show(component, message)
+    }
+
+    override fun showError(report: ErrorReport) {
+        rememberError(report.script, report.headline)
+        ErrorChat.lines(report, scriptDir).forEach { show(it, it.string) }
+    }
+
+    private fun rememberError(script: String?, text: String) {
+        recentErrors.addFirst(ScriptManager.RecentError(script, text))
+        while (recentErrors.size > RECENT_ERRORS) recentErrors.pollLast()
+    }
+
+    private fun show(component: Component, plain: String) {
         val mc = Minecraft.getInstance()
         mc.execute {
             val player = mc.player
-            if (player != null) player.sendSystemMessage(component) else logger.info("[script] {}", message)
+            if (player != null) player.sendSystemMessage(component) else logger.info("[script] {}", plain)
         }
     }
 

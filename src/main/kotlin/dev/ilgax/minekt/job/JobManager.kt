@@ -21,6 +21,9 @@ class JobManager(private val host: Host) {
 
     val jobs: Collection<Job> get() = running.values
 
+    /** Per-script logs, in `<scriptDir>/logs`. */
+    val logs = ScriptLogs(host.scriptDir.resolve("logs"))
+
     /** Messages between scripts (`publish` / `subscribe`). */
     val bus = MessageBus { running.values }
 
@@ -28,7 +31,8 @@ class JobManager(private val host: Host) {
     fun runScript(name: String, args: List<String>): Job? {
         val file = host.scriptDir.resolve("$name.kts")
         if (!file.isRegularFile()) {
-            host.echo("No script named '$name' (looked for ${file.fileName} in ${host.scriptDir})", MessageKind.ERROR)
+            val guess = closest(name, availableScripts())?.let { " Did you mean \\$it?" }.orEmpty()
+            host.echo("No script named '$name' (looked for ${file.fileName} in ${host.scriptDir}).$guess", MessageKind.ERROR)
             return null
         }
         return start(name, args, FileScriptSource(file.toFile()))
@@ -45,7 +49,7 @@ class JobManager(private val host: Host) {
 
     fun start(name: String, args: List<String>, source: SourceCode): Job {
         cpuMonitor
-        val job = Job(nextId.getAndIncrement(), name, args, source, host, storage, bus) { running.remove(it.id) }
+        val job = Job(nextId.getAndIncrement(), name, args, source, host, storage, bus, logs) { running.remove(it.id) }
         running[job.id] = job
         job.start()
         return job
@@ -115,7 +119,26 @@ class JobManager(private val host: Host) {
         return current
     }
 
-    private companion object {
+    internal companion object {
         const val CPU_SAMPLE_SECONDS = 5L
+
+        /** The name in [names] nearest to [name] by edit distance, if it's a plausible typo. */
+        fun closest(name: String, names: List<String>): String? {
+            val (best, distance) = names.map { it to editDistance(name.lowercase(), it.lowercase()) }.minByOrNull { it.second } ?: return null
+            return best.takeIf { distance <= maxOf(1, name.length / 3) }
+        }
+
+        private fun editDistance(a: String, b: String): Int {
+            var previous = IntArray(b.length + 1) { it }
+            for (i in 1..a.length) {
+                val current = IntArray(b.length + 1)
+                current[0] = i
+                for (j in 1..b.length) {
+                    current[j] = minOf(previous[j] + 1, current[j - 1] + 1, previous[j - 1] + if (a[i - 1] == b[j - 1]) 0 else 1)
+                }
+                previous = current
+            }
+            return previous[b.length]
+        }
     }
 }

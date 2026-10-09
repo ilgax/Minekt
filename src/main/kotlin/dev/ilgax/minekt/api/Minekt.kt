@@ -2,6 +2,7 @@ package dev.ilgax.minekt.api
 
 import com.mojang.blaze3d.platform.InputConstants
 import dev.ilgax.minekt.job.Job
+import dev.ilgax.minekt.job.ScriptLogs
 import dev.ilgax.minekt.job.JobKilledException
 import dev.ilgax.minekt.job.JobStopException
 import dev.ilgax.minekt.job.TickClock
@@ -35,7 +36,16 @@ class Minekt internal constructor(internal val job: Job) {
     /** Print to the local chat (only you see it). */
     fun echo(vararg parts: Any?) {
         job.checkAlive()
-        job.host.echo(parts.joinToString(" "))
+        job.output(parts.joinToString(" "))
+    }
+
+    /**
+     * Write to this script's log only, not chat: `minekt/logs/<script>.log`, also shown by
+     * `\log <script>` and the Log button in the script manager.
+     */
+    fun writeLog(vararg parts: Any?) {
+        job.checkAlive()
+        job.logs.add(job.name, ScriptLogs.Level.LOG, parts.joinToString(" "), run = job.id)
     }
 
     /** Send a chat message to the server. Messages starting with `/` are sent as commands. */
@@ -47,14 +57,21 @@ class Minekt internal constructor(internal val job: Job) {
     /** Run a command (leading `/` optional). */
     fun execute(command: String) = chat(if (command.startsWith("/")) command else "/$command")
 
-    /** Show [lines] in the top-left HUD until changed or the script ends. `hud()` clears it. */
+    /**
+     * Show [lines] in the top-left HUD until changed or the script ends. `hud()` clears it.
+     * For more (corners, bars, item icons, images), see [hudPanel].
+     */
     fun hud(vararg lines: String) {
         job.checkAlive()
-        ScriptHud.set(job.id, lines.toList())
-        if (lines.isNotEmpty()) job.cleanups.addIfAbsent(hudCleanup)
+        val panel = hudLines
+        when {
+            lines.isEmpty() -> panel?.remove()
+            panel == null || panel.isRemoved -> hudLines = hudPanel(background = false) { lines.forEach { text(it) } }
+            else -> panel.update { lines.forEach { text(it) } }
+        }
     }
 
-    private val hudCleanup: () -> Unit = { ScriptHud.set(job.id, emptyList()) }
+    @Volatile private var hudLines: HudPanel? = null
 
     // ---- timing / control ---------------------------------------------------------------------
 

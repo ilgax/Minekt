@@ -165,9 +165,7 @@ internal class InstallUi(
     }
 
     private fun button(label: String, color: ChatFormatting, hover: String, click: ClickEvent): MutableComponent =
-        Component.literal(label).withStyle { style ->
-            style.withColor(color).withUnderlined(true).withClickEvent(click).withHoverEvent(HoverEvent.ShowText(Component.literal(hover)))
-        }
+        chatButton(label, color, hover, click)
 
     private fun usage() {
         listOf(
