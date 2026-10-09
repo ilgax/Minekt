@@ -3,7 +3,9 @@
   "package": "dev.ilgax.minekt.mixin",
   "compatibilityLevel": "JAVA_25",
   "client": [
-    "ConnectionMixin"
+    "ClientLevelMixin",
+    "ConnectionMixin",
+    "SoundManagerMixin"
   ],
   "injectors": {
     "defaultRequire": 1

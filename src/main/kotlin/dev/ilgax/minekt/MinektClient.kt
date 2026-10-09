@@ -7,6 +7,7 @@ import dev.ilgax.minekt.hooks.GameEventSource
 import dev.ilgax.minekt.hooks.ErrorChat
 import dev.ilgax.minekt.hooks.InstallUi
 import dev.ilgax.minekt.hooks.LogViewer
+import dev.ilgax.minekt.hooks.SettingsView
 import dev.ilgax.minekt.hooks.MacroRecorder
 import dev.ilgax.minekt.hooks.PacketHooks
 import dev.ilgax.minekt.share.ScriptInstaller
@@ -15,6 +16,7 @@ import dev.ilgax.minekt.hooks.ScriptKeys
 import dev.ilgax.minekt.hooks.ScriptManager
 import dev.ilgax.minekt.hooks.ScriptRenderer
 import com.mojang.brigadier.arguments.StringArgumentType
+import dev.ilgax.minekt.job.Autorun
 import dev.ilgax.minekt.job.ErrorReport
 import dev.ilgax.minekt.job.Host
 import dev.ilgax.minekt.job.Job
@@ -60,8 +62,11 @@ object MinektClient : ClientModInitializer, Host {
     /** The last few errors shown in chat, for the script manager. */
     private val recentErrors = java.util.concurrent.ConcurrentLinkedDeque<ScriptManager.RecentError>()
     private val logViewer by lazy { LogViewer(jobs.logs) }
+    private val settingsView by lazy { SettingsView(jobs.settings) }
     private val manager: ScriptManager by lazy {
-        ScriptManager(jobs, scriptDir, { installs.install(listOf(it)) }, { recentErrors.toList() }, openLog = { mc, script -> logViewer.open(mc, script, back = { manager.open(mc) }) })
+        ScriptManager(jobs, scriptDir, { installs.install(listOf(it)) }, { recentErrors.toList() }, openLog = { mc, script -> logViewer.open(mc, script, back = { manager.open(mc) }) },
+            openSettings = { mc, script -> settingsView.open(mc, script, back = { manager.open(mc) }) },
+        )
     }
     /** A screen to open on the next tick, once the chat screen has closed (`\menu`, `\log`). */
     @Volatile private var pendingScreen: ((Minecraft) -> Unit)? = null
@@ -84,8 +89,10 @@ object MinektClient : ClientModInitializer, Host {
         ClientReceiveMessageEvents.CHAT.register { message, _, _, _, _ ->
             jobs.dispatch(Job.Event.Chat(message.string))
         }
-        val gameEvents = GameEventSource(jobs, onJoin = ::runAutorun).apply { register() }
-        PacketHooks.filter = PacketHooks.Filter(jobs::filterPacket)
+        val gameEvents = GameEventSource(jobs, onJoin = { runAutorun(it, joined = true) }, onDimensionChange = { runAutorun(it, joined = false) }).apply { register() }
+        PacketHooks.filter = PacketHooks.Filter { packet, incoming ->
+            jobs.filterPacket(packet, incoming)?.also { if (incoming) gameEvents.packetReceived(it) }
+        }
         ClientTickEvents.END_CLIENT_TICK.register { mc ->
             TickClock.advance()
             jobs.dispatch(Job.Event.Tick)
@@ -198,6 +205,10 @@ object MinektClient : ClientModInitializer, Host {
             "share" -> installs.share(parts.getOrNull(1))
             "menu" -> pendingScreen = manager::open
             "log" -> showLog(parts.getOrNull(1))
+            "settings" -> when (val script = parts.getOrNull(1)) {
+                null -> echo("Usage: \\settings <script>", MessageKind.ERROR)
+                else -> pendingScreen = { mc -> settingsView.open(mc, script) }
+            }
             "record" -> echo(
                 when (val what = parts.getOrNull(1)) {
                     null -> "Usage: \\record <name> to start, \\record stop to save, \\record cancel"
@@ -220,6 +231,7 @@ object MinektClient : ClientModInitializer, Host {
             "\\eval <code>      run a line of Kotlin",
             "\\jobs             list running scripts",
             "\\log <script>     show a script's log: output, errors with details",
+            "\\settings <script> change a script's settings",
             "\\kill <id|all>    stop scripts",
             "\\scripts          list available scripts",
             "\\install <url>    install a script from a link (\\install for more)",
@@ -250,12 +262,24 @@ object MinektClient : ClientModInitializer, Host {
         }
     }
 
-    /** Run each `\command` line of `autorun.txt` when joining a world. `#` starts a comment. */
-    private fun runAutorun() {
+    /** Run the `\\command` lines of `autorun.txt` that apply here (see [Autorun]). */
+    private fun runAutorun(mc: Minecraft, joined: Boolean) {
         val file = scriptDir.resolve("autorun.txt")
         if (!file.exists()) return
-        Files.readAllLines(file).map { it.substringBefore('#').trim() }.filter { it.isNotEmpty() }.forEach { line ->
-            runCatching { handleCommand(line.removePrefix(PREFIX).trim()) }
+        val autorun = Autorun(Files.readString(file))
+        if (joined) autorun.problems.forEach { echo(it, MessageKind.ERROR) }
+        val place = Autorun.Place(
+            server = mc.currentServer?.takeIf { mc.singleplayerServer == null }?.ip,
+            world = mc.singleplayerServer?.worldData?.levelName,
+            dimension = mc.level?.dimension()?.identifier()?.toString() ?: return,
+        )
+        val lines = if (joined) autorun.onJoin(place) else autorun.onDimensionChange(place)
+        for (line in lines) {
+            val command = line.removePrefix(PREFIX).trim()
+            // Rejoining or coming back to a dimension shouldn't start a second copy of a script.
+            val script = splitArgs(command).firstOrNull()
+            if (script != null && jobs.jobs.any { it.name == script }) continue
+            runCatching { handleCommand(command) }
                 .onFailure { echo("autorun '$line' failed: ${it.message}", MessageKind.ERROR) }
         }
     }

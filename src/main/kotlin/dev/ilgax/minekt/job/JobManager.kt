@@ -24,6 +24,11 @@ class JobManager(private val host: Host) {
     /** Per-script logs, in `<scriptDir>/logs`. */
     val logs = ScriptLogs(host.scriptDir.resolve("logs"))
 
+    /** Settings declared with `by setting(…)`, in `<scriptDir>/settings`. Changes reach the running script. */
+    val settings = ScriptSettings(host.scriptDir.resolve("settings")).also { settings ->
+        settings.listeners += { script, key, value -> running.values.filter { it.name == script }.forEach { it.post(Job.Event.Setting(key, value)) } }
+    }
+
     /** Messages between scripts (`publish` / `subscribe`). */
     val bus = MessageBus { running.values }
 
@@ -49,7 +54,7 @@ class JobManager(private val host: Host) {
 
     fun start(name: String, args: List<String>, source: SourceCode): Job {
         cpuMonitor
-        val job = Job(nextId.getAndIncrement(), name, args, source, host, storage, bus, logs) { running.remove(it.id) }
+        val job = Job(nextId.getAndIncrement(), name, args, source, host, storage, bus, logs, settings) { running.remove(it.id) }
         running[job.id] = job
         job.start()
         return job
@@ -64,6 +69,9 @@ class JobManager(private val host: Host) {
         else host.scriptDir.listDirectoryEntries("*.kts").map { it.nameWithoutExtension }.sorted()
 
     fun dispatch(event: Job.Event) = running.values.forEach { it.post(event) }
+
+    /** Whether any script listens for game events of [type]: check before doing work to make one. */
+    fun wantsGame(type: Class<out dev.ilgax.minekt.api.GameEvent>) = running.values.any { it.wantsGame(type) }
 
     fun pollKeys(isDown: (Int) -> Boolean) = running.values.forEach { it.pollKeys(isDown) }
 

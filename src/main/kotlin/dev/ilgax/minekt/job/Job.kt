@@ -48,6 +48,7 @@ class Job internal constructor(
     internal val storage: PersistentStore,
     internal val bus: MessageBus,
     internal val logs: ScriptLogs,
+    internal val settings: ScriptSettings,
     private val onExit: (Job) -> Unit,
 ) {
     sealed interface Event {
@@ -59,6 +60,7 @@ class Job internal constructor(
         data class Game(val event: GameEvent) : Event
         data class Message(val topic: String, val value: Any?, val from: String) : Event
         data class Packet(val packet: net.minecraft.network.protocol.Packet<*>, val incoming: Boolean) : Event
+        data class Setting(val key: String, val value: Any) : Event
     }
 
     enum class State { COMPILING, RUNNING, LISTENING, DONE }
@@ -86,7 +88,16 @@ class Job internal constructor(
     internal val commandHandlers = ConcurrentHashMap<String, (List<String>) -> Unit>()
     internal val bindingHandlers = ConcurrentHashMap<Int, CopyOnWriteArrayList<() -> Unit>>()
     internal val gameHandlers = CopyOnWriteArrayList<(GameEvent) -> Unit>()
+    /** Event types the handlers above are for (`GameEvent` itself: all), so unwanted events cost nothing. */
+    internal val gameEventTypes: MutableSet<Class<*>> = ConcurrentHashMap.newKeySet()
+    /** `awaitEvent` calls in progress: they may want any event. */
+    internal val gameAwaiters = java.util.concurrent.atomic.AtomicInteger()
+
+    internal fun wantsGame(type: Class<*>) = gameAwaiters.get() > 0 || gameEventTypes.any { it.isAssignableFrom(type) }
     internal val messageHandlers = ConcurrentHashMap<String, CopyOnWriteArrayList<(Any?) -> Unit>>()
+    internal val settingHandlers = CopyOnWriteArrayList<(String, Any) -> Unit>()
+    /** Settings this run declared with `by setting(…)`; others are dropped from the file when it ends cleanly. */
+    internal val declaredSettings: MutableSet<String> = ConcurrentHashMap.newKeySet()
 
     /** A packet listener or filter for packets of [type] in one direction. */
     class PacketHook(val type: Class<*>, val incoming: Boolean, val handler: (net.minecraft.network.protocol.Packet<*>) -> Any?) {
@@ -269,9 +280,10 @@ class Job internal constructor(
             is Event.Chat -> chatHandlers.isNotEmpty()
             is Event.Command -> commandHandlers.containsKey(event.name)
             is Event.Binding -> bindingHandlers[event.slot]?.isNotEmpty() == true
-            is Event.Game -> gameHandlers.isNotEmpty()
+            is Event.Game -> gameHandlers.isNotEmpty() && gameEventTypes.any { it.isInstance(event.event) }
             is Event.Message -> messageHandlers[event.topic]?.isNotEmpty() == true
             is Event.Packet -> packetHandlers.any { it.matches(event.packet, event.incoming) }
+            is Event.Setting -> settingHandlers.isNotEmpty()
         }
         if (wanted) events.offer(event)
     }
@@ -362,6 +374,7 @@ class Job internal constructor(
                     is Event.Game -> gameHandlers.forEach { it(event.event) }
                     is Event.Message -> messageHandlers[event.topic]?.forEach { it(event.value) }
                     is Event.Packet -> packetHandlers.forEach { if (it.matches(event.packet, event.incoming)) it.handler(event.packet) }
+                    is Event.Setting -> settingHandlers.forEach { it(event.key, event.value) }
                 }
             }
         } catch (t: Throwable) {
@@ -372,7 +385,7 @@ class Job internal constructor(
     private fun hasHandlers() =
         tickHandlers.isNotEmpty() || chatHandlers.isNotEmpty() || commandHandlers.isNotEmpty() ||
             keyWatches.isNotEmpty() || gameHandlers.isNotEmpty() || bindingHandlers.values.any { it.isNotEmpty() } ||
-            messageHandlers.values.any { it.isNotEmpty() } || openScreens.get() > 0 ||
+            messageHandlers.values.any { it.isNotEmpty() } || openScreens.get() > 0 || settingHandlers.isNotEmpty() ||
             packetHandlers.isNotEmpty() || packetFilters.isNotEmpty() || MethodHooks.hasHooks(this) ||
             incomingInterceptors.isNotEmpty() || outgoingInterceptors.isNotEmpty()
 
@@ -414,6 +427,7 @@ class Job internal constructor(
         outgoingInterceptors.clear()
         packetFilters.clear()
         MethodHooks.removeAll(this)
+        if (declaredSettings.isNotEmpty() && !killed && !failed) runCatching { settings.keepOnly(name, declaredSettings) }
         try {
             storage.release(this) // final save of `by persistent` values
         } catch (e: Exception) {

@@ -20,6 +20,7 @@ internal class ScriptManager(
     private val install: (String) -> Unit,
     private val recentErrors: () -> List<RecentError>,
     private val openLog: (Minecraft, String) -> Unit,
+    private val openSettings: (Minecraft, String) -> Unit,
 ) {
     /** An error shown in chat, and the script it came from if known. */
     data class RecentError(val script: String?, val text: String)
@@ -32,7 +33,7 @@ internal class ScriptManager(
     }
 
     /** What the screen shows, minus live numbers: when this changes, the screen is rebuilt. */
-    private fun signature() = Triple(jobs.jobs.map { it.id to it.state }, jobs.availableScripts(), recentErrors())
+    private fun signature() = listOf(jobs.jobs.map { it.id to it.state }, jobs.availableScripts(), recentErrors(), jobs.availableScripts().filter(jobs.settings::has))
 
     private fun items(): List<ScreenItem> = ScreenBuilder().apply {
         val running = jobs.jobs.toList()
@@ -51,6 +52,7 @@ internal class ScriptManager(
             button("▶ $name", tooltip = "Run \\$name with the arguments above") { jobs.runScript(name, splitArgs(args)) }
             button("Edit", tooltip = "Open $name.kts in your editor") { Blaze3D.openPath(scriptDir.resolve("$name.kts")) }
             button("Log", tooltip = "Its output and errors, also from earlier runs") { openLog(Minecraft.getInstance(), name) }
+            if (jobs.settings.has(name)) button("Settings", tooltip = "\\settings $name") { openSettings(Minecraft.getInstance(), name) }
         }
         row {
             button("Open folder") { Files.createDirectories(scriptDir); Blaze3D.openPath(scriptDir) }

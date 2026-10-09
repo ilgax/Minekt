@@ -38,8 +38,14 @@ suspend fun Minekt.awaitChat(predicate: (String) -> Boolean = { true }): String 
     (job.awaitEvent { it is Job.Event.Chat && predicate(it.text) } as Job.Event.Chat).text
 
 /** Suspend until a [GameEvent] matching [predicate] happens. */
-suspend fun Minekt.awaitEvent(predicate: (GameEvent) -> Boolean = { true }): GameEvent =
-    (job.awaitEvent { it is Job.Event.Game && predicate(it.event) } as Job.Event.Game).event
+suspend fun Minekt.awaitEvent(predicate: (GameEvent) -> Boolean = { true }): GameEvent {
+    job.gameAwaiters.incrementAndGet()
+    try {
+        return (job.awaitEvent { it is Job.Event.Game && predicate(it.event) } as Job.Event.Game).event
+    } finally {
+        job.gameAwaiters.decrementAndGet()
+    }
+}
 
 /** Suspend until a game event of type [T] happens, e.g. `awaitEventOf<GameEvent.Death>()`. */
 suspend inline fun <reified T : GameEvent> Minekt.awaitEventOf(): T = awaitEvent { it is T } as T

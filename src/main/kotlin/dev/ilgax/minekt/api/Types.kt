@@ -99,4 +99,23 @@ sealed interface GameEvent {
     data class ChunkLoad(val x: Int, val z: Int) : GameEvent
     /** The count of an item in the player's inventory went up (pickups, crafting, taking from chests). */
     data class ItemGained(val id: String, val count: Int) : GameEvent
+    /** A block changed into another block: placed, broken, grown, … ([old] and [new] are block ids). Not reported for chunks loading. */
+    data class BlockChange(val pos: BlockPos, val old: String, val new: String) : GameEvent
+    /** An entity came into view (spawned, or walked into loaded range). */
+    data class EntityAppear(val entity: EntityInfo) : GameEvent
+    /** An entity went away: [died], or despawned / out of range. */
+    data class EntityGone(val entity: EntityInfo, val died: Boolean) : GameEvent
+    /** A sound started playing for you. [category] is e.g. `hostile`, `blocks`, `players`, `ui`. */
+    data class Sound(val id: String, val pos: Vec3, val category: String) : GameEvent
+    /** The server sent particles (not ones the client makes up itself, like footsteps). */
+    data class Particle(val id: String, val pos: Vec3, val count: Int) : GameEvent
+    /** A player appeared in the tab list. */
+    data class PlayerJoin(val name: String) : GameEvent
+    /** A player left the tab list. */
+    data class PlayerLeave(val name: String) : GameEvent
+    /** The sidebar scoreboard changed (or appeared / went away: then [title] is empty). Lines top to bottom. */
+    data class ScoreboardChange(val title: String, val lines: List<String>) : GameEvent
 }
+
+/** The sidebar scoreboard: its title and lines, top to bottom. */
+data class Sidebar(val title: String, val lines: List<String>)
