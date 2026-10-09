@@ -28,7 +28,7 @@ findBlocks(radius) { it.endsWith("_ore") }
 |---|---|
 | `\<script> [args…]` | run `minekt/<script>.kts` (`"quoted args"` are grouped) |
 | `\eval <code>` | run one line of Kotlin and print its result, e.g. `\eval player.position` |
-| `\jobs` | list running scripts |
+| `\jobs` | list running scripts, with their CPU use |
 | `\kill <id\|all>` | stop scripts |
 | `\scripts` | list available scripts |
 | `\install <url> [name]` | install a script from a link, after a preview (see below) |
@@ -60,6 +60,8 @@ Everything below is in scope in every script, no imports needed.
 | Persistence | `val x by persistent { default }` (options `perWorld`, `store`, `key`), `save()` |
 | Coroutines | `launch { }`, `async { }`, `awaitTicks(n)`, `awaitChat { }`, `awaitEvent { }`, `awaitEventOf<T>()`, `awaitScreen { }`, `awaitBinding(n)` (+ all of `kotlinx.coroutines`) |
 | Commands | `command("name", completions) { args -> }` registers a real `/name` |
+| Screens | `showScreen(title) { text(…); toggle(…); slider(…); textField(…); choice(…); button(…) { }; row { } }` |
+| Messages | `publish(topic, value)`, `subscribe<T>(topic) { }`, `awaitMessage<T>(topic)`, `lastMessage<T>(topic)` |
 | World rendering | `highlight(pos)`, `box(min, max)`, `line(a, b)`, `arrow(a, b)`, `text(pos, "…")`, `clearShapes()` |
 | Mods | `isModLoaded(id)`, `modVersion(id)`, `baritone.*` |
 | Raw access | `game { mc -> … }` runs on the client thread with the live `Minecraft` instance |
@@ -225,6 +227,65 @@ var motd by persistent(store = "shared") { "" }                         // share
 - If a saved value no longer fits the declared type (you changed it), the script warns and starts from the
   default. An unreadable file is moved aside to `<name>.json.broken`, not deleted.
 
+### Screens
+
+Scripts can open real Minecraft screens: settings menus, pickers, little dashboards.
+
+```kotlin
+var autoEat by persistent { true }
+var range by persistent { 32 }
+var mode by persistent { "walk" }
+
+onBinding(1) {
+    showScreen("Miner settings") {
+        text("Changes apply right away")
+        text { "Health: ${player.health}" }                 // live: recomputed every tick
+        toggle("Auto eat", ::autoEat)
+        slider("Range", 8..64, ::range)
+        choice("Mode", listOf("walk", "sprint"), ::mode)
+        row {
+            button("Start") { baritone.mine("diamond_ore") }
+            button("Stop", tooltip = "Stops Baritone") { baritone.cancel() }
+        }
+    }
+}
+```
+
+- Widgets: `text`, `button`, `toggle`, `slider` (whole numbers, or decimals with a `step`), `textField`, `choice`,
+  and `row { }` to put several side by side. A **Done** button is added unless `doneButton = false`.
+- Give a widget a property (`::autoEat`) and it changes that property as the player clicks. Or pass a value and
+  a callback: `slider("Zoom", 1..10, zoom) { zoom = it }`. Combined with `persistent`, that's a settings menu
+  that remembers itself.
+- Callbacks run on the script's side, one at a time and alongside the script body, so they can use the whole
+  API (`game { }`, `sleep`, `baritone`, …).
+- `showScreen` returns a handle: `close()`, `refresh()` (runs the block again, e.g. after a list changed),
+  `isOpen`, `onClose { }`, `awaitClose()` (suspend) and `waitForClose()` (blocking).
+- The script stays alive while its screen is open. The screen doesn't pause the game.
+- The bundled `waypoints.kts` is a complete example: a per-world waypoint list with add/delete buttons that
+  redraws itself with `refresh()` and publishes the waypoints for other scripts.
+
+### Messages between scripts
+
+One script publishes, any number of others listen:
+
+```kotlin
+// stats.kts
+data class Stats(val health: Float, val dimension: String)
+onTick { publish("stats", Stats(player.health, player.dimension)) }
+
+// statshud.kts
+data class Stats(val health: Float, val dimension: String)
+subscribe<Stats>("stats", latest = true) { hud("HP: ${it.health}", "In: ${it.dimension}") }
+```
+
+- Topics are any name you like. `subscribe` handlers run after the script body; the script stays alive while
+  subscribed. `subscribe` returns a handle with `cancel()`.
+- `latest = true` also delivers the topic's current value right away. `lastMessage<T>(topic)` reads it at any
+  time, even if it was published before this script started.
+- `awaitMessage<T>(topic)` waits for the next one inside a coroutine.
+- Each script has its own classes, so declare the same data class in both scripts (or use lists, maps,
+  strings, numbers, Minekt's types). When the types differ, the value is copied across by its fields.
+
 ### Sharing code
 
 ```kotlin
@@ -292,11 +353,21 @@ Notes:
   compile at startup means the first script doesn't pay for compiler start-up. Compiled scripts are cached by
   content, so editing a file and re-running it picks up the change without restarting the game.
 - Each run is a **job** on its own thread. API calls marshal onto the client thread and check whether the
-  job was killed, so loops that call the API can always be `\kill`ed.
+  job was killed.
+- **Every script can be stopped**, even `while (true) {}`. Java can't force-stop a thread, so the compiled script
+  is rewritten (with ASM) to check for `\kill` at every loop iteration. That also covers loops that catch every
+  exception, coroutines, and helper functions.
+- **Script code can't freeze the game.** Script code that runs on the game thread (`game { }` blocks, chat
+  filters, live screen text) is stopped with an error after 2 seconds, since by then you couldn't even type
+  `\kill`.
+- **CPU hogs are reported.** A script that keeps a CPU core busy gets one warning in chat with the `\kill`
+  command to stop it, and `\jobs` shows each script's CPU use.
 
 ## Known limitations (PoC)
 
-- A loop that never calls the API (`while (true) {}`) can't be killed, because the JVM has no safe way to stop a thread.
+- Stopping works inside script code only: a script stuck inside a single call into the game, another mod or a
+  Java library (a huge regex, say) stops once that call returns.
+- Screens are a single column with no scrolling, so very long ones run off the bottom.
 - The jar is about 55 MB because it bundles the Kotlin compiler.
 - No sandbox: scripts can do anything the game can. Only run scripts you trust.
 - Client-only and Fabric-only for now.
@@ -321,6 +392,10 @@ then open a singleplayer world. Each one reports `OK`/`FAIL` lines in chat and c
   restart.
 - `\features`: inventory and containers, interaction, events, chat filters, world info, scans and coroutines. It
   uses the singleplayer server to give items, deal damage and teleport.
+- `\ui`: the watchdog (`\kill` on `while (true) {}`, the CPU warning, a frozen `game { }` block), messages
+  between scripts, and script screens. The screen part clicks and types for real: run the client with
+  `dev/selftest/xdo-runner.sh --quickPlaySingleplayer <world>` (needs X11 and `xdotool`), which performs the
+  `XDO …` steps the test prints.
 
 ## License
 

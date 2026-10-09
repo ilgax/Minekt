@@ -33,7 +33,7 @@ import kotlin.io.path.exists
 object MinektClient : ClientModInitializer, Host {
     private val logger = LoggerFactory.getLogger("minekt")
     private const val PREFIX = "\\"
-    private val EXAMPLES = listOf("hello", "whereami", "ores", "autowalk", "chatbot", "hud", "commands", "deathpoint", "stash", "baritone_mine")
+    private val EXAMPLES = listOf("hello", "whereami", "ores", "autowalk", "chatbot", "hud", "commands", "deathpoint", "stash", "waypoints", "baritone_mine")
 
     override val scriptDir: Path = FabricLoader.getInstance().gameDir.resolve("minekt")
     val jobs = JobManager(this)
@@ -134,7 +134,10 @@ object MinektClient : ClientModInitializer, Host {
             "jobs" -> {
                 val running = jobs.jobs
                 if (running.isEmpty()) echo("No jobs running", MessageKind.INFO)
-                running.forEach { echo("[${it.id}] ${it.name} ${it.args.joinToString(" ")} — ${it.state.name.lowercase()}", MessageKind.INFO) }
+                running.forEach { job ->
+                    val cpu = job.cpuPercent?.let { ", $it% CPU" }.orEmpty()
+                    echo("[${job.id}] ${job.name} ${job.args.joinToString(" ")} — ${job.state.name.lowercase()}$cpu", MessageKind.INFO)
+                }
             }
             "kill" -> when (val target = parts.getOrNull(1)) {
                 null -> echo("Usage: \\kill <id|all>", MessageKind.ERROR)
