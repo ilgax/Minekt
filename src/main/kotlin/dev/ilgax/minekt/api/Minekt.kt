@@ -21,7 +21,7 @@ import net.minecraft.core.BlockPos as McBlockPos
  * Calls run on the script's own thread; anything touching the game hops to the client thread via
  * [game]. Every call checks whether the job was killed, so loops that use the API stay killable.
  */
-class Minekt internal constructor(private val job: Job) {
+class Minekt internal constructor(internal val job: Job) {
     /** Arguments passed after the script name: `\hello a b` → `["a", "b"]`. */
     val args: List<String> get() = job.args
 
@@ -168,7 +168,7 @@ class Minekt internal constructor(private val job: Job) {
         (0 until inv.containerSize).mapNotNull { slot ->
             val stack = inv.getItem(slot)
             if (stack.isEmpty) null
-            else ItemStackInfo(slot, BuiltInRegistries.ITEM.getKey(stack.item).toString(), stack.count)
+            else stack.toInfo(slot)
         }
     }
 
@@ -306,15 +306,6 @@ class Minekt internal constructor(private val job: Job) {
         }
     }
 
-    private fun Entity.toInfo(self: Entity?) = EntityInfo(
-        id = id,
-        uuid = uuid.toString(),
-        name = name.string,
-        type = BuiltInRegistries.ENTITY_TYPE.getKey(type).toString(),
-        position = Vec3(x, y, z),
-        health = (this as? LivingEntity)?.health,
-        distance = self?.distanceTo(this)?.toDouble() ?: 0.0,
-    )
 
     private fun Int.sq() = this * this
 

@@ -45,10 +45,14 @@ Everything below is in scope in every script, no imports needed.
 |---|---|
 | Output | `echo(vararg parts)`, `chat(msg)` (a leading `/` makes it a command), `execute(cmd)`, `hud(vararg lines)` |
 | Control | `args`, `jobId`, `sleep(ms)`, `waitTicks(n)`, `stop()` |
-| Player | `player` (name, position, yaw/pitch, health, dimension, selectedSlot), `position`, `setOrientation(yaw, pitch)`, `lookAt(x, y, z)`, `selectSlot(n)`, `inventory()` |
+| Player | `player` (name, position, yaw/pitch, health, dimension, selectedSlot), `position`, `setOrientation(yaw, pitch)`, `lookAt(x, y, z)`, `turnTo(yaw, pitch, ticks)`, `turnToward(x, y, z, ticks)` |
 | Input | `press(Key.FORWARD)`, `release(key)`, `hold(key, ms)`; held keys are released when the script ends |
-| World | `getBlock(x, y, z)`, `findBlocks(radius) { id -> … }`, `entities(radius)`, `players()` |
-| Events | `onChat { msg -> }`, `onTick { }`, `onKey("k") { }`, `onBinding(1) { }` |
+| Inventory & screens | `inventory()`, `heldItem()`, `offhandItem()`, `selectSlot(n)`, `screen`, `container()`, `clickSlot(i)`, `shiftClick(i)`, `swapWithHotbar(i, n)`, `dropSlot(i)`, `openInventory()`, `closeScreen()` |
+| Targeting & interaction | `targetedBlock()`, `targetedEntity()`, `useItem()`, `useOn(pos, face)`, `placeBlock(pos)`, `breakBlock(pos)`, `attack(entityId)`, `interact(entityId)` |
+| World | `world` (dimension, timeOfDay, gameTime, isDay, rain, thunder), `getBlock(x, y, z)`, `findBlocks(radius) { id -> … }`, `scanRegion(from, to) { id -> … }`, `isLoaded(x, z)`, `entities(radius)`, `players()` |
+| Events | `onChat`, `onTick`, `onKey("k")`, `onBinding(1)`, `onDamage`, `onDeath`, `onRespawn`, `onJoinWorld`, `onLeaveWorld`, `onDimensionChange`, `onScreenOpen`, `onScreenClose`, `onChunkLoad`, `onItemGained`, `onEvent` |
+| Chat filters | `interceptChat { text -> text or null }` (incoming), `interceptSend { … }` (outgoing) |
+| Coroutines | `launch { }`, `async { }`, `awaitTicks(n)`, `awaitChat { }`, `awaitEvent { }`, `awaitEventOf<T>()`, `awaitScreen { }`, `awaitBinding(n)` (+ all of `kotlinx.coroutines`) |
 | Commands | `command("name", completions) { args -> }` registers a real `/name` |
 | World rendering | `highlight(pos)`, `box(min, max)`, `line(a, b)`, `arrow(a, b)`, `text(pos, "…")`, `clearShapes()` |
 | Mods | `isModLoaded(id)`, `modVersion(id)`, `baritone.*` |
@@ -67,6 +71,81 @@ handling events until it calls `stop()` or you `\kill` it:
 onChat { msg -> if (msg.endsWith("ping")) echo("pong!") }
 onKey("k") { stop() }
 ```
+
+Game events work the same way:
+
+```kotlin
+onDamage { amount, health -> if (health < 6) echo("Low health!") }
+onItemGained { id, count -> if ("diamond" in id) echo("+$count diamond") }
+onScreenOpen { screen -> if (screen.isContainer) echo("Opened ${screen.title}") }
+onEvent { event -> if (event is GameEvent.DimensionChange) echo("Now in ${event.to}") }
+```
+
+Damage, death, respawn, world and dimension changes, screens and item gains are detected by comparing the
+player's state each tick. `onItemGained` fires whenever the count of an item in your inventory goes up, from
+pickups, crafting or taking items out of chests.
+
+### Coroutines
+
+Coroutines let one script do several things at once and wait for things without nested callbacks:
+
+```kotlin
+launch {                                   // runs alongside everything else
+    while (true) { hud("HP ${player.health}"); awaitTicks(10) }
+}
+launch {
+    val msg = awaitChat { "ready" in it }  // suspends until a matching message arrives
+    echo("Got: $msg")
+}
+val reply = runBlocking { withTimeoutOrNull(5_000) { awaitChat() } }   // wait in the script body
+```
+
+- A script stays alive while any of its coroutines run; `\kill` cancels them all.
+- They run on the script's own threads, so blocking calls (`game { }`, `sleep`, `breakBlock`) are fine inside.
+- `stop()` or an error inside a coroutine ends the whole script.
+- `await…` only sees things that happen after it starts waiting.
+- `kotlinx.coroutines.*` is imported by default (`delay`, `withTimeout`, `async`, `coroutineScope`, ...).
+
+### Inventory, containers and interaction
+
+```kotlin
+val target = targetedBlock() ?: stop()                 // what the crosshair is on
+useOn(target.pos, target.face)                         // right-click it (opens a chest)
+val chest = container()                                // slots of the open menu
+chest.playerSlots.filter { it.id == "minecraft:cobblestone" }.forEach { shiftClick(it.index) }
+closeScreen()
+
+placeBlock(BlockPos(10, 64, 10))                       // places the held block against a neighbour
+breakBlock(BlockPos(10, 64, 10))                       // mines it, taking as long as survival would
+attack(targetedEntity()!!.id)
+turnToward(0.5, 64.0, 0.5, ticks = 10)                 // smooth turn instead of a snap
+```
+
+Slot numbers are the open menu's indices, as listed by `container().slots`. Each slot says whether it
+belongs to the player's inventory or to the container. The server applies its usual reach and permission
+checks to every action.
+
+### Chat filters
+
+```kotlin
+interceptChat { text -> if ("[AD]" in text) null else text.replace(":)", "☺") }   // incoming: hide or rewrite
+interceptSend { text -> text.replace("teh", "the") }                               // outgoing chat
+```
+
+Return the text to show/send, or `null` to drop it. Unlike other handlers these run **synchronously on the
+game thread**, because they decide what happens to the message, so keep them fast. Rewritten incoming
+messages lose their original formatting.
+
+### World info and large scans
+
+```kotlin
+if (!world.isDay) echo("Night falls (${world.timeOfDay})")
+val diamonds = scanRegion(BlockPos(-128, -64, -128), BlockPos(128, 16, 128)) { it == "minecraft:deepslate_diamond_ore" }
+```
+
+`scanRegion` works on big areas without freezing the game. It skips unloaded chunks and all-air sections, and
+spreads the work over several frames. In testing, a 96 × 384 × 96 region took about 2 s while the game kept
+running.
 
 ### Keys: `onKey` or `onBinding`, your choice
 
@@ -184,9 +263,12 @@ Requires JDK 25.
 ./gradlew runClient      # dev client
 ```
 
-`dev/selftest/` holds an in-game self-test. Copy it into `run/minekt/`, put `\hooktest` and `\selftest` (in
-that order) in `run/minekt/autorun.txt`, then open a world. It reports `SELFTEST`/`HOOKTEST` lines in chat and
-closes the game. When it prints `PRESS KEYS NOW`, press J and K so the key hooks get exercised.
+`dev/selftest/` holds in-game self-tests. Copy them into `run/minekt/` and list them in `run/minekt/autorun.txt`,
+then open a singleplayer world. Each one reports `OK`/`FAIL` lines in chat and closes the game.
+- `\hooktest` then `\selftest`: core API, commands, keys and rendering. When it prints `PRESS KEYS NOW`, press
+  J and K so the key hooks get exercised.
+- `\features`: inventory and containers, interaction, events, chat filters, world info, scans and coroutines. It
+  uses the singleplayer server to give items, deal damage and teleport.
 
 ## License
 

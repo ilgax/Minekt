@@ -32,8 +32,11 @@ class MinektCompilationConfiguration : ScriptCompilationConfiguration({
     defaultImports(
         "dev.ilgax.minekt.api.*",
         "kotlin.math.*",
+        "kotlinx.coroutines.*",
     )
     defaultImports(Import::class)
+    // Same bytecode target as the mod, so scripts can inline Minekt's inline helpers.
+    compilerOptions("-jvm-target", "25")
     jvm {
         val classpath = ScriptClasspath.files
         if (classpath.isEmpty()) dependenciesFromCurrentContext(wholeClasspath = true)

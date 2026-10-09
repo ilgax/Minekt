@@ -208,6 +208,95 @@ class ScriptEngineTest {
         awaitDone(job)
     }
 
+    /** Wait until the script body is done, plus a moment for launched coroutines to reach their awaits. */
+    private fun awaitListening(job: Job) {
+        while (job.state != Job.State.LISTENING) {
+            if (job.state == Job.State.DONE) fail("job ended early: ${host.messages}")
+            Thread.sleep(20)
+        }
+        Thread.sleep(300)
+    }
+
+    @Test
+    fun `coroutines keep the script alive and await events`() {
+        val job = jobs.eval("""launch { val msg = awaitChat { "go" in it }; awaitTicks(2); echo("got " + msg) }""")
+        awaitListening(job)
+        jobs.dispatch(Job.Event.Chat("not yet"))
+        jobs.dispatch(Job.Event.Chat("go go"))
+        repeat(3) { Thread.sleep(50); jobs.dispatch(Job.Event.Tick) }
+        assertEquals(MessageKind.SCRIPT to "got go go", host.next())
+        awaitDone(job) // ends by itself once its only coroutine finishes
+    }
+
+    @Test
+    fun `withTimeout and runBlocking work in the script body`() {
+        awaitDone(jobs.eval("""echo(runBlocking { withTimeoutOrNull(200) { awaitChat() } } ?: "timed out")"""))
+        assertEquals(MessageKind.SCRIPT to "timed out", host.next())
+    }
+
+    @Test
+    fun `killing a script cancels its coroutines, even blocked ones`() {
+        val job = jobs.eval("""launch { while (true) sleep(10) }; launch { awaitChat() }""")
+        awaitListening(job)
+        jobs.kill(job.id)
+        awaitDone(job)
+        assertTrue(host.messages.isEmpty(), "kill should be silent: ${host.messages}")
+    }
+
+    @Test
+    fun `stop and errors inside coroutines end the script`() {
+        awaitDone(jobs.eval("""launch { awaitTicks(1); stop() }; launch { awaitChat() }""").also {
+            awaitListening(it); repeat(3) { Thread.sleep(50); jobs.dispatch(Job.Event.Tick) }
+        })
+        val failing = jobs.eval("""launch { error("bad coroutine") }; onChat { }""")
+        awaitDone(failing)
+        val (kind, text) = host.next()
+        assertEquals(MessageKind.ERROR, kind)
+        assertTrue("bad coroutine" in text, text)
+    }
+
+    @Test
+    fun `game events reach typed handlers and awaiters`() {
+        val job = jobs.eval(
+            """
+            onDamage { amount, health -> echo("hurt", amount, health) }
+            onItemGained { id, n -> echo("gained", id, n) }
+            launch { awaitEventOf<GameEvent.Death>(); echo("died"); stop() }
+            """.trimIndent()
+        )
+        awaitListening(job)
+        jobs.dispatch(Job.Event.Game(dev.ilgax.minekt.api.GameEvent.Damage(3f, 17f)))
+        assertEquals(MessageKind.SCRIPT to "hurt 3.0 17.0", host.next())
+        jobs.dispatch(Job.Event.Game(dev.ilgax.minekt.api.GameEvent.ItemGained("minecraft:dirt", 4)))
+        assertEquals(MessageKind.SCRIPT to "gained minecraft:dirt 4", host.next())
+        jobs.dispatch(Job.Event.Game(dev.ilgax.minekt.api.GameEvent.Death))
+        assertEquals(MessageKind.SCRIPT to "died", host.next())
+        awaitDone(job)
+    }
+
+    @Test
+    fun `chat interceptors hide, rewrite and survive broken handlers`() {
+        val job = jobs.eval(
+            """
+            interceptChat { if ("[AD]" in it) null else it.replace("noob", "friend") }
+            interceptChat { if (it == "boom") error("broken interceptor") else it }
+            interceptSend { if (it.startsWith("secret")) null else it.uppercase() }
+            """.trimIndent()
+        )
+        awaitListening(job)
+        assertEquals(null, jobs.interceptIncoming("[AD] buy now"))
+        assertEquals("hi friend", jobs.interceptIncoming("hi noob"))
+        assertEquals("boom", jobs.interceptIncoming("boom")) // broken interceptor is skipped...
+        assertTrue("broken interceptor" in host.next().second) // ...reported...
+        assertEquals("boom", jobs.interceptIncoming("boom")) // ...and removed
+        assertTrue(host.messages.isEmpty())
+        assertEquals(null, jobs.interceptOutgoing("secret plan"))
+        assertEquals("HELLO", jobs.interceptOutgoing("hello"))
+        jobs.kill(job.id)
+        awaitDone(job)
+        assertEquals("hi noob", jobs.interceptIncoming("hi noob")) // gone with the script
+    }
+
     @Test
     fun `bundled examples compile`() {
         val dir = Path.of(javaClass.getResource("/minekt-examples/hello.kts")!!.toURI()).parent

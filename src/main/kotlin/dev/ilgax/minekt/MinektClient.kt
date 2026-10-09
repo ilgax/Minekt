@@ -2,6 +2,7 @@ package dev.ilgax.minekt
 
 import com.mojang.blaze3d.platform.InputConstants
 import dev.ilgax.minekt.api.ScriptHud
+import dev.ilgax.minekt.hooks.GameEventSource
 import dev.ilgax.minekt.hooks.ScriptCommands
 import dev.ilgax.minekt.hooks.ScriptKeys
 import dev.ilgax.minekt.hooks.ScriptRenderer
@@ -30,7 +31,7 @@ import kotlin.io.path.exists
 object MinektClient : ClientModInitializer, Host {
     private val logger = LoggerFactory.getLogger("minekt")
     private const val PREFIX = "\\"
-    private val EXAMPLES = listOf("hello", "whereami", "ores", "autowalk", "chatbot", "hud", "commands", "baritone_mine")
+    private val EXAMPLES = listOf("hello", "whereami", "ores", "autowalk", "chatbot", "hud", "commands", "deathpoint", "stash", "baritone_mine")
 
     override val scriptDir: Path = FabricLoader.getInstance().gameDir.resolve("minekt")
     val jobs = JobManager(this)
@@ -42,31 +43,21 @@ object MinektClient : ClientModInitializer, Host {
         ScriptCommands.register()
         ScriptKeys.register()
 
-        ClientSendMessageEvents.ALLOW_CHAT.register { message ->
-            if (message.startsWith(PREFIX)) {
-                runCatching { handleCommand(message.removePrefix(PREFIX).trim()) }
-                    .onFailure { echo("Error: ${it.message}", MessageKind.ERROR) }
-                false
-            } else {
-                true
-            }
-        }
+        registerChatHooks()
         ClientReceiveMessageEvents.GAME.register { message, overlay ->
             if (!overlay) jobs.dispatch(Job.Event.Chat(message.string))
         }
         ClientReceiveMessageEvents.CHAT.register { message, _, _, _, _ ->
             jobs.dispatch(Job.Event.Chat(message.string))
         }
-        var inWorld = false
+        val gameEvents = GameEventSource(jobs, onJoin = ::runAutorun).apply { register() }
         ClientTickEvents.END_CLIENT_TICK.register { mc ->
             TickClock.advance()
             jobs.dispatch(Job.Event.Tick)
             ScriptKeys.dispatch(jobs)
             if (mc.gui.screen() == null) jobs.pollKeys(InputConstants::isKeyDown)
             if (mc.level != null) ScriptRenderer.submitTick()
-            val nowInWorld = mc.player != null
-            if (nowInWorld && !inWorld) runAutorun()
-            inWorld = nowInWorld
+            gameEvents.tick(mc)
         }
         ClientLifecycleEvents.CLIENT_STARTED.register {
             Thread({
@@ -80,6 +71,52 @@ object MinektClient : ClientModInitializer, Host {
             }.start()
         }
         ClientLifecycleEvents.CLIENT_STOPPING.register { jobs.killAll() }
+    }
+
+    /**
+     * `\commands`, and scripts' chat interceptors. Fabric runs ALLOW_* before MODIFY_* for the
+     * same message, so ALLOW decides (hide / keep) and stashes a rewrite for MODIFY to apply.
+     */
+    private fun registerChatHooks() {
+        var pendingSend: Pair<String, String>? = null
+        ClientSendMessageEvents.ALLOW_CHAT.register { message ->
+            if (message.startsWith(PREFIX)) {
+                runCatching { handleCommand(message.removePrefix(PREFIX).trim()) }
+                    .onFailure { echo("Error: ${it.message}", MessageKind.ERROR) }
+                return@register false
+            }
+            val result = jobs.interceptOutgoing(message) ?: return@register false
+            pendingSend = if (result != message) message to result else null
+            true
+        }
+        ClientSendMessageEvents.MODIFY_CHAT.register { message ->
+            val rewrite = pendingSend?.takeIf { it.first == message }?.second
+            pendingSend = null
+            rewrite ?: message
+        }
+
+        var pendingGame: Pair<String, String>? = null
+        ClientReceiveMessageEvents.ALLOW_GAME.register { message, overlay ->
+            if (overlay) return@register true
+            val text = message.string
+            val result = jobs.interceptIncoming(text) ?: return@register false
+            pendingGame = if (result != text) text to result else null
+            true
+        }
+        ClientReceiveMessageEvents.MODIFY_GAME.register { message, overlay ->
+            val rewrite = pendingGame?.takeIf { !overlay && it.first == message.string }?.second
+            pendingGame = null
+            if (rewrite != null) Component.literal(rewrite) else message
+        }
+        // Player chat has no MODIFY event: hide the original and show the rewrite locally.
+        ClientReceiveMessageEvents.ALLOW_CHAT.register { message, _, _, _, _ ->
+            val text = message.string
+            val result = jobs.interceptIncoming(text) ?: return@register false
+            if (result == text) return@register true
+            Minecraft.getInstance().player?.sendSystemMessage(Component.literal(result))
+            jobs.dispatch(Job.Event.Chat(result))
+            false
+        }
     }
 
     private fun handleCommand(line: String) {

@@ -51,3 +51,52 @@ data class ItemStackInfo(val slot: Int, val id: String, val count: Int)
 
 /** Movement / action keys a script can hold down. */
 enum class Key { FORWARD, BACK, LEFT, RIGHT, JUMP, SNEAK, SPRINT, ATTACK, USE, DROP, SWAP_OFFHAND }
+
+/** A side of a block. */
+enum class Face { DOWN, UP, NORTH, SOUTH, WEST, EAST }
+
+/** The block under the crosshair, and which face of it. */
+data class TargetedBlock(val pos: BlockPos, val id: String, val face: Face, val hit: Vec3)
+
+/** The open screen. [type] is the screen class name, e.g. `ChestScreen`, `InventoryScreen`, `ChatScreen`. */
+data class ScreenInfo(val title: String, val type: String, val isContainer: Boolean)
+
+/**
+ * One slot of the open container menu. [index] is what `clickSlot` etc. take. [isPlayerInventory]
+ * separates the player's own slots from the container's (chest, furnace, ...).
+ */
+data class SlotInfo(val index: Int, val id: String?, val count: Int, val isPlayerInventory: Boolean)
+
+/** The open container (or the player's inventory menu when nothing else is open). */
+data class ContainerInfo(val title: String, val slots: List<SlotInfo>) {
+    /** Slots belonging to the container itself (not the player's inventory). */
+    val containerSlots: List<SlotInfo> get() = slots.filter { !it.isPlayerInventory }
+    val playerSlots: List<SlotInfo> get() = slots.filter { it.isPlayerInventory }
+    fun find(id: String): SlotInfo? = slots.firstOrNull { it.id == id || it.id == "minecraft:$id" }
+}
+
+data class WorldInfo(
+    val dimension: String,
+    /** Time of day in ticks, 0–23999 (0 = sunrise, 6000 = noon, 13000 = night, 18000 = midnight). */
+    val timeOfDay: Long,
+    /** Total ticks the world has run. */
+    val gameTime: Long,
+    val isDay: Boolean,
+    val isRaining: Boolean,
+    val isThundering: Boolean,
+)
+
+/** Things that happen to the player or around them. Use `onEvent { }` or the specific `onDamage { }` etc. */
+sealed interface GameEvent {
+    data class Damage(val amount: Float, val health: Float) : GameEvent
+    data object Death : GameEvent
+    data object Respawn : GameEvent
+    data class JoinWorld(val dimension: String) : GameEvent
+    data object LeaveWorld : GameEvent
+    data class DimensionChange(val from: String, val to: String) : GameEvent
+    data class ScreenOpen(val screen: ScreenInfo) : GameEvent
+    data object ScreenClose : GameEvent
+    data class ChunkLoad(val x: Int, val z: Int) : GameEvent
+    /** The count of an item in the player's inventory went up (pickups, crafting, taking from chests). */
+    data class ItemGained(val id: String, val count: Int) : GameEvent
+}
