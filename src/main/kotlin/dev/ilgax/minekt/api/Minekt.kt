@@ -5,7 +5,6 @@ import dev.ilgax.minekt.job.Job
 import dev.ilgax.minekt.job.JobKilledException
 import dev.ilgax.minekt.job.JobStopException
 import dev.ilgax.minekt.job.TickClock
-import dev.ilgax.minekt.job.Watchdog
 import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.client.KeyMapping
 import net.minecraft.client.Minecraft
@@ -89,7 +88,7 @@ class Minekt internal constructor(internal val job: Job) {
      */
     fun <T> game(block: (Minecraft) -> T): T {
         job.checkAlive()
-        return job.host.onGameThread { mc -> Watchdog.onGameThread(job, "A game { } block") { block(mc) } }
+        return job.host.onGameThread(block)
     }
 
     fun isModLoaded(id: String): Boolean = FabricLoader.getInstance().isModLoaded(id)

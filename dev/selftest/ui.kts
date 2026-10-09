@@ -51,12 +51,6 @@ check("CPU hog warning") {
     waitFor(5) { job("eval") == null }
     if (warned) chatLines().first { "CPU core" in it } else false
 }
-check("frozen game { } block is stopped") {
-    val before = System.currentTimeMillis()
-    chat("\\eval game { while (true) {} }")
-    val stopped = waitFor(15) { chatLines().any { "froze the game" in it } }
-    if (stopped) "${chatLines().first { "froze the game" in it }} (after ${System.currentTimeMillis() - before} ms)" else false
-}
 check("game still ticks afterwards") {
     val t = game { it.level!!.gameTime }
     waitTicks(10)

@@ -325,9 +325,7 @@ class Job internal constructor(
             else -> {
                 val frame = root.stackTrace.firstOrNull { it.className.startsWith("Script") || it.fileName?.endsWith(".kts") == true }
                 val where = frame?.let { " (line ${it.lineNumber})" }.orEmpty()
-                // The watchdog's own message says it all; for anything else the exception type helps.
-                val what = if (root is ScriptTimeoutException) root.message else "${root.javaClass.simpleName}: ${root.message}"
-                host.echo("[$name] $what$where", MessageKind.ERROR)
+                host.echo("[$name] ${root.javaClass.simpleName}: ${root.message}$where", MessageKind.ERROR)
                 LOGGER.error("Script {} failed", name, t)
             }
         }

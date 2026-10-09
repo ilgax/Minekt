@@ -78,7 +78,7 @@ class JobManager(private val host: Host) {
             val interceptors = select(job)
             for (interceptor in interceptors) {
                 val result = try {
-                    Watchdog.onGameThread(job, "A chat filter") { interceptor(current) }
+                    interceptor(current)
                 } catch (t: Throwable) {
                     interceptors.remove(interceptor) // a broken interceptor must not break chat
                     job.handleThrowable(t)

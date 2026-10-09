@@ -357,9 +357,6 @@ Notes:
 - **Every script can be stopped**, even `while (true) {}`. Java can't force-stop a thread, so the compiled script
   is rewritten (with ASM) to check for `\kill` at every loop iteration. That also covers loops that catch every
   exception, coroutines, and helper functions.
-- **Script code can't freeze the game.** Script code that runs on the game thread (`game { }` blocks, chat
-  filters, live screen text) is stopped with an error after 2 seconds, since by then you couldn't even type
-  `\kill`.
 - **CPU hogs are reported.** A script that keeps a CPU core busy gets one warning in chat with the `\kill`
   command to stop it, and `\jobs` shows each script's CPU use.
 
@@ -367,6 +364,8 @@ Notes:
 
 - Stopping works inside script code only: a script stuck inside a single call into the game, another mod or a
   Java library (a huge regex, say) stops once that call returns.
+- Script code that runs on the game thread (`game { }` blocks, chat filters, live screen text) is never cut
+  short. An endless loop there freezes the game, and `\kill` can't be typed while it's frozen.
 - Screens are a single column with no scrolling, so very long ones run off the bottom.
 - The jar is about 55 MB because it bundles the Kotlin compiler.
 - No sandbox: scripts can do anything the game can. Only run scripts you trust.
@@ -392,7 +391,7 @@ then open a singleplayer world. Each one reports `OK`/`FAIL` lines in chat and c
   restart.
 - `\features`: inventory and containers, interaction, events, chat filters, world info, scans and coroutines. It
   uses the singleplayer server to give items, deal damage and teleport.
-- `\ui`: the watchdog (`\kill` on `while (true) {}`, the CPU warning, a frozen `game { }` block), messages
+- `\ui`: the watchdog (`\kill` on `while (true) {}`, the CPU warning), messages
   between scripts, and script screens. The screen part clicks and types for real: run the client with
   `dev/selftest/xdo-runner.sh --quickPlaySingleplayer <world>` (needs X11 and `xdotool`), which performs the
   `XDO …` steps the test prints.

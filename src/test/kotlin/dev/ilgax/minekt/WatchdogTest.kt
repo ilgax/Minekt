@@ -7,7 +7,7 @@ import kotlin.test.Test
 import kotlin.test.assertTrue
 import kotlin.test.fail
 
-/** Scripts that never call the API must still stop on `\kill`, and must not freeze the game thread. */
+/** Scripts that never call the API must still stop on `\kill`. */
 class WatchdogTest {
     private val host = TestHost()
     private val jobs = JobManager(host)
@@ -49,27 +49,6 @@ class WatchdogTest {
         repeat(Int.MAX_VALUE) { (0..Int.MAX_VALUE).forEach { _ -> } }
         """.trimIndent(),
     )
-
-    @Test
-    fun `a stuck game block is stopped and the game thread freed`() {
-        val job = jobs.eval("""game { while (true) {} }""")
-        val message = host.next(10)
-        assertTrue("froze the game" in message, message)
-        awaitState(job, Job.State.DONE, 2)
-        // The client thread is usable again.
-        assertTrue(host.clientThread.submit<Int> { 42 }.get(1, TimeUnit.SECONDS) == 42)
-    }
-
-    @Test
-    fun `killing a job stops its game block too`() {
-        val job = jobs.eval("""launch { game { while (true) {} } }; echo("spinning")""")
-        assertTrue(host.next() == "spinning")
-        Thread.sleep(200)
-        job.kill()
-        awaitState(job, Job.State.DONE, 2)
-        assertTrue(host.clientThread.submit<Int> { 1 }.get(1, TimeUnit.SECONDS) == 1)
-        assertTrue(host.messages.none { "froze" in it }, host.messages.toString())
-    }
 
     @Test
     fun `a script hogging the CPU is reported`() {

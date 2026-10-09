@@ -2,7 +2,6 @@ package dev.ilgax.minekt.hooks
 
 import dev.ilgax.minekt.api.ScreenItem
 import dev.ilgax.minekt.job.Job
-import dev.ilgax.minekt.job.Watchdog
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.components.AbstractSliderButton
 import net.minecraft.client.gui.components.Button
@@ -124,9 +123,9 @@ internal class ScriptScreenView(
         }
     }
 
-    /** Text lines of [item]; live text runs script code here on the game thread, so under the watchdog. */
+    /** Text lines of [item]; live text runs script code here, on the game thread. */
     private fun textOf(item: ScreenItem.Text): List<String> = try {
-        Watchdog.onGameThread(job, "Screen text") { item.text() }.split('\n')
+        item.text().split('\n')
     } catch (t: Throwable) {
         listOf("⚠ ${t.message ?: t.javaClass.simpleName}")
     }
