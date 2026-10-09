@@ -50,6 +50,7 @@ Everything below is in scope in every script, no imports needed.
 | World | `getBlock(x, y, z)`, `findBlocks(radius) { id -> … }`, `entities(radius)`, `players()` |
 | Events | `onChat { msg -> }`, `onTick { }`, `onKey("k") { }`, `onBinding(1) { }` |
 | Commands | `command("name", completions) { args -> }` registers a real `/name` |
+| World rendering | `highlight(pos)`, `box(min, max)`, `line(a, b)`, `arrow(a, b)`, `text(pos, "…")`, `clearShapes()` |
 | Mods | `isModLoaded(id)`, `modVersion(id)`, `baritone.*` |
 | Raw access | `game { mc -> … }` runs on the client thread with the live `Minecraft` instance |
 
@@ -97,6 +98,29 @@ command("mark", completions = listOf("home", "mine")) { args ->
 Words after the command arrive as `args` (`"quoted words"` stay together). While the script runs, its
 command takes priority over a server command with the same name. When the script ends, the command
 disappears and `/name` goes to the server again. Two scripts can't own the same name.
+
+### Drawing in the world
+
+Boxes, lines, arrows and floating text, drawn in the 3D world until removed or the script ends:
+
+```kotlin
+val ores = findBlocks(16) { it.endsWith("_ore") }
+ores.forEach { highlight(it.pos, Color.CYAN) }                 // filled box around each block
+val label = text(Vec3(0.5, 80.0, 0.5), "Spawn", Color.YELLOW, scale = 2f)
+line(player.position, Vec3(0.5, 64.0, 0.5), Color.RED, width = 3f)
+label.remove()                                                  // every call returns a handle
+clearShapes()                                                   // or drop them all
+```
+
+- Every shape takes `color` (ARGB: `Color.RED`, `Color.rgb(r, g, b, a)`) and `throughWalls` (default `true`:
+  drawn on top of terrain, so you can see it behind blocks). Boxes take `fill`; lines and arrows take `width`;
+  text takes `scale`.
+- Fills come out solid rather than see-through when drawn through walls (that's how the game's gizmo renderer
+  works). Use `fill = false` for outlines only.
+- A script that only draws ends straight away and takes its shapes with it. Keep it alive with a handler
+  (`onBinding(1) { stop() }`) to leave them up until you're done (see `ores.kts`).
+- Shapes use Minecraft's built-in gizmo renderer. They're redrawn every tick from data the script sets, so
+  scripts never run code on the render thread.
 
 ### Sharing code
 

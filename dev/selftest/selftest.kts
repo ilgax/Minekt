@@ -2,7 +2,8 @@
 
 fun check(name: String, block: () -> Any?) {
     val result = runCatching(block)
-    echo("SELFTEST ${if (result.isSuccess) "OK  " else "FAIL"} $name -> ${result.getOrElse { it.toString() }}")
+    val ok = result.isSuccess && result.getOrNull() != false // a check returning false is a failure
+    echo("SELFTEST ${if (ok) "OK  " else "FAIL"} $name -> ${result.getOrElse { it.toString() }}")
 }
 
 // Wait (up to ~60 s) for the chunks around the player to arrive.
@@ -43,6 +44,23 @@ waitTicks(10)
 chat("/mkt stop")
 waitTicks(20)
 check("command removed after script ends") { game { it.connection!!.commands.root.getChild("mkt") == null } }
+
+// ---- world rendering: draw one of everything in front of the player, then the harness screenshots ----
+val eye = player.position
+setOrientation(-90f, 15f) // face +X, looking slightly down
+val ahead = eye.blockPos.offset(dx = 5)
+check("draw shapes") {
+    highlight(ahead.offset(dy = -1), Color.GREEN)                                  // filled block on the ground
+    highlight(ahead.offset(dz = 3, dy = -4), Color.MAGENTA)                        // buried: visible only through walls
+    box(Vec3(eye.x + 4, eye.y, eye.z - 4.0), Vec3(eye.x + 6, eye.y + 2, eye.z - 2.0), Color.RED)  // outline box
+    line(Vec3(eye.x + 3, eye.y + 0.5, eye.z - 3.0), Vec3(eye.x + 3, eye.y + 0.5, eye.z + 3.0), Color.YELLOW, 4f)
+    arrow(Vec3(eye.x + 3, eye.y + 2.5, eye.z + 3.0), Vec3(eye.x + 7, eye.y + 2.5, eye.z + 3.0), Color.CYAN, 3f)
+    text(Vec3(ahead.x + 0.5, ahead.y + 1.5, ahead.z + 0.5), "Minekt", Color.ORANGE, 2f)
+    "6 shapes"
+}
+echo("SELFTEST SCREENSHOT NOW")
+waitTicks(100)
+check("clearShapes") { clearShapes(); "cleared" }
 echo("SELFTEST DONE")
 sleep(1000)
 game { it.stop() }

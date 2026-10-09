@@ -1,8 +1,10 @@
 package dev.ilgax.minekt
 
+import com.mojang.blaze3d.platform.InputConstants
 import dev.ilgax.minekt.api.ScriptHud
 import dev.ilgax.minekt.hooks.ScriptCommands
 import dev.ilgax.minekt.hooks.ScriptKeys
+import dev.ilgax.minekt.hooks.ScriptRenderer
 import dev.ilgax.minekt.job.Host
 import dev.ilgax.minekt.job.Job
 import dev.ilgax.minekt.job.JobManager
@@ -60,6 +62,8 @@ object MinektClient : ClientModInitializer, Host {
             TickClock.advance()
             jobs.dispatch(Job.Event.Tick)
             ScriptKeys.dispatch(jobs)
+            if (mc.gui.screen() == null) jobs.pollKeys(InputConstants::isKeyDown)
+            if (mc.level != null) ScriptRenderer.submitTick()
             val nowInWorld = mc.player != null
             if (nowInWorld && !inWorld) runAutorun()
             inWorld = nowInWorld

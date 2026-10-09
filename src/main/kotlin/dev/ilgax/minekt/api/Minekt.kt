@@ -215,6 +215,42 @@ class Minekt internal constructor(private val job: Job) {
         level.players().filter { it !== self }.map { it.toInfo(self) }.sortedBy { it.distance }
     }
 
+    // ---- world rendering ----------------------------------------------------------------------
+    // Shapes stay until removed (handle.remove() / clearShapes()) or the script ends. throughWalls
+    // draws them on top of terrain (handy for finding things, and also what an ESP does).
+
+    /** Outline (and by default fill) one block. */
+    fun highlight(pos: BlockPos, color: Int = Color.GREEN, fill: Boolean = true, throughWalls: Boolean = true) =
+        box(Vec3(pos.x.toDouble(), pos.y.toDouble(), pos.z.toDouble()), Vec3(pos.x + 1.0, pos.y + 1.0, pos.z + 1.0), color, fill, throughWalls)
+
+    fun highlight(x: Int, y: Int, z: Int, color: Int = Color.GREEN, fill: Boolean = true, throughWalls: Boolean = true) =
+        highlight(BlockPos(x, y, z), color, fill, throughWalls)
+
+    /** A box between two corners, in world coordinates. */
+    fun box(min: Vec3, max: Vec3, color: Int = Color.GREEN, fill: Boolean = false, throughWalls: Boolean = true): ShapeHandle =
+        draw(Shape.Box(min, max, color, fill, throughWalls))
+
+    fun line(from: Vec3, to: Vec3, color: Int = Color.WHITE, width: Float = 2f, throughWalls: Boolean = true): ShapeHandle =
+        draw(Shape.Line(from, to, color, width, arrow = false, throughWalls = throughWalls))
+
+    fun arrow(from: Vec3, to: Vec3, color: Int = Color.WHITE, width: Float = 2f, throughWalls: Boolean = true): ShapeHandle =
+        draw(Shape.Line(from, to, color, width, arrow = true, throughWalls = throughWalls))
+
+    /** Floating text that always faces the camera. */
+    fun text(pos: Vec3, text: String, color: Int = Color.WHITE, scale: Float = 1f, throughWalls: Boolean = true): ShapeHandle =
+        draw(Shape.Text(pos, text, color, scale, throughWalls))
+
+    /** Remove every shape this script has drawn. */
+    fun clearShapes() = ShapeRegistry.global.clear(job.id)
+
+    private fun draw(shape: Shape): ShapeHandle {
+        job.checkAlive()
+        job.cleanups.addIfAbsent(shapeCleanup)
+        return ShapeRegistry.global.add(job.id, shape)
+    }
+
+    private val shapeCleanup: () -> Unit = { ShapeRegistry.global.clear(job.id) }
+
     // ---- events -------------------------------------------------------------------------------
 
     /**
@@ -237,12 +273,7 @@ class Minekt internal constructor(private val job: Job) {
      */
     fun onKey(name: String, handler: () -> Unit) {
         val key = InputConstants.getKey(if ('.' in name && name.startsWith("key.")) name else "key.keyboard.$name")
-        var wasDown = false
-        onTick {
-            val down = game { mc -> mc.gui.screen() == null && InputConstants.isKeyDown(key.value) }
-            if (down && !wasDown) handler()
-            wasDown = down
-        }
+        job.keyWatches += Job.KeyWatch(key.value, handler)
     }
 
     /**

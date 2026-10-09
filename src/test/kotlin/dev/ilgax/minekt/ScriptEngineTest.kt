@@ -160,6 +160,55 @@ class ScriptEngineTest {
     }
 
     @Test
+    fun `shapes are drawn until removed or the script ends`() {
+        val registry = dev.ilgax.minekt.api.ShapeRegistry.global
+        val job = jobs.eval(
+            """
+            val a = highlight(1, 2, 3, Color.RED)
+            line(Vec3(0.0, 0.0, 0.0), Vec3(1.0, 1.0, 1.0))
+            text(Vec3(0.0, 2.0, 0.0), "hi", scale = 2f)
+            a.remove()
+            echo(jobId)
+            onChat { stop() }
+            """.trimIndent()
+        )
+        val id = host.next().second.toInt()
+        while (job.state != Job.State.LISTENING) Thread.sleep(20)
+        assertEquals(2, registry.count(id))
+        assertTrue(registry.all().any { it is dev.ilgax.minekt.api.Shape.Text && it.text == "hi" && it.scale == 2f })
+        jobs.dispatch(Job.Event.Chat("bye"))
+        awaitDone(job)
+        assertEquals(0, registry.count(id))
+    }
+
+    @Test
+    fun `slow tick handlers skip ticks instead of delaying other events`() {
+        val job = jobs.eval("""var n = 0; onTick { n++; sleep(20) }; command("count") { echo(n); stop() }""")
+        while (job.state != Job.State.LISTENING) Thread.sleep(20)
+        repeat(1000) { jobs.dispatch(Job.Event.Tick) } // far more than a 20 ms handler can keep up with
+        jobs.dispatch(Job.Event.Command("count", emptyList()))
+        val started = System.currentTimeMillis()
+        val ticksRun = host.next().second.toInt()
+        assertTrue(System.currentTimeMillis() - started < 2000, "command was delayed behind queued ticks")
+        assertTrue(ticksRun < 10, "expected coalesced ticks, got $ticksRun")
+        awaitDone(job)
+    }
+
+    @Test
+    fun `onKey fires once per press, not while held`() {
+        val job = jobs.eval("""onKey("k") { echo("pressed") }""")
+        while (job.state != Job.State.LISTENING) Thread.sleep(20)
+        val k = com.mojang.blaze3d.platform.InputConstants.getKey("key.keyboard.k").value
+        for (down in listOf(false, true, true, true, false, true)) jobs.pollKeys { it == k && down }
+        assertEquals(MessageKind.SCRIPT to "pressed", host.next())
+        assertEquals(MessageKind.SCRIPT to "pressed", host.next())
+        Thread.sleep(200)
+        assertTrue(host.messages.isEmpty(), "held key must not repeat: ${host.messages}")
+        jobs.kill(job.id)
+        awaitDone(job)
+    }
+
+    @Test
     fun `bundled examples compile`() {
         val dir = Path.of(javaClass.getResource("/minekt-examples/hello.kts")!!.toURI()).parent
         val failures = Files.list(dir).use { files ->

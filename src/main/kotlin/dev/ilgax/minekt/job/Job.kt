@@ -32,6 +32,7 @@ class Job internal constructor(
         data class Chat(val text: String) : Event
         data class Command(val name: String, val args: List<String>) : Event
         data class Binding(val slot: Int) : Event
+        data class Key(val watch: KeyWatch) : Event
     }
 
     enum class State { COMPILING, RUNNING, LISTENING, DONE }
@@ -69,10 +70,33 @@ class Job internal constructor(
         if (killed) throw JobKilledException()
     }
 
+    /** A physical key a script watches via `onKey`; polled on the client thread, see [pollKeys]. */
+    class KeyWatch(val keyCode: Int, val handler: () -> Unit) {
+        internal var wasDown = false
+    }
+
+    internal val keyWatches = CopyOnWriteArrayList<KeyWatch>()
+
+    /**
+     * At most one Tick is queued at a time: a script slower than the game skips ticks instead of
+     * building a backlog that would delay its other events (commands, keys, chat).
+     */
+    private val tickQueued = java.util.concurrent.atomic.AtomicBoolean(false)
+
+    /** Client thread, once per tick: turn watched keys going down into [Event.Key]s. */
+    internal fun pollKeys(isDown: (Int) -> Boolean) {
+        for (watch in keyWatches) {
+            val down = isDown(watch.keyCode)
+            if (down && !watch.wasDown) post(Event.Key(watch))
+            watch.wasDown = down
+        }
+    }
+
     internal fun post(event: Event) {
         if (state == State.LISTENING || state == State.RUNNING) {
             val wanted = when (event) {
-                Event.Tick -> tickHandlers.isNotEmpty()
+                Event.Tick -> tickHandlers.isNotEmpty() && tickQueued.compareAndSet(false, true)
+                is Event.Key -> true
                 is Event.Chat -> chatHandlers.isNotEmpty()
                 is Event.Command -> commandHandlers.containsKey(event.name)
                 is Event.Binding -> bindingHandlers[event.slot]?.isNotEmpty() == true
@@ -126,7 +150,11 @@ class Job internal constructor(
             while (!killed) {
                 val event = events.poll(250, TimeUnit.MILLISECONDS) ?: continue
                 when (event) {
-                    Event.Tick -> tickHandlers.forEach { it() }
+                    Event.Tick -> {
+                        tickQueued.set(false)
+                        tickHandlers.forEach { it() }
+                    }
+                    is Event.Key -> event.watch.handler()
                     is Event.Chat -> chatHandlers.forEach { it(event.text) }
                     is Event.Command -> commandHandlers[event.name]?.invoke(event.args)
                     is Event.Binding -> bindingHandlers[event.slot]?.forEach { it() }
@@ -138,7 +166,7 @@ class Job internal constructor(
     }
 
     private fun hasHandlers() =
-        tickHandlers.isNotEmpty() || chatHandlers.isNotEmpty() || commandHandlers.isNotEmpty() ||
+        tickHandlers.isNotEmpty() || chatHandlers.isNotEmpty() || commandHandlers.isNotEmpty() || keyWatches.isNotEmpty() ||
             bindingHandlers.values.any { it.isNotEmpty() }
 
     private fun handleThrowable(t: Throwable) {

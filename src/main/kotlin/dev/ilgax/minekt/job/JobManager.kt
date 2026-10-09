@@ -44,4 +44,6 @@ class JobManager(private val host: Host) {
         else host.scriptDir.listDirectoryEntries("*.kts").map { it.nameWithoutExtension }.sorted()
 
     fun dispatch(event: Job.Event) = running.values.forEach { it.post(event) }
+
+    fun pollKeys(isDown: (Int) -> Boolean) = running.values.forEach { it.pollKeys(isDown) }
 }
