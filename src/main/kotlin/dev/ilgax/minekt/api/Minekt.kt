@@ -233,6 +233,7 @@ class Minekt internal constructor(private val job: Job) {
     /**
      * Call [handler] when a physical key is pressed, e.g. `onKey("k") { ... }`. Names are GLFW
      * names without the `key.keyboard.` prefix: `"k"`, `"f6"`, `"left.shift"`. Polled each tick.
+     * The key is fixed by the script; use [onBinding] to let the player choose it in Controls.
      */
     fun onKey(name: String, handler: () -> Unit) {
         val key = InputConstants.getKey(if ('.' in name && name.startsWith("key.")) name else "key.keyboard.$name")
@@ -241,6 +242,36 @@ class Minekt internal constructor(private val job: Job) {
             val down = game { mc -> mc.gui.screen() == null && InputConstants.isKeyDown(key.value) }
             if (down && !wasDown) handler()
             wasDown = down
+        }
+    }
+
+    /**
+     * Call [handler] when the player presses script keybind [slot] (1–5). Players choose the key
+     * in Options → Controls → Minekt. Prefer this over [onKey] for scripts you share: the player
+     * picks the key, it shows up in Controls, and it never clashes with other bindings.
+     */
+    fun onBinding(slot: Int, handler: () -> Unit) {
+        require(slot in 1..SCRIPT_KEY_SLOTS) { "Keybind slot must be 1..$SCRIPT_KEY_SLOTS" }
+        job.bindingHandlers.computeIfAbsent(slot) { java.util.concurrent.CopyOnWriteArrayList() } += handler
+    }
+
+    /** The key currently bound to script keybind [slot], e.g. `"K"` or `"Not Bound"`. */
+    fun bindingKey(slot: Int): String {
+        job.checkAlive()
+        return job.host.bindingKeyName(slot)
+    }
+
+    /**
+     * Register `/name` as a client-side command while this script runs. [handler] gets the words
+     * typed after the name (`"quoted words"` are grouped). [completions] are offered on Tab.
+     * Script commands take priority over a server command of the same name until the script ends.
+     */
+    fun command(name: String, completions: List<String> = emptyList(), handler: (args: List<String>) -> Unit) {
+        job.checkAlive()
+        job.commandHandlers[name] = handler
+        job.host.registerCommand(name, completions, job)?.let { error ->
+            job.commandHandlers.remove(name)
+            throw IllegalStateException(error)
         }
     }
 
@@ -270,3 +301,6 @@ class Minekt internal constructor(private val job: Job) {
         Key.SWAP_OFFHAND -> keySwapOffhand
     }
 }
+
+/** Number of "Script key N" slots in the Controls menu. */
+const val SCRIPT_KEY_SLOTS = 5

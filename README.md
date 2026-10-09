@@ -48,7 +48,8 @@ Everything below is in scope in every script, no imports needed.
 | Player | `player` (name, position, yaw/pitch, health, dimension, selectedSlot), `position`, `setOrientation(yaw, pitch)`, `lookAt(x, y, z)`, `selectSlot(n)`, `inventory()` |
 | Input | `press(Key.FORWARD)`, `release(key)`, `hold(key, ms)`; held keys are released when the script ends |
 | World | `getBlock(x, y, z)`, `findBlocks(radius) { id -> … }`, `entities(radius)`, `players()` |
-| Events | `onChat { msg -> }`, `onTick { }`, `onKey("k") { }` |
+| Events | `onChat { msg -> }`, `onTick { }`, `onKey("k") { }`, `onBinding(1) { }` |
+| Commands | `command("name", completions) { args -> }` registers a real `/name` |
 | Mods | `isModLoaded(id)`, `modVersion(id)`, `baritone.*` |
 | Raw access | `game { mc -> … }` runs on the client thread with the live `Minecraft` instance |
 
@@ -65,6 +66,37 @@ handling events until it calls `stop()` or you `\kill` it:
 onChat { msg -> if (msg.endsWith("ping")) echo("pong!") }
 onKey("k") { stop() }
 ```
+
+### Keys: `onKey` or `onBinding`, your choice
+
+| | `onKey("k") { }` | `onBinding(1) { }` |
+|---|---|---|
+| Who picks the key | the script author | the player, in Options → Controls → Minekt → "Script key 1–5" |
+| Shows up in Controls | no | yes, and conflicts with other bindings are flagged there |
+| Works in menus | no (only when no screen is open) | no (same as any game keybind) |
+| Good for | personal scripts, quick hacks | scripts you share |
+
+`bindingKey(1)` returns what the player bound (e.g. `"J"` or `"Not Bound"`), so a script can tell them which key to press.
+Both can be used in the same script:
+
+```kotlin
+onBinding(1) { stop() } // whatever the player bound
+onKey("k") { stop() }   // always K
+```
+
+### Commands
+
+`command(...)` registers a real client-side `/` command, with Tab completion, for as long as the script runs:
+
+```kotlin
+command("mark", completions = listOf("home", "mine")) { args ->
+    echo("marked ${args.firstOrNull() ?: "home"} at ${player.position}")
+}
+```
+
+Words after the command arrive as `args` (`"quoted words"` stay together). While the script runs, its
+command takes priority over a server command with the same name. When the script ends, the command
+disappears and `/name` goes to the server again. Two scripts can't own the same name.
 
 ### Sharing code
 
@@ -128,8 +160,9 @@ Requires JDK 25.
 ./gradlew runClient      # dev client
 ```
 
-`dev/selftest/` holds an in-game self-test. Copy it into `run/minekt/`, add `\selftest` to
-`run/minekt/autorun.txt`, then open a world. It reports `SELFTEST OK/FAIL` lines in chat and closes the game.
+`dev/selftest/` holds an in-game self-test. Copy it into `run/minekt/`, put `\hooktest` and `\selftest` (in
+that order) in `run/minekt/autorun.txt`, then open a world. It reports `SELFTEST`/`HOOKTEST` lines in chat and
+closes the game. When it prints `PRESS KEYS NOW`, press J and K so the key hooks get exercised.
 
 ## License
 

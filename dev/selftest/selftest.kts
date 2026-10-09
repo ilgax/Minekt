@@ -25,6 +25,24 @@ check("walk") {
     "moved %.2f blocks".format(before.distanceTo(player.position))
 }
 check("ticks") { val t = System.currentTimeMillis(); waitTicks(20); "${System.currentTimeMillis() - t} ms for 20 ticks" }
+
+// ---- Fabric hooks (hooktest.kts runs alongside as its own job) ----
+check("binding slot visible") { bindingKey(1) }
+game { mc ->
+    // Bind "Script key 1" to J, as a player would in Controls.
+    val mapping = mc.options.keyMappings.first { it.name == "key.minekt.script_1" }
+    mapping.setKey(com.mojang.blaze3d.platform.InputConstants.getKey("key.keyboard.j"))
+    net.minecraft.client.KeyMapping.resetMapping()
+}
+check("binding rebound") { bindingKey(1) }
+echo("SELFTEST PRESS KEYS NOW")
+waitTicks(200) // the harness presses J and K for real via xdotool
+check("command in tab-completion") { game { it.connection!!.commands.root.getChild("mkt") != null } }
+chat("/mkt hello \"two words\"")
+waitTicks(10)
+chat("/mkt stop")
+waitTicks(20)
+check("command removed after script ends") { game { it.connection!!.commands.root.getChild("mkt") == null } }
 echo("SELFTEST DONE")
 sleep(1000)
 game { it.stop() }

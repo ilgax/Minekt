@@ -24,6 +24,14 @@ class ScriptEngineTest {
         override fun echo(message: String, kind: MessageKind) { messages.put(kind to message) }
         override fun <T> onGameThread(block: (Minecraft) -> T): T = error("no game in tests")
 
+        val commands = java.util.concurrent.ConcurrentHashMap<String, Job>()
+        override fun registerCommand(name: String, completions: List<String>, owner: Job): String? {
+            val existing = commands.putIfAbsent(name, owner)
+            return if (existing != null && existing !== owner) "/$name is taken" else null
+        }
+        override fun unregisterCommand(name: String, owner: Job) { commands.remove(name, owner) }
+        override fun bindingKeyName(slot: Int) = "Key$slot"
+
         fun next(): Pair<MessageKind, String> =
             messages.poll(60, TimeUnit.SECONDS) ?: fail("timed out waiting for script output")
     }
@@ -100,6 +108,48 @@ class ScriptEngineTest {
     }
 
     @Test
+    fun `script commands receive args and are unregistered when the script ends`() {
+        val job = jobs.eval("""command("greet", listOf("world")) { args -> if (args == listOf("bye")) stop() else echo("hello", args) }""")
+        while (job.state != Job.State.LISTENING) Thread.sleep(20)
+        assertEquals(job, host.commands["greet"])
+        jobs.dispatch(Job.Event.Command("greet", listOf("big", "world")))
+        assertEquals(MessageKind.SCRIPT to "hello [big, world]", host.next())
+        jobs.dispatch(Job.Event.Command("greet", listOf("bye")))
+        awaitDone(job)
+        assertTrue(host.commands.isEmpty(), "command should be unregistered: ${host.commands}")
+    }
+
+    @Test
+    fun `registering a taken command name fails the script`() {
+        val owner = jobs.eval("""command("dup") { }""")
+        while (owner.state != Job.State.LISTENING) Thread.sleep(20)
+        awaitDone(jobs.eval("""command("dup") { }"""))
+        val (kind, text) = host.next()
+        assertEquals(MessageKind.ERROR, kind)
+        assertTrue("/dup is taken" in text, text)
+        jobs.kill(owner.id)
+        awaitDone(owner)
+    }
+
+    @Test
+    fun `keybind slots dispatch to their handlers only`() {
+        val job = jobs.eval("""echo(bindingKey(2)); onBinding(2) { echo("slot 2"); stop() }; onBinding(3) { echo("slot 3") }""")
+        assertEquals(MessageKind.SCRIPT to "Key2", host.next())
+        while (job.state != Job.State.LISTENING) Thread.sleep(20)
+        jobs.dispatch(Job.Event.Binding(1))
+        jobs.dispatch(Job.Event.Binding(2))
+        assertEquals(MessageKind.SCRIPT to "slot 2", host.next())
+        awaitDone(job)
+        assertTrue(host.messages.isEmpty(), "unexpected output: ${host.messages}")
+    }
+
+    @Test
+    fun `invalid keybind slot is rejected`() {
+        awaitDone(jobs.eval("onBinding(9) { }"))
+        assertTrue("1..5" in host.next().second)
+    }
+
+    @Test
     fun `looping script can be killed`() {
         val job = jobs.eval("while (true) sleep(10)")
         while (job.state != Job.State.RUNNING) Thread.sleep(20)
@@ -107,6 +157,18 @@ class ScriptEngineTest {
         awaitDone(job)
         assertTrue(host.messages.isEmpty(), "kill should be silent: ${host.messages}")
         assertTrue(jobs.jobs.isEmpty())
+    }
+
+    @Test
+    fun `bundled examples compile`() {
+        val dir = Path.of(javaClass.getResource("/minekt-examples/hello.kts")!!.toURI()).parent
+        val failures = Files.list(dir).use { files ->
+            files.filter { it.toString().endsWith(".kts") }.toList().mapNotNull { file ->
+                val result = dev.ilgax.minekt.script.ScriptCompiler.compile(kotlin.script.experimental.host.FileScriptSource(file.toFile()))
+                if (result is kotlin.script.experimental.api.ResultWithDiagnostics.Failure) "${file.fileName}: ${result.reports.map { it.message }}" else null
+            }
+        }
+        assertTrue(failures.isEmpty(), failures.joinToString("\n"))
     }
 
     @Test

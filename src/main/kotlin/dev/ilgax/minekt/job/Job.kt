@@ -30,6 +30,8 @@ class Job internal constructor(
     sealed interface Event {
         data object Tick : Event
         data class Chat(val text: String) : Event
+        data class Command(val name: String, val args: List<String>) : Event
+        data class Binding(val slot: Int) : Event
     }
 
     enum class State { COMPILING, RUNNING, LISTENING, DONE }
@@ -48,6 +50,8 @@ class Job internal constructor(
 
     internal val tickHandlers = CopyOnWriteArrayList<() -> Unit>()
     internal val chatHandlers = CopyOnWriteArrayList<(String) -> Unit>()
+    internal val commandHandlers = java.util.concurrent.ConcurrentHashMap<String, (List<String>) -> Unit>()
+    internal val bindingHandlers = java.util.concurrent.ConcurrentHashMap<Int, CopyOnWriteArrayList<() -> Unit>>()
     /** Keys the script pressed; released when the job ends so the player doesn't keep walking. */
     internal val heldKeys: MutableSet<KeyMapping> = java.util.concurrent.ConcurrentHashMap.newKeySet()
     /** Arbitrary cleanup registered by API helpers (unregistering HUD lines, keybind handlers, ...). */
@@ -70,6 +74,8 @@ class Job internal constructor(
             val wanted = when (event) {
                 Event.Tick -> tickHandlers.isNotEmpty()
                 is Event.Chat -> chatHandlers.isNotEmpty()
+                is Event.Command -> commandHandlers.containsKey(event.name)
+                is Event.Binding -> bindingHandlers[event.slot]?.isNotEmpty() == true
             }
             if (wanted) events.offer(event)
         }
@@ -114,7 +120,7 @@ class Job internal constructor(
 
     /** After the script body returns, keep dispatching events while it has handlers registered. */
     private fun listen() {
-        if (tickHandlers.isEmpty() && chatHandlers.isEmpty()) return
+        if (!hasHandlers()) return
         state = State.LISTENING
         try {
             while (!killed) {
@@ -122,12 +128,18 @@ class Job internal constructor(
                 when (event) {
                     Event.Tick -> tickHandlers.forEach { it() }
                     is Event.Chat -> chatHandlers.forEach { it(event.text) }
+                    is Event.Command -> commandHandlers[event.name]?.invoke(event.args)
+                    is Event.Binding -> bindingHandlers[event.slot]?.forEach { it() }
                 }
             }
         } catch (t: Throwable) {
             handleThrowable(t)
         }
     }
+
+    private fun hasHandlers() =
+        tickHandlers.isNotEmpty() || chatHandlers.isNotEmpty() || commandHandlers.isNotEmpty() ||
+            bindingHandlers.values.any { it.isNotEmpty() }
 
     private fun handleThrowable(t: Throwable) {
         val root = generateSequence(t) { it.cause }.last()
@@ -153,6 +165,7 @@ class Job internal constructor(
 
     private fun cleanup() {
         cleanups.forEach { runCatching(it) }
+        commandHandlers.keys.forEach { name -> runCatching { host.unregisterCommand(name, this) } }
         if (heldKeys.isNotEmpty()) {
             runCatching { host.onGameThread { heldKeys.forEach { key -> key.setDown(false) } } }
             heldKeys.clear()

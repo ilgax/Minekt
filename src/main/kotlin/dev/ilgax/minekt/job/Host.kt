@@ -13,6 +13,17 @@ interface Host {
 
     /** Run [block] on the client thread and wait for its result. */
     fun <T> onGameThread(block: (Minecraft) -> T): T
+
+    /**
+     * Make `/name` a client-side command owned by [owner]; invocations arrive as [Job.Event.Command].
+     * Returns an error message if the name is taken, else null.
+     */
+    fun registerCommand(name: String, completions: List<String>, owner: Job): String?
+
+    fun unregisterCommand(name: String, owner: Job)
+
+    /** Display name of the key bound to script keybind [slot] (1-based), e.g. "K" or "Not Bound". */
+    fun bindingKeyName(slot: Int): String
 }
 
 enum class MessageKind { SCRIPT, INFO, ERROR }

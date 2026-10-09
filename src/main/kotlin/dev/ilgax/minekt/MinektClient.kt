@@ -1,6 +1,8 @@
 package dev.ilgax.minekt
 
 import dev.ilgax.minekt.api.ScriptHud
+import dev.ilgax.minekt.hooks.ScriptCommands
+import dev.ilgax.minekt.hooks.ScriptKeys
 import dev.ilgax.minekt.job.Host
 import dev.ilgax.minekt.job.Job
 import dev.ilgax.minekt.job.JobManager
@@ -26,7 +28,7 @@ import kotlin.io.path.exists
 object MinektClient : ClientModInitializer, Host {
     private val logger = LoggerFactory.getLogger("minekt")
     private const val PREFIX = "\\"
-    private val EXAMPLES = listOf("hello", "whereami", "ores", "autowalk", "chatbot", "hud", "baritone_mine")
+    private val EXAMPLES = listOf("hello", "whereami", "ores", "autowalk", "chatbot", "hud", "commands", "baritone_mine")
 
     override val scriptDir: Path = FabricLoader.getInstance().gameDir.resolve("minekt")
     val jobs = JobManager(this)
@@ -35,6 +37,8 @@ object MinektClient : ClientModInitializer, Host {
         ScriptClasspath.scriptDir = scriptDir
         installExamples()
         ScriptHud.register()
+        ScriptCommands.register()
+        ScriptKeys.register()
 
         ClientSendMessageEvents.ALLOW_CHAT.register { message ->
             if (message.startsWith(PREFIX)) {
@@ -55,6 +59,7 @@ object MinektClient : ClientModInitializer, Host {
         ClientTickEvents.END_CLIENT_TICK.register { mc ->
             TickClock.advance()
             jobs.dispatch(Job.Event.Tick)
+            ScriptKeys.dispatch(jobs)
             val nowInWorld = mc.player != null
             if (nowInWorld && !inWorld) runAutorun()
             inWorld = nowInWorld
@@ -143,6 +148,13 @@ object MinektClient : ClientModInitializer, Host {
             if (player != null) player.sendSystemMessage(component) else logger.info("[script] {}", message)
         }
     }
+
+    override fun registerCommand(name: String, completions: List<String>, owner: Job) =
+        ScriptCommands.add(name, completions, owner)
+
+    override fun unregisterCommand(name: String, owner: Job) = ScriptCommands.remove(name, owner)
+
+    override fun bindingKeyName(slot: Int) = onGameThread { ScriptKeys.keyName(slot) }
 
     override fun <T> onGameThread(block: (Minecraft) -> T): T {
         val mc = Minecraft.getInstance()
