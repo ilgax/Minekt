@@ -5,6 +5,7 @@ import dev.ilgax.minekt.job.ScriptLogs
 import dev.ilgax.minekt.job.JobKilledException
 import dev.ilgax.minekt.job.JobStopException
 import dev.ilgax.minekt.job.TickClock
+import dev.ilgax.minekt.mixin.KeyMappingAccessor
 import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.client.KeyMapping
 import net.minecraft.client.Minecraft
@@ -55,6 +56,12 @@ class Minekt internal constructor(internal val job: Job) {
 
     /** Run a command (leading `/` optional). */
     fun execute(command: String) = chat(if (command.startsWith("/")) command else "/$command")
+
+    /** The text on the system clipboard ("" if there's none). */
+    fun clipboard(): String = game { mc -> mc.keyboardHandler.clipboard }
+
+    /** Put [text] on the system clipboard. */
+    fun setClipboard(text: String) = game { mc -> mc.keyboardHandler.clipboard = text }
 
     // ---- timing / control ---------------------------------------------------------------------
 
@@ -111,6 +118,26 @@ class Minekt internal constructor(internal val job: Job) {
                 maxHealth = p.maxHealth,
                 dimension = mc.level!!.dimension().identifier().toString(),
                 selectedSlot = p.inventory.selectedSlot,
+                absorption = p.absorptionAmount,
+                food = p.foodData.foodLevel,
+                saturation = p.foodData.saturationLevel,
+                xpLevel = p.experienceLevel,
+                xpProgress = p.experienceProgress,
+                air = p.airSupply,
+                maxAir = p.maxAirSupply,
+                armor = p.armorValue,
+                effects = p.activeEffects.map { EffectInfo(it.effect.registeredName, it.amplifier, it.duration) },
+                velocity = p.deltaMovement.let { Vec3(it.x, it.y, it.z) },
+                onGround = p.onGround(),
+                inWater = p.isInWater,
+                inLava = p.isInLava,
+                onFire = p.isOnFire,
+                sneaking = p.isShiftKeyDown,
+                sprinting = p.isSprinting,
+                flying = p.abilities.flying,
+                gliding = p.isFallFlying,
+                gameMode = mc.gameMode?.playerMode?.serializedName ?: "survival",
+                vehicle = p.vehicle?.let { BuiltInRegistries.ENTITY_TYPE.getKey(it.type).toString() },
             )
         }
 
@@ -138,14 +165,35 @@ class Minekt internal constructor(internal val job: Job) {
 
     fun lookAt(pos: Vec3) = lookAt(pos.x, pos.y, pos.z)
 
-    /** Hold or release a key. Held keys are released automatically when the script ends. */
-    fun press(key: Key, down: Boolean = true) = game { mc ->
-        val mapping = mc.options.mapping(key)
-        mapping.setDown(down)
-        if (down) job.heldKeys += mapping else job.heldKeys -= mapping
+    /**
+     * Hold ([down]) or let go of one of the game's bindings, whatever key it's bound to. Going down
+     * also counts as a click, like a real key press (so `"inventory"` opens the inventory and
+     * `"attack"` swings). Held bindings are released when the script ends.
+     */
+    fun press(key: Key, down: Boolean = true) = game { mc -> press(mc.options.mapping(key), down) }
+
+    /**
+     * [press] by the binding's name, as in `options.txt` with or without `key.`: `"forward"`, `"inventory"`,
+     * `"hotbar.3"`, `"togglePerspective"`, `"key.pickItem"`, or a binding another mod adds. [bindings] lists them.
+     */
+    fun press(binding: String, down: Boolean = true) = game { mc ->
+        val mapping = KeyMapping.get(binding) ?: KeyMapping.get("key.$binding")
+            ?: throw IllegalArgumentException("No binding named '$binding' (bindings() lists them)")
+        press(mapping, down)
     }
 
     fun release(key: Key) = press(key, false)
+
+    fun release(binding: String) = press(binding, false)
+
+    /** The names of all the game's bindings, for [press]: `key.forward`, `key.inventory`, … */
+    fun bindings(): List<String> = game { mc -> mc.options.keyMappings.map { it.name } }
+
+    private fun press(mapping: KeyMapping, down: Boolean) {
+        if (down && !mapping.isDown) (mapping as KeyMappingAccessor).run { `minekt$setClickCount`(`minekt$getClickCount`() + 1) }
+        mapping.setDown(down)
+        if (down) job.heldKeys += mapping else job.heldKeys -= mapping
+    }
 
     fun selectSlot(slot: Int) = game { mc ->
         require(slot in 0..8) { "Hotbar slot must be 0..8" }

@@ -32,7 +32,7 @@ and `\menu` opens the script manager. More in [Getting started](docs/getting-sta
   recording your input as a script. ([Player and world](docs/world.md))
 - **React to things:** chat, ticks, keys, damage, blocks changing, mobs appearing, sounds, the tab list and
   scoreboard, timers, messages from other scripts, their own `/commands`. ([Events](docs/events.md))
-- **Show things:** HUD panels, shapes drawn in the world, real Minecraft screens. ([Drawing and screens](docs/display.md))
+- **Show things:** HUD panels, shapes drawn in the world, your own drawing every frame, real Minecraft screens. ([Drawing and screens](docs/display.md))
 - **Keep and fetch data:** settings the player can change in a menu, values that survive restarts, web
   requests, any Maven library. ([Data and the web](docs/data.md))
 - **Go deep:** raw packets, hooking any game method at runtime, rewriting any class's bytecode, other mods' APIs, Baritone. ([Advanced](docs/advanced.md))

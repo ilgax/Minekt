@@ -20,8 +20,38 @@ clearShapes()                                                   // or drop them 
   works). Use `fill = false` for outlines only.
 - A script that only draws ends straight away and takes its shapes with it. Keep it alive with a handler
   (`keybind("Clear").onPress { stop() }`) to leave them up until you're done (see `ores.kts`).
-- Shapes use Minecraft's built-in gizmo renderer. They're redrawn every tick from data the script sets, so
-  scripts never run code on the render thread.
+- Shapes use Minecraft's built-in gizmo renderer. They're redrawn every tick from data the script sets; for
+  drawing that changes every frame, see below.
+
+## Drawing every frame
+
+For anything that moves, or drawing of your own, a script can draw on the HUD and in the world every frame:
+
+```kotlin
+onHudRender { g ->
+    g.rect(g.width / 2 - 1, g.height / 2 - 1, 2, 2, Color.RED)       // a dot on the crosshair
+    val w = g.text("Speed ${"%.2f".format(player.velocity.x)}", 10, 10)  // returns the text's width
+    g.rect(10, 10 + g.lineHeight, w, 1, Color.CYAN)
+    g.item("minecraft:diamond", 10, 24, count = 3)
+    g.image("logo.png", 10, 44, 32, 32)                              // a PNG in minekt/
+}
+onWorldRender { w ->
+    for (id in tracked) w.entityPosition(id)?.let { w.line(w.cameraPos, it, Color.RED, throughWalls = true) }
+    w.box(Vec3(0.0, 64.0, 0.0), Vec3(1.0, 65.0, 1.0), Color.GREEN)
+    w.text(Vec3(0.5, 66.0, 0.5), "Here", Color.YELLOW, scale = 2f)
+    w.point(Vec3(0.5, 64.5, 0.5), Color.CYAN, size = 8f)
+}
+```
+
+- The handlers run on the game's thread every frame, before it draws, so keep them quick: work things out in
+  `onTick` or a coroutine and only draw here. `game { }` inside them runs directly.
+- HUD coordinates are GUI pixels, 0, 0 at the top left, `g.width` × `g.height` in size. `g.raw` is the game's own
+  drawing context for anything else. Nothing is drawn while the HUD is hidden (F1).
+- In the world, `w.entityPosition(id)` is where an entity is drawn this frame, between its last two ticks, so
+  lines and boxes on moving entities don't jitter. `w.partialTick` is that fraction (0–1) for your own
+  smoothing.
+- Colors are `0xRRGGBB` (opaque) or `0xAARRGGBB`, like `Color.RED` or `Color.rgb(r, g, b, a)`.
+- The handlers keep the script alive. One that throws is removed and its error shown in chat.
 
 ## HUD panels
 

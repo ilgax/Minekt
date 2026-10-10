@@ -1,6 +1,9 @@
 package dev.ilgax.minekt
 
+import dev.ilgax.minekt.api.HudCanvas
 import dev.ilgax.minekt.api.ScriptHud
+import dev.ilgax.minekt.api.Vec3
+import dev.ilgax.minekt.api.WorldCanvas
 import dev.ilgax.minekt.hooks.GameEventSource
 import dev.ilgax.minekt.hooks.ErrorChat
 import dev.ilgax.minekt.hooks.InputHooks
@@ -39,10 +42,13 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents
 import net.fabricmc.fabric.api.client.message.v1.ClientSendMessageEvents
+import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry
+import net.fabricmc.fabric.api.client.rendering.v1.level.LevelExtractionEvents
 import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.ChatFormatting
 import net.minecraft.client.Minecraft
 import net.minecraft.network.chat.Component
+import net.minecraft.resources.Identifier
 import org.slf4j.LoggerFactory
 import java.nio.file.Files
 import java.nio.file.Path
@@ -81,6 +87,7 @@ object MinektClient : ClientModInitializer, Host {
         ScriptDependencies.onDownload = { notifyCompiler(it, false) }
         installExamples()
         ScriptHud.register()
+        registerRenderHooks()
         ScriptCommands.register()
         ScriptKeys.file = scriptDir.resolve("settings/keybinds.json")
         ScriptKeys.register()
@@ -348,6 +355,22 @@ object MinektClient : ClientModInitializer, Host {
     override fun unregisterCommand(name: String, owner: Job) = ScriptCommands.remove(name, owner)
 
     override fun addKeybind(owner: Job, id: String, label: String, defaultKey: String?) = ScriptKeys.add(owner, id, label, defaultKey)
+
+    /** Scripts' `onHudRender` and `onWorldRender` handlers, every frame (and only while some script has one). */
+    private fun registerRenderHooks() {
+        HudElementRegistry.addLast(Identifier.fromNamespaceAndPath("minekt", "script_render")) { graphics, delta ->
+            if (!Minecraft.getInstance().gui.hud.isHidden && jobs.wantsHudRender()) {
+                jobs.renderHud(HudCanvas(graphics, delta.getGameTimeDeltaPartialTick(true)))
+            }
+        }
+        // After the world's state for this frame is gathered, before it's drawn: gizmos added now show this frame.
+        LevelExtractionEvents.END_EXTRACTION.register { context ->
+            if (jobs.wantsWorldRender()) context.levelRenderer().collectPerFrameRenderThreadGizmos().use {
+                val camera = context.camera().position()
+                jobs.renderWorld(WorldCanvas(context.deltaTracker().getGameTimeDeltaPartialTick(true), Vec3(camera.x, camera.y, camera.z)))
+            }
+        }
+    }
 
     override fun <T> onGameThread(block: (Minecraft) -> T): T {
         val mc = Minecraft.getInstance()

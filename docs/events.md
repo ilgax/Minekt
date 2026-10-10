@@ -117,8 +117,9 @@ moveMouse(200.0, 0.0)              // turns the camera in game, moves the cursor
   2 middle, 3 and up for extra buttons. `action` is `PRESS`, `RELEASE` or `REPEAT` (a held key).
 - Sent input goes through the same game code as real input: keybinds, screens and text boxes react to it, and
   listeners see it too, with `synthetic = true`.
-- `keyDown` / `press(Key.FORWARD)`: `press` holds one of the game's own bindings whatever key it's bound to;
-  `keyDown` presses a physical key, and whatever is bound to it reacts.
+- `keyDown("w")` / `press("forward")`: `keyDown` presses a physical key, and whatever is bound to it reacts;
+  `press` holds one of the game's own bindings (any of them, by name, see [Bindings](world.md#bindings)),
+  whatever key the player put it on.
 
 ## Commands
 

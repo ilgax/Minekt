@@ -24,6 +24,12 @@ data class BlockPos(val x: Int, val y: Int, val z: Int) {
 
 data class Block(val pos: BlockPos, val id: String)
 
+/**
+ * The player, as of the moment `player` was read. [food] and [saturation] are 0–20; [air] counts
+ * down from [maxAir] underwater; [velocity] is blocks per tick; [gameMode] is `survival`,
+ * `creative`, `adventure` or `spectator`; [vehicle] is what you ride (an entity id like
+ * `minecraft:boat`) or null.
+ */
 data class PlayerInfo(
     val name: String,
     val uuid: String,
@@ -34,7 +40,30 @@ data class PlayerInfo(
     val maxHealth: Float,
     val dimension: String,
     val selectedSlot: Int,
+    val absorption: Float = 0f,
+    val food: Int = 20,
+    val saturation: Float = 0f,
+    val xpLevel: Int = 0,
+    val xpProgress: Float = 0f,
+    val air: Int = 300,
+    val maxAir: Int = 300,
+    val armor: Int = 0,
+    val effects: List<EffectInfo> = emptyList(),
+    val velocity: Vec3 = Vec3(0.0, 0.0, 0.0),
+    val onGround: Boolean = true,
+    val inWater: Boolean = false,
+    val inLava: Boolean = false,
+    val onFire: Boolean = false,
+    val sneaking: Boolean = false,
+    val sprinting: Boolean = false,
+    val flying: Boolean = false,
+    val gliding: Boolean = false,
+    val gameMode: String = "survival",
+    val vehicle: String? = null,
 )
+
+/** A potion effect: [id] like `minecraft:speed`, [amplifier] 0 for level I, [duration] in ticks (-1 for infinite). */
+data class EffectInfo(val id: String, val amplifier: Int, val duration: Int)
 
 data class EntityInfo(
     val id: Int,

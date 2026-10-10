@@ -1,5 +1,37 @@
 # Player and world
 
+## The player
+
+`player` is a snapshot of you, read when you use it:
+
+```kotlin
+val p = player
+echo(p.health, p.food, p.xpLevel, p.air, p.armor, p.gameMode)
+if (p.effects.any { it.id == "minecraft:poison" }) echo("Poisoned!")
+if (!p.onGround && p.velocity.y < -0.8) echo("Falling fast")
+if (p.inWater || p.inLava || p.onFire) echo("Get out!")
+```
+
+It also has `position`, `yaw`, `pitch`, `maxHealth`, `absorption`, `saturation`, `xpProgress`, `maxAir`,
+`sneaking`, `sprinting`, `flying`, `gliding` (elytra), `vehicle` (what you ride, or null), `dimension` and
+`selectedSlot`. Anything else is a `game { mc -> mc.player!!… }` away.
+
+## Bindings
+
+`press` holds one of the game's bindings, whatever key the player put it on, and `release` lets go. Going down
+counts as a click, so `press("inventory")` opens the inventory and `press("attack")` swings:
+
+```kotlin
+press("forward"); sleep(2000); release("forward")
+press("hotbar.3"); release("hotbar.3")              // select the third hotbar slot
+press(Key.SNEAK)                                    // the common ones are also in Key
+echo(bindings())                                    // every binding's name, other mods' included
+```
+
+Names are as in `options.txt`, with or without `key.`: `forward`, `jump`, `inventory`, `hotbar.1` … `hotbar.9`,
+`togglePerspective`, `pickItem`, `playerlist`, `screenshot`, … Bindings still held when the script ends are
+released.
+
 ## Inventory, containers and interaction
 
 ```kotlin

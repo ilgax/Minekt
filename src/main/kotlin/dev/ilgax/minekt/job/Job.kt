@@ -127,6 +127,10 @@ class Job internal constructor(
 
     internal val inputHandlers = CopyOnWriteArrayList<InputHandler>()
 
+    /** `onHudRender` / `onWorldRender` handlers, run on the game thread every frame. */
+    internal val hudRenderHandlers = CopyOnWriteArrayList<(dev.ilgax.minekt.api.HudCanvas) -> Unit>()
+    internal val worldRenderHandlers = CopyOnWriteArrayList<(dev.ilgax.minekt.api.WorldCanvas) -> Unit>()
+
     /** Keys the script pressed; released when the job ends so the player doesn't keep walking. */
     internal val heldKeys: MutableSet<KeyMapping> = ConcurrentHashMap.newKeySet()
     /** Arbitrary cleanup registered by API helpers (unregistering HUD lines, keybind handlers, ...). */
@@ -391,6 +395,7 @@ class Job internal constructor(
         tickHandlers.isNotEmpty() || chatHandlers.isNotEmpty() || commandHandlers.isNotEmpty() ||
             gameHandlers.isNotEmpty() || keybindHandlers.values.any { it.isNotEmpty() } ||
             messageHandlers.values.any { it.isNotEmpty() } || openScreens.get() > 0 || settingHandlers.isNotEmpty() || inputHandlers.isNotEmpty() ||
+            hudRenderHandlers.isNotEmpty() || worldRenderHandlers.isNotEmpty() ||
             packetHandlers.isNotEmpty() || packetFilters.isNotEmpty() || MethodHooks.hasHooks(this) || ClassRewrites.has(this)
 
     internal fun handleThrowable(t: Throwable) {

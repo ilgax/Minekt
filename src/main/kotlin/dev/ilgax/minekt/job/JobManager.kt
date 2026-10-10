@@ -94,6 +94,40 @@ class JobManager(private val host: Host) {
         return false
     }
 
+    /** Game thread, every frame: each script's `onHudRender` handlers. A handler that throws is removed. */
+    fun renderHud(canvas: dev.ilgax.minekt.api.HudCanvas) {
+        for (job in running.values) {
+            if (job.hudRenderHandlers.isEmpty()) continue
+            canvas.job = job
+            for (handler in job.hudRenderHandlers) {
+                try {
+                    handler(canvas)
+                } catch (t: Throwable) {
+                    job.hudRenderHandlers.remove(handler)
+                    job.handleThrowable(t)
+                }
+            }
+        }
+    }
+
+    /** Game thread, every frame: each script's `onWorldRender` handlers. */
+    fun renderWorld(canvas: dev.ilgax.minekt.api.WorldCanvas) {
+        for (job in running.values) {
+            for (handler in job.worldRenderHandlers) {
+                try {
+                    handler(canvas)
+                } catch (t: Throwable) {
+                    job.worldRenderHandlers.remove(handler)
+                    job.handleThrowable(t)
+                }
+            }
+        }
+    }
+
+    fun wantsHudRender() = running.values.any { it.hudRenderHandlers.isNotEmpty() }
+
+    fun wantsWorldRender() = running.values.any { it.worldRenderHandlers.isNotEmpty() }
+
     /** Whether any script listens for [type] input (the mixins stay idle otherwise). */
     fun wantsInput(type: Class<out dev.ilgax.minekt.api.InputEvent>) = running.values.any { job -> job.inputHandlers.any { it.type == type } }
 
