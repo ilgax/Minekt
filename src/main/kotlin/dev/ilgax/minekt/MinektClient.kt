@@ -77,6 +77,7 @@ object MinektClient : ClientModInitializer, Host {
         installExamples()
         ScriptHud.register()
         ScriptCommands.register()
+        ScriptKeys.file = scriptDir.resolve("settings/keybinds.json")
         ScriptKeys.register()
         installs.register()
         registerLogCommand()
@@ -95,7 +96,7 @@ object MinektClient : ClientModInitializer, Host {
         ClientTickEvents.END_CLIENT_TICK.register { mc ->
             TickClock.advance()
             jobs.dispatch(Job.Event.Tick)
-            ScriptKeys.dispatch(jobs)
+            ScriptKeys.tick(mc)
             if (mc.gui.screen() == null) jobs.pollKeys(InputConstants::isKeyDown)
             if (mc.level != null) ScriptRenderer.submitTick()
             ScriptHud.tick()
@@ -341,7 +342,7 @@ object MinektClient : ClientModInitializer, Host {
 
     override fun unregisterCommand(name: String, owner: Job) = ScriptCommands.remove(name, owner)
 
-    override fun bindingKeyName(slot: Int) = onGameThread { ScriptKeys.keyName(slot) }
+    override fun addKeybind(owner: Job, id: String, label: String, defaultKey: String?) = ScriptKeys.add(owner, id, label, defaultKey)
 
     override fun <T> onGameThread(block: (Minecraft) -> T): T {
         val mc = Minecraft.getInstance()

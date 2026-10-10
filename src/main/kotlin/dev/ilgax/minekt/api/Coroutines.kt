@@ -53,9 +53,3 @@ suspend inline fun <reified T : GameEvent> Minekt.awaitEventOf(): T = awaitEvent
 /** Suspend until a screen matching [predicate] opens, e.g. `awaitScreen { it.isContainer }`. */
 suspend fun Minekt.awaitScreen(predicate: (ScreenInfo) -> Boolean = { true }): ScreenInfo =
     (awaitEvent { it is GameEvent.ScreenOpen && predicate(it.screen) } as GameEvent.ScreenOpen).screen
-
-/** Suspend until the player presses script keybind [slot] (see `onBinding`). */
-suspend fun Minekt.awaitBinding(slot: Int) {
-    require(slot in 1..SCRIPT_KEY_SLOTS) { "Keybind slot must be 1..$SCRIPT_KEY_SLOTS" }
-    job.awaitEvent { it is Job.Event.Binding && it.slot == slot }
-}

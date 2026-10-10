@@ -1,38 +1,86 @@
 package dev.ilgax.minekt.hooks
 
+import com.google.gson.GsonBuilder
+import com.google.gson.reflect.TypeToken
 import com.mojang.blaze3d.platform.InputConstants
-import dev.ilgax.minekt.api.SCRIPT_KEY_SLOTS
 import dev.ilgax.minekt.job.Job
-import dev.ilgax.minekt.job.JobManager
+import dev.ilgax.minekt.job.KeybindHandle
+import dev.ilgax.minekt.mixin.KeyMappingAccessor
+import dev.ilgax.minekt.mixin.OptionsAccessor
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper
 import net.minecraft.client.KeyMapping
+import net.minecraft.client.Minecraft
 import net.minecraft.resources.Identifier
+import java.nio.file.Files
+import java.nio.file.Path
+import java.util.concurrent.ConcurrentHashMap
 
 /**
- * Keybind slots that show up under "Minekt" in Controls. Players bind them like any other key;
- * scripts listen with `onBinding(n) { }`. Fabric only allows registering keybinds at startup,
- * hence a fixed number of generic slots rather than per-script bindings.
+ * Keybinds in Options → Controls → Minekt: the script manager key (registered with Fabric at startup)
+ * and the ones scripts make with `keybind(…)`, added to and removed from the game's list while it
+ * runs. The game only remembers keys it knows at startup, so the keys players choose for script
+ * keybinds are kept in [file] (`minekt/settings/keybinds.json`) and put back when a script makes
+ * the same keybind again.
  */
 internal object ScriptKeys {
-    private lateinit var mappings: List<KeyMapping>
+    private lateinit var category: KeyMapping.Category
     private lateinit var managerKey: KeyMapping
 
+    private class Dynamic(val id: String, val owner: Job, val mapping: KeyMapping) : KeybindHandle {
+        override val keyName: String get() = onGameThread { mapping.translatedKeyMessage.string }
+        override val isDown: Boolean get() = mapping.isDown
+        override fun remove() = ScriptKeys.remove(this)
+    }
+
+    private val dynamic = ConcurrentHashMap<String, Dynamic>()
+
+    @Volatile var file: Path? = null
+    private val gson = GsonBuilder().setPrettyPrinting().create()
+    /** Keybind id → chosen key (`key.keyboard.f`). */
+    private val chosen: MutableMap<String, String> by lazy { load() }
+
     fun register() {
-        val category = KeyMapping.Category.register(Identifier.fromNamespaceAndPath("minekt", "scripts"))
-        mappings = (1..SCRIPT_KEY_SLOTS).map { slot ->
-            KeyMappingHelper.registerKeyMapping(
-                KeyMapping("key.minekt.script_$slot", InputConstants.Type.KEYBOARD, InputConstants.UNKNOWN.value, category),
-            )
-        }
+        category = KeyMapping.Category.register(Identifier.fromNamespaceAndPath("minekt", "scripts"))
         managerKey = KeyMappingHelper.registerKeyMapping(
             KeyMapping("key.minekt.manager", InputConstants.Type.KEYBOARD, InputConstants.UNKNOWN.value, category),
         )
     }
 
-    /** Called every client tick: turn presses into events for listening scripts. */
-    fun dispatch(jobs: JobManager) {
-        mappings.forEachIndexed { index, mapping ->
-            while (mapping.consumeClick()) jobs.dispatch(Job.Event.Binding(index + 1))
+    fun add(owner: Job, id: String, label: String, defaultKey: String?): KeybindHandle = onGameThread { mc ->
+        dynamic[id]?.let { existing ->
+            check(existing.owner === owner) { "The keybind '$label' already belongs to script '${existing.owner.name}' (job ${existing.owner.id})" }
+            return@onGameThread existing
+        }
+        val default = defaultKey?.let { key ->
+            runCatching { InputConstants.getKey(key) }.getOrNull()?.takeIf { it != InputConstants.UNKNOWN }
+                ?: throw IllegalArgumentException("Unknown key '$key' (use names like \"f\", \"f6\", \"left.shift\", \"mouse.middle\")")
+        } ?: InputConstants.UNKNOWN
+        // The name is what Controls shows (it's not a translation key) and must be unique in the game.
+        val name = if (KeyMappingAccessor.`minekt$all`().containsKey(label)) "$label (${owner.name})" else label
+        val mapping = KeyMapping(name, default.type, default.value, category)
+        chosen[id]?.let { saved -> runCatching { mapping.setKey(InputConstants.getKey(saved)) } }
+        val options = mc.options
+        (options as OptionsAccessor).`minekt$setKeyMappings`(options.keyMappings + mapping)
+        KeyMapping.resetMapping()
+        Dynamic(id, owner, mapping).also { dynamic[id] = it }
+    }
+
+    private fun remove(handle: Dynamic) {
+        if (!dynamic.remove(handle.id, handle)) return
+        onGameThread { mc ->
+            remember(handle)
+            val options = mc.options
+            (options as OptionsAccessor).`minekt$setKeyMappings`(options.keyMappings.filterNot { it === handle.mapping }.toTypedArray())
+            KeyMappingAccessor.`minekt$all`().remove(handle.mapping.name, handle.mapping)
+            KeyMapping.resetMapping()
+        }
+    }
+
+    /** Called every client tick: presses become events for the owning scripts; rebinds are saved. */
+    fun tick(mc: Minecraft) {
+        for (handle in dynamic.values) {
+            while (handle.mapping.consumeClick()) handle.owner.post(Job.Event.Keybind(handle.id))
+            if (mc.gui.screen() == null) remember(handle)
         }
     }
 
@@ -43,8 +91,36 @@ internal object ScriptKeys {
         return pressed
     }
 
-    fun keyName(slot: Int): String {
-        require(slot in 1..SCRIPT_KEY_SLOTS) { "Keybind slot must be 1..$SCRIPT_KEY_SLOTS" }
-        return mappings[slot - 1].translatedKeyMessage.string
+    private fun remember(handle: Dynamic) {
+        val key = handle.mapping.saveString()
+        if (chosen[handle.id] == key) return
+        if (handle.mapping.isDefault && handle.id !in chosen) return
+        chosen[handle.id] = key
+        save()
+    }
+
+    private fun load(): MutableMap<String, String> {
+        val path = file ?: return ConcurrentHashMap()
+        return runCatching {
+            ConcurrentHashMap(gson.fromJson<Map<String, String>>(Files.readString(path), object : TypeToken<Map<String, String>>() {}.type))
+        }.getOrElse { ConcurrentHashMap() }
+    }
+
+    private fun save() {
+        val path = file ?: return
+        runCatching {
+            Files.createDirectories(path.parent)
+            Files.writeString(path, gson.toJson(chosen.toSortedMap()))
+        }
+    }
+
+    private fun <T> onGameThread(block: (Minecraft) -> T): T {
+        val mc = Minecraft.getInstance()
+        if (mc.isSameThread) return block(mc)
+        try {
+            return java.util.concurrent.CompletableFuture.supplyAsync({ block(mc) }, mc).join()
+        } catch (e: java.util.concurrent.CompletionException) {
+            throw e.cause ?: e
+        }
     }
 }

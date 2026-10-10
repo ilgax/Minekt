@@ -5,6 +5,8 @@
   "client": [
     "ClientLevelMixin",
     "ConnectionMixin",
+    "KeyMappingAccessor",
+    "OptionsAccessor",
     "SoundManagerMixin"
   ],
   "injectors": {

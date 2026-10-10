@@ -25,7 +25,12 @@ class PersistenceTest {
         override fun <T> onGameThread(block: (Minecraft) -> T): T = error("no game in tests")
         override fun registerCommand(name: String, completions: List<String>, owner: Job): String? = null
         override fun unregisterCommand(name: String, owner: Job) {}
-        override fun bindingKeyName(slot: Int) = "Key$slot"
+        override fun addKeybind(owner: Job, id: String, label: String, defaultKey: String?): dev.ilgax.minekt.job.KeybindHandle =
+        object : dev.ilgax.minekt.job.KeybindHandle {
+            override val keyName = defaultKey?.substringAfterLast('.')?.uppercase() ?: "Not Bound"
+            override val isDown = false
+            override fun remove() = Unit
+        }
         fun next(): Pair<MessageKind, String> = messages.poll(60, TimeUnit.SECONDS) ?: fail("timed out waiting for script output")
     }
 

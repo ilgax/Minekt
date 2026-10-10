@@ -1,4 +1,4 @@
-// \waypoints — a waypoint menu. Open it with "Script key 2" (bind it in Options → Controls → Minekt).
+// \waypoints — a waypoint menu. Open it with J (change it under "Waypoints menu" in Options → Controls → Minekt).
 // Waypoints are saved per world and drawn in the world. Other scripts can follow them on the
 // "waypoints" topic: subscribe<Map<String, Vec3>>("waypoints", latest = true) { points -> … }
 val points by persistent(perWorld = true) { mutableMapOf<String, Vec3>() }
@@ -47,5 +47,6 @@ fun openMenu() {
 }
 
 changed()
-onBinding(2) { openMenu() }
-echo("Waypoints: press ${bindingKey(2)} for the menu (${points.size} saved here)")
+val menuKey = keybind("Waypoints menu", default = "j")
+menuKey.onPress { openMenu() }
+echo("Waypoints: press ${menuKey.key} for the menu (${points.size} saved here)")

@@ -286,27 +286,11 @@ class Minekt internal constructor(internal val job: Job) {
     /**
      * Call [handler] when a physical key is pressed, e.g. `onKey("k") { ... }`. Names are GLFW
      * names without the `key.keyboard.` prefix: `"k"`, `"f6"`, `"left.shift"`. Polled each tick.
-     * The key is fixed by the script; use [onBinding] to let the player choose it in Controls.
+     * The key is fixed by the script; use [keybind] to let the player choose it in Controls.
      */
     fun onKey(name: String, handler: () -> Unit) {
         val key = InputConstants.getKey(if ('.' in name && name.startsWith("key.")) name else "key.keyboard.$name")
         job.keyWatches += Job.KeyWatch(key.value, handler)
-    }
-
-    /**
-     * Call [handler] when the player presses script keybind [slot] (1–5). Players choose the key
-     * in Options → Controls → Minekt. Prefer this over [onKey] for scripts you share: the player
-     * picks the key, it shows up in Controls, and it never clashes with other bindings.
-     */
-    fun onBinding(slot: Int, handler: () -> Unit) {
-        require(slot in 1..SCRIPT_KEY_SLOTS) { "Keybind slot must be 1..$SCRIPT_KEY_SLOTS" }
-        job.bindingHandlers.computeIfAbsent(slot) { java.util.concurrent.CopyOnWriteArrayList() } += handler
-    }
-
-    /** The key currently bound to script keybind [slot], e.g. `"K"` or `"Not Bound"`. */
-    fun bindingKey(slot: Int): String {
-        job.checkAlive()
-        return job.host.bindingKeyName(slot)
     }
 
     /**
@@ -327,6 +311,3 @@ class Minekt internal constructor(internal val job: Job) {
     private fun Int.sq() = this * this
 
 }
-
-/** Number of "Script key N" slots in the Controls menu. */
-const val SCRIPT_KEY_SLOTS = 5

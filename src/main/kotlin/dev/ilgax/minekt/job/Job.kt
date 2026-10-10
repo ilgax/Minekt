@@ -56,7 +56,7 @@ class Job internal constructor(
         data object Tick : Event
         data class Chat(val text: String) : Event
         data class Command(val name: String, val args: List<String>) : Event
-        data class Binding(val slot: Int) : Event
+        data class Keybind(val id: String) : Event
         data class Key(val watch: KeyWatch) : Event
         data class Game(val event: GameEvent) : Event
         data class Message(val topic: String, val value: Any?, val from: String) : Event
@@ -87,7 +87,8 @@ class Job internal constructor(
     internal val tickHandlers = CopyOnWriteArrayList<() -> Unit>()
     internal val chatHandlers = CopyOnWriteArrayList<(String) -> Unit>()
     internal val commandHandlers = ConcurrentHashMap<String, (List<String>) -> Unit>()
-    internal val bindingHandlers = ConcurrentHashMap<Int, CopyOnWriteArrayList<() -> Unit>>()
+    /** `keybind(…).onPress { }`, by keybind id. */
+    internal val keybindHandlers = ConcurrentHashMap<String, CopyOnWriteArrayList<() -> Unit>>()
     internal val gameHandlers = CopyOnWriteArrayList<(GameEvent) -> Unit>()
     /** Event types the handlers above are for (`GameEvent` itself: all), so unwanted events cost nothing. */
     internal val gameEventTypes: MutableSet<Class<*>> = ConcurrentHashMap.newKeySet()
@@ -280,7 +281,7 @@ class Job internal constructor(
             is Event.Key -> true
             is Event.Chat -> chatHandlers.isNotEmpty()
             is Event.Command -> commandHandlers.containsKey(event.name)
-            is Event.Binding -> bindingHandlers[event.slot]?.isNotEmpty() == true
+            is Event.Keybind -> keybindHandlers[event.id]?.isNotEmpty() == true
             is Event.Game -> gameHandlers.isNotEmpty() && gameEventTypes.any { it.isInstance(event.event) }
             is Event.Message -> messageHandlers[event.topic]?.isNotEmpty() == true
             is Event.Packet -> packetHandlers.any { it.matches(event.packet, event.incoming) }
@@ -371,7 +372,7 @@ class Job internal constructor(
                     is Event.Key -> event.watch.handler()
                     is Event.Chat -> chatHandlers.forEach { it(event.text) }
                     is Event.Command -> commandHandlers[event.name]?.invoke(event.args)
-                    is Event.Binding -> bindingHandlers[event.slot]?.forEach { it() }
+                    is Event.Keybind -> keybindHandlers[event.id]?.forEach { it() }
                     is Event.Game -> gameHandlers.forEach { it(event.event) }
                     is Event.Message -> messageHandlers[event.topic]?.forEach { it(event.value) }
                     is Event.Packet -> packetHandlers.forEach { if (it.matches(event.packet, event.incoming)) it.handler(event.packet) }
@@ -385,7 +386,7 @@ class Job internal constructor(
 
     private fun hasHandlers() =
         tickHandlers.isNotEmpty() || chatHandlers.isNotEmpty() || commandHandlers.isNotEmpty() ||
-            keyWatches.isNotEmpty() || gameHandlers.isNotEmpty() || bindingHandlers.values.any { it.isNotEmpty() } ||
+            keyWatches.isNotEmpty() || gameHandlers.isNotEmpty() || keybindHandlers.values.any { it.isNotEmpty() } ||
             messageHandlers.values.any { it.isNotEmpty() } || openScreens.get() > 0 || settingHandlers.isNotEmpty() ||
             packetHandlers.isNotEmpty() || packetFilters.isNotEmpty() || MethodHooks.hasHooks(this) || ClassRewrites.has(this) ||
             incomingInterceptors.isNotEmpty() || outgoingInterceptors.isNotEmpty()

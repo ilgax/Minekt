@@ -1,5 +1,5 @@
 // \ores [radius] [all] — list valuable ores near you (add "all" to include coal and copper) and highlight them through walls until you \kill the script
-// (or press "Script key 1"). Only finds what the server has sent to your client.
+// (or press the key you bind to "Clear ore highlights" in Controls). Only finds what the server has sent to your client.
 val radius = args.firstOrNull()?.toIntOrNull() ?: 16
 val colors = mapOf("diamond" to Color.CYAN, "gold" to Color.YELLOW, "iron" to Color.ORANGE, "redstone" to Color.RED, "emerald" to Color.GREEN)
 
@@ -19,4 +19,4 @@ for (ore in ores) {
 val nearest = ores.first()
 text(Vec3(nearest.pos.x + 0.5, nearest.pos.y + 1.5, nearest.pos.z + 0.5), nearest.id.removePrefix("minecraft:"))
 echo("Highlighting ${ores.size} ores — \\kill $jobId to clear")
-onBinding(1) { stop() }
+keybind("Clear ore highlights").onPress { stop() }

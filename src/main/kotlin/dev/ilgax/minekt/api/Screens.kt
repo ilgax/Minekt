@@ -9,7 +9,7 @@ import kotlin.reflect.KMutableProperty0
 //
 //   var autoEat by persistent { true }
 //   var range by persistent { 32 }
-//   onBinding(1) {
+//   keybind("Miner settings").onPress {
 //       showScreen("Miner settings") {
 //           text("Changes apply right away")
 //           toggle("Auto eat", ::autoEat)

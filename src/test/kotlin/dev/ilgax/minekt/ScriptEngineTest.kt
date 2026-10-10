@@ -30,7 +30,12 @@ class ScriptEngineTest {
             return if (existing != null && existing !== owner) "/$name is taken" else null
         }
         override fun unregisterCommand(name: String, owner: Job) { commands.remove(name, owner) }
-        override fun bindingKeyName(slot: Int) = "Key$slot"
+        override fun addKeybind(owner: Job, id: String, label: String, defaultKey: String?): dev.ilgax.minekt.job.KeybindHandle =
+            object : dev.ilgax.minekt.job.KeybindHandle {
+                override val keyName = defaultKey?.substringAfterLast('.')?.uppercase() ?: "Not Bound"
+                override val isDown = false
+                override fun remove() = Unit
+            }
 
         fun next(): Pair<MessageKind, String> =
             messages.poll(60, TimeUnit.SECONDS) ?: fail("timed out waiting for script output")
@@ -132,21 +137,23 @@ class ScriptEngineTest {
     }
 
     @Test
-    fun `keybind slots dispatch to their handlers only`() {
-        val job = jobs.eval("""echo(bindingKey(2)); onBinding(2) { echo("slot 2"); stop() }; onBinding(3) { echo("slot 3") }""")
-        assertEquals(MessageKind.SCRIPT to "Key2", host.next())
+    fun `keybinds dispatch presses to their own handlers`() {
+        val job = jobs.eval(
+            """
+            val fly = keybind("Toggle fly", default = "f")
+            val zoom = keybind("Zoom")
+            echo(fly.key, zoom.key)
+            fly.onPress { echo("fly"); stop() }
+            zoom.onPress { echo("zoom") }
+            """.trimIndent(),
+        )
+        assertEquals(MessageKind.SCRIPT to "F Not Bound", host.next())
         while (job.state != Job.State.LISTENING) Thread.sleep(20)
-        jobs.dispatch(Job.Event.Binding(1))
-        jobs.dispatch(Job.Event.Binding(2))
-        assertEquals(MessageKind.SCRIPT to "slot 2", host.next())
+        jobs.dispatch(Job.Event.Keybind("other/Toggle fly"))
+        jobs.dispatch(Job.Event.Keybind("eval/Toggle fly"))
+        assertEquals(MessageKind.SCRIPT to "fly", host.next())
         awaitDone(job)
         assertTrue(host.messages.isEmpty(), "unexpected output: ${host.messages}")
-    }
-
-    @Test
-    fun `invalid keybind slot is rejected`() {
-        awaitDone(jobs.eval("onBinding(9) { }"))
-        assertTrue("1..5" in host.next().second)
     }
 
     @Test

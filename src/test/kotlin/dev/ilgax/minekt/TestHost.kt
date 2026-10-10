@@ -33,7 +33,12 @@ internal class TestHost : Host {
 
     override fun registerCommand(name: String, completions: List<String>, owner: Job): String? = null
     override fun unregisterCommand(name: String, owner: Job) = Unit
-    override fun bindingKeyName(slot: Int) = "Key$slot"
+    override fun addKeybind(owner: Job, id: String, label: String, defaultKey: String?): dev.ilgax.minekt.job.KeybindHandle =
+        object : dev.ilgax.minekt.job.KeybindHandle {
+            override val keyName = defaultKey?.substringAfterLast('.')?.uppercase() ?: "Not Bound"
+            override val isDown = false
+            override fun remove() = Unit
+        }
 
     fun next(timeoutSeconds: Long = 60): String =
         messages.poll(timeoutSeconds, TimeUnit.SECONDS) ?: fail("timed out waiting for script output")

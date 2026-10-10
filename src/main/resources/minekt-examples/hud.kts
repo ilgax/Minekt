@@ -1,4 +1,4 @@
-// \hud — live coordinates panel. Turn it off with "Script key 1" (bind it in Options → Controls → Minekt)
+// \hud — live coordinates panel. Turn it off with its key (bind "Hide coordinates" in Options → Controls → Minekt)
 // or with K.
 hudPanel(Anchor.TOP_LEFT) {
     title("Where am I")
@@ -6,5 +6,5 @@ hudPanel(Anchor.TOP_LEFT) {
     text { "Facing: %.0f° / %.0f°".format(player.yaw, player.pitch) }
     bar("Health", Color.RED) { player.health / player.maxHealth.toDouble() }
 }
-onBinding(1) { stop() } // player-chosen key, set in Controls
+keybind("Hide coordinates").onPress { stop() } // the player picks the key in Controls → Minekt
 onKey("k") { stop() }    // fixed key, chosen by the script

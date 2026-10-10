@@ -19,7 +19,7 @@ clearShapes()                                                   // or drop them 
 - Fills come out solid rather than see-through when drawn through walls (that's how the game's gizmo renderer
   works). Use `fill = false` for outlines only.
 - A script that only draws ends straight away and takes its shapes with it. Keep it alive with a handler
-  (`onBinding(1) { stop() }`) to leave them up until you're done (see `ores.kts`).
+  (`keybind("Clear").onPress { stop() }`) to leave them up until you're done (see `ores.kts`).
 - Shapes use Minecraft's built-in gizmo renderer. They're redrawn every tick from data the script sets, so
   scripts never run code on the render thread.
 
@@ -64,7 +64,7 @@ var autoEat by persistent { true }
 var range by persistent { 32 }
 var mode by persistent { "walk" }
 
-onBinding(1) {
+keybind("Miner settings", default = "m").onPress {
     showScreen("Miner settings") {
         text("Changes apply right away")
         text { "Health: ${player.health}" }                 // live: recomputed every tick

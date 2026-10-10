@@ -22,11 +22,23 @@ interface Host {
 
     fun unregisterCommand(name: String, owner: Job)
 
-    /** Display name of the key bound to script keybind [slot] (1-based), e.g. "K" or "Not Bound". */
-    fun bindingKeyName(slot: Int): String
+    /**
+     * Add a keybind to Options → Controls for [owner], shown as [label], bound to [defaultKey] (a
+     * `key.keyboard.…` / `key.mouse.…` name, or null for none) unless the player chose another key
+     * before. Presses arrive as [Job.Event.Keybind] with [id]. Throws if another script owns [id].
+     */
+    fun addKeybind(owner: Job, id: String, label: String, defaultKey: String?): KeybindHandle
 
     /** Show a script error. Defaults to its one-line [ErrorReport.headline]. */
     fun showError(report: ErrorReport) = echo(report.headline, MessageKind.ERROR)
+}
+
+/** A keybind made by [Host.addKeybind]. */
+interface KeybindHandle {
+    /** The bound key's name as the player sees it, e.g. "F" or "Not Bound". */
+    val keyName: String
+    val isDown: Boolean
+    fun remove()
 }
 
 enum class MessageKind { SCRIPT, INFO, ERROR }

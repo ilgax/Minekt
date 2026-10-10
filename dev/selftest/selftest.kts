@@ -28,14 +28,14 @@ check("walk") {
 check("ticks") { val t = System.currentTimeMillis(); waitTicks(20); "${System.currentTimeMillis() - t} ms for 20 ticks" }
 
 // ---- Fabric hooks (hooktest.kts runs alongside as its own job) ----
-check("binding slot visible") { bindingKey(1) }
+check("hooktest's keybind is in Controls") { game { mc -> mc.options.keyMappings.any { it.name == "Hooktest key" } } }
 game { mc ->
-    // Bind "Script key 1" to J, as a player would in Controls.
-    val mapping = mc.options.keyMappings.first { it.name == "key.minekt.script_1" }
+    // Bind it to J, as a player would in Controls.
+    val mapping = mc.options.keyMappings.first { it.name == "Hooktest key" }
     mapping.setKey(com.mojang.blaze3d.platform.InputConstants.getKey("key.keyboard.j"))
     net.minecraft.client.KeyMapping.resetMapping()
 }
-check("binding rebound") { bindingKey(1) }
+check("keybind rebound") { game { mc -> mc.options.keyMappings.first { it.name == "Hooktest key" }.translatedKeyMessage.string } }
 echo("SELFTEST PRESS KEYS NOW")
 waitTicks(200) // the harness presses J and K for real via xdotool
 check("command in tab-completion") { game { it.connection!!.commands.root.getChild("mkt") != null } }

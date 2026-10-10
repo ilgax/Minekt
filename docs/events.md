@@ -70,22 +70,28 @@ val reply = runBlocking { withTimeoutOrNull(5_000) { awaitChat() } }   // wait i
 - `await…` only sees things that happen after it starts waiting.
 - `kotlinx.coroutines.*` is imported by default (`delay`, `withTimeout`, `async`, `coroutineScope`, ...).
 
-## Keys: `onKey` or `onBinding`, your choice
+## Keys
 
-| | `onKey("k") { }` | `onBinding(1) { }` |
-|---|---|---|
-| Who picks the key | the script author | the player, in Options → Controls → Minekt → "Script key 1–5" |
-| Shows up in Controls | no | yes, and conflicts with other bindings are flagged there |
-| Works in menus | no (only when no screen is open) | no (same as any game keybind) |
-| Good for | personal scripts, quick hacks | scripts you share |
-
-`bindingKey(1)` returns what the player bound (e.g. `"J"` or `"Not Bound"`), so a script can tell them which key to press.
-Both can be used in the same script:
+`keybind` makes a real keybind: it shows up in Options → Controls → Minekt, where the player can bind it to any
+key, and conflicts with other bindings are flagged there.
 
 ```kotlin
-onBinding(1) { stop() } // whatever the player bound
-onKey("k") { stop() }   // always K
+val fly = keybind("Toggle fly", default = "f")   // default is optional: no key until the player picks one
+fly.onPress { flying = !flying }                 // on the script's thread, every press
+onTick { if (fly.isDown) … }                     // or check whether it's held
+echo("Press ${fly.key} to fly")                  // the key it's bound to, as the player sees it: "F"
+launch { fly.awaitPress(); echo("pressed") }
 ```
+
+- A keybind exists while its script runs (or until `remove()`), and `onPress` keeps the script alive. Calling
+  `keybind` again with the same name returns the same keybind.
+- The key the player picks is remembered for the next time the script makes that keybind, in
+  `minekt/settings/keybinds.json` (Minecraft forgets keybinds it doesn't know at startup, so Minekt keeps them).
+- Key names: `"f"`, `"f6"`, `"left.shift"`, `"space"`, `"mouse.middle"`, or the full `"key.keyboard.f"`.
+- If another script already has a keybind with the same name, Controls shows yours as `Name (script)`.
+
+`onKey("k") { }` watches a fixed key instead, without anything in Controls: handy for quick personal scripts.
+It only fires when no screen is open.
 
 ## Commands
 
