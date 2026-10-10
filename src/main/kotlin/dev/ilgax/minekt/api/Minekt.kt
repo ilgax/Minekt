@@ -53,6 +53,9 @@ class Minekt internal constructor(internal val job: Job) {
         if (message.startsWith("/")) connection.sendCommand(message.substring(1)) else connection.sendChat(message)
     }
 
+    /** Run a command (leading `/` optional). */
+    fun execute(command: String) = chat(if (command.startsWith("/")) command else "/$command")
+
     // ---- timing / control ---------------------------------------------------------------------
 
     fun sleep(ms: Long) {

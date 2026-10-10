@@ -4,7 +4,7 @@ Everything below is in scope in every script, no imports needed.
 
 | Area | API |
 |---|---|
-| Output | `echo(vararg parts)`, `chat(msg)` (a leading `/` makes it a command), `hudPanel { … }`, `writeLog(vararg parts)` |
+| Output | `echo(vararg parts)`, `chat(msg)` (a leading `/` makes it a command), `execute(cmd)`, `hudPanel { … }`, `writeLog(vararg parts)` |
 | Feedback | `playSound(id)`, `toast(title, message)`, `actionBar(text)`, `title(title, subtitle)`, `screenshot(name)` |
 | Control | `args`, `jobId`, `sleep(ms)`, `waitTicks(n)`, `stop()` |
 | Player | `player` (name, position, yaw/pitch, health, dimension, selectedSlot), `position`, `setOrientation(yaw, pitch)`, `lookAt(x, y, z)` |
