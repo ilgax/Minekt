@@ -4,6 +4,7 @@ import net.minecraft.client.KeyMapping
 import net.minecraft.core.Direction
 import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.world.entity.Entity
+import net.minecraft.world.entity.EquipmentSlot
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.Level
@@ -20,6 +21,23 @@ internal fun Entity.toInfo(self: Entity?) = EntityInfo(
     position = Vec3(x, y, z),
     health = (this as? LivingEntity)?.health,
     distance = self?.distanceTo(this)?.toDouble() ?: 0.0,
+    maxHealth = (this as? LivingEntity)?.maxHealth,
+    customName = customName?.string,
+    isBaby = (this as? LivingEntity)?.isBaby == true,
+    equipment = (this as? LivingEntity)?.let { living ->
+        EquipmentSlot.VALUES.mapNotNull { slot ->
+            living.getItemBySlot(slot).takeUnless { it.isEmpty }?.let { slot.getName() to BuiltInRegistries.ITEM.getKey(it.item).toString() }
+        }.toMap()
+    }.orEmpty(),
+    effects = (this as? LivingEntity)?.activeEffects?.map { EffectInfo(it.effect.registeredName, it.amplifier, it.duration) }.orEmpty(),
+    velocity = deltaMovement.toApi(),
+    yaw = yRot,
+    pitch = xRot,
+    sneaking = isShiftKeyDown,
+    invisible = isInvisible,
+    glowing = isCurrentlyGlowing,
+    onFire = isOnFire,
+    vehicleId = vehicle?.id,
 )
 
 internal fun ItemStack.toInfo(slot: Int) = ItemStackInfo(slot, BuiltInRegistries.ITEM.getKey(item).toString(), count)

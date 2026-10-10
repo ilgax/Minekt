@@ -4,7 +4,7 @@ Everything below is in scope in every script, no imports needed.
 
 | Area | API |
 |---|---|
-| Output | `echo(vararg parts)`, `chat(msg)` (a leading `/` makes it a command), `execute(cmd)`, `hudPanel { … }`, `writeLog(vararg parts)`, `clipboard()`, `setClipboard(text)` |
+| Output | `echo(vararg parts)` (plain, or styled with `chatText(text, color, bold, hover, click = ChatClick.run { })`), `chat(msg)` (a leading `/` makes it a command), `execute(cmd)`, `hudPanel { … }`, `writeLog(vararg parts)`, `clipboard()`, `setClipboard(text)` |
 | Feedback | `playSound(id)`, `toast(title, message)`, `actionBar(text)`, `title(title, subtitle)`, `screenshot(name)` |
 | Control | `args`, `jobId`, `sleep(ms)`, `waitTicks(n)`, `stop()` |
 | Player | `player` (name, position, yaw/pitch, health, food, xp, air, armor, effects, velocity, onGround, inWater, sneaking, sprinting, flying, gameMode, vehicle, …), `position`, `setOrientation(yaw, pitch)`, `lookAt(x, y, z)` |
@@ -13,7 +13,7 @@ Everything below is in scope in every script, no imports needed.
 | Bindings | `press("inventory")`, `press(Key.FORWARD)`, `release(…)`, `bindings()`: any of the game's bindings, whatever key it's on; released when the script ends |
 | Inventory & screens | `inventory()`, `heldItem()`, `offhandItem()`, `selectSlot(n)`, `screen`, `container()`, `clickSlot(i)`, `shiftClick(i)`, `swapWithHotbar(i, n)`, `dropSlot(i)`, `openInventory()`, `closeScreen()` |
 | Targeting & interaction | `targetedBlock()`, `targetedEntity()`, `useItem()`, `useOn(pos, face)`, `attack(entityId)`, `interact(entityId)` |
-| World | `world` (dimension, timeOfDay, gameTime, isDay, rain, thunder), `getBlock(x, y, z)`, `findBlocks(radius) { id -> … }`, `scanRegion(from, to) { id -> … }`, `isLoaded(x, z)`, `entities(radius)`, `players()` |
+| World | `world` (dimension, timeOfDay, gameTime, isDay, rain, thunder), `getBlock(x, y, z)`, `findBlocks(radius) { id -> … }`, `scanRegion(from, to) { id -> … }`, `isLoaded(x, z)`, `entities(radius)` (type, name, health, equipment, isBaby, customName, velocity, …), `entity(id)`, `players()` |
 | Events | `onChat`, `onTick`, `onDamage`, `onDeath`, `onRespawn`, `onJoinWorld`, `onLeaveWorld`, `onDimensionChange`, `onScreenOpen`, `onScreenClose`, `onChunkLoad`, `onItemGained`, `onBlockChange`, `onEntityAppear`, `onEntityGone`, `onSound`, `onParticle`, `onPlayerJoin`, `onPlayerLeave`, `onScoreboardChange`, `onEvent` |
 | Server info | `tabList()`, `sidebar()` |
 | Settings | `var x by setting(default, …)`, `onSettingChange { key, value -> }` |
@@ -42,8 +42,8 @@ Details by topic:
 | Page | |
 |---|---|
 | [Events](events.md) | events and a script's lifetime, coroutines, keys, commands, timers, messages between scripts |
-| [Player and world](world.md) | the player, bindings, inventory, containers, interaction, world info and scans, recording input |
-| [Drawing and screens](display.md) | shapes in the world, drawing every frame, HUD panels, script screens |
+| [Player and world](world.md) | the player, other entities, bindings, inventory, containers, interaction, world info and scans, recording input |
+| [Drawing and screens](display.md) | shapes in the world, drawing every frame, styled chat, HUD panels, script screens |
 | [Data and the web](data.md) | settings, persistent values, HTTP, Maven libraries, sharing code between scripts |
 | [Advanced](advanced.md) | packets, hooking game methods, rewriting classes, code that runs code, other mods and Baritone |
 | [Errors and logs](errors-and-logs.md) | what failing scripts show, and where logs go |

@@ -198,6 +198,61 @@ check("a handler that throws is removed, and its error shown") {
     (n == 1 && shown) then "called $n time, error in chat: $shown"
 }
 
-echo("DR DONE")
-sleep(1000)
-game { it.stop() }
+// ---- styled chat ---------------------------------------------------------------------------
+
+fun lastChat(): net.minecraft.network.chat.Component = game { mc ->
+    val field = net.minecraft.client.gui.components.ChatComponent::class.java.getDeclaredField("allMessages").apply { isAccessible = true }
+    @Suppress("UNCHECKED_CAST")
+    (field.get(mc.gui.hud.chat) as List<net.minecraft.client.multiplayer.chat.GuiMessage>).first().content()
+}
+
+/** The style of the first piece of [message] whose text is [text]. */
+fun styleOf(message: net.minecraft.network.chat.Component, text: String): net.minecraft.network.chat.Style? {
+    var found: net.minecraft.network.chat.Style? = null
+    message.visit({ style, piece -> if (piece == text && found == null) found = style; java.util.Optional.empty<Unit>() }, net.minecraft.network.chat.Style.EMPTY)
+    return found
+}
+
+@Volatile var clicked = 0
+var clickCommand: String? = null
+check("echo shows colors, hover text and click actions") {
+    echo("Ores:", chatText("[copy]", Color.GREEN, bold = true, hover = "Copy them", click = ChatClick.copy("12 -58 40")),
+        chatText("[again]", Color.CYAN, click = ChatClick.run { clicked++ }))
+    waitTicks(5)
+    val message = lastChat()
+    val copy = styleOf(message, "[copy]")
+    val again = styleOf(message, "[again]")
+    clickCommand = (again?.clickEvent as? net.minecraft.network.chat.ClickEvent.RunCommand)?.command()
+    (message.string == "Ores: [copy] [again]" && copy?.color?.value == (Color.GREEN and 0xFFFFFF) && copy.isBold &&
+        copy.hoverEvent is net.minecraft.network.chat.HoverEvent.ShowText &&
+        (copy.clickEvent as? net.minecraft.network.chat.ClickEvent.CopyToClipboard)?.value() == "12 -58 40" &&
+        again?.clickEvent is net.minecraft.network.chat.ClickEvent.RunCommand) then "${message.string}: ${again?.clickEvent}"
+}
+
+// ---- other entities --------------------------------------------------------------------------
+
+check("entities: custom name, baby, equipment, glowing, max health") {
+    server("difficulty easy")
+    server("summon minecraft:zombie 2.5 200 6.5 {IsBaby:1b,CustomName:\"Bob\",Glowing:1b,NoAI:1b,PersistenceRequired:1b,Tags:[\"drawtest\"],equipment:{mainhand:{id:\"minecraft:iron_sword\",count:1},head:{id:\"minecraft:iron_helmet\",count:1}}}")
+    waitFor(5) { entities(16.0).any { it.type == "minecraft:zombie" } }
+    waitTicks(10)
+    val bob = entities(16.0).firstOrNull { it.type == "minecraft:zombie" } ?: return@check "FALSE no zombie"
+    val again = entity(bob.id)
+    server("kill @e[tag=drawtest]")
+    server("difficulty peaceful")
+    waitTicks(20)
+    (bob.customName == "Bob" && bob.isBaby && bob.heldItem == "minecraft:iron_sword" && bob.equipment["head"] == "minecraft:iron_helmet" &&
+        bob.glowing && bob.maxHealth == 20f && again?.id == bob.id && entity(bob.id) == null) then
+        "${bob.customName}: baby=${bob.isBaby} equipment=${bob.equipment} glowing=${bob.glowing} health=${bob.health}/${bob.maxHealth}, then gone"
+}
+
+// Clicks are handled like other events, once the script body is done: click, then check from a coroutine.
+launch {
+    check("clicking a ChatClick.run text runs the script's code") {
+        execute(clickCommand ?: return@check "FALSE no click command") // what the game does when the text is clicked
+        waitFor(5) { clicked == 1 } then "clicked=$clicked via /$clickCommand"
+    }
+    echo("DR DONE")
+    sleep(1000)
+    game { it.stop() }
+}

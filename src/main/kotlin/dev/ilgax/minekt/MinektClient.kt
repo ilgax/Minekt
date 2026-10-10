@@ -21,8 +21,10 @@ import dev.ilgax.minekt.hooks.ScriptCommands
 import dev.ilgax.minekt.hooks.ScriptKeys
 import dev.ilgax.minekt.hooks.ScriptManager
 import dev.ilgax.minekt.hooks.ScriptRenderer
+import com.mojang.brigadier.arguments.LongArgumentType
 import com.mojang.brigadier.arguments.StringArgumentType
 import dev.ilgax.minekt.job.Autorun
+import dev.ilgax.minekt.job.ChatClicks
 import dev.ilgax.minekt.job.ErrorReport
 import dev.ilgax.minekt.job.Host
 import dev.ilgax.minekt.job.Job
@@ -255,6 +257,14 @@ object MinektClient : ClientModInitializer, Host {
                             1
                         },
                     ),
+                ).then(
+                    // Clickable chat text made with ChatClick.run.
+                    ClientCommands.literal("click").then(
+                        ClientCommands.argument("id", LongArgumentType.longArg()).executes { ctx ->
+                            if (!ChatClicks.click(LongArgumentType.getLong(ctx, "id"))) echo("That script isn't running anymore", MessageKind.INFO)
+                            1
+                        },
+                    ),
                 ),
             )
         }
@@ -330,6 +340,8 @@ object MinektClient : ClientModInitializer, Host {
         if (kind == MessageKind.ERROR) rememberError(SCRIPT_PREFIX.find(message)?.groupValues?.get(1), message)
         show(component, message)
     }
+
+    override fun echo(message: Component, plain: String) = show(message, plain)
 
     override fun showError(report: ErrorReport) {
         rememberError(report.script, report.headline)

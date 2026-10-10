@@ -11,6 +11,9 @@ interface Host {
     /** Show a message to the player. */
     fun echo(message: String, kind: MessageKind = MessageKind.SCRIPT)
 
+    /** Show styled text (colors, hover, clicks) to the player; [plain] is the same without styles. */
+    fun echo(message: net.minecraft.network.chat.Component, plain: String) = echo(plain)
+
     /** Run [block] on the client thread and wait for its result. */
     fun <T> onGameThread(block: (Minecraft) -> T): T
 

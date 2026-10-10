@@ -53,6 +53,26 @@ onWorldRender { w ->
 - Colors are `0xRRGGBB` (opaque) or `0xAARRGGBB`, like `Color.RED` or `Color.rgb(r, g, b, a)`.
 - The handlers keep the script alive. One that throws is removed and its error shown in chat.
 
+## Chat messages
+
+`echo` takes styled pieces made with `chatText`: colors, bold and the like, text shown when the mouse is over
+it, and something to do when it's clicked:
+
+```kotlin
+val at = "12 -58 40"
+echo("Diamonds at $at", chatText("[copy]", Color.GREEN, hover = "Copy the coordinates", click = ChatClick.copy(at)))
+echo(chatText("Warning: ", Color.RED, bold = true) + "pickaxe almost broken")
+echo(chatText("[scan again]", Color.CYAN, underlined = true, click = ChatClick.run { scan() }))
+```
+
+- `echo` puts spaces between its parts; `+` joins pieces without one.
+- Clicks: `ChatClick.command("/home")` runs a command, `suggest(text)` puts text in the chat box,
+  `url("https://…")` opens a link (the game asks first), `copy(text)` copies, and `run { }` runs the script's own
+  code, on its thread, like a handler.
+- `run { }` only works while the script is running (keep it alive with a handler, and `stop()` when done).
+  Clicking after it ended just says so.
+- Style options: `color`, `bold`, `italic`, `underlined`, `strikethrough`, `hover`, `click`.
+
 ## HUD panels
 
 `hudPanel` draws on the HUD: boxes with titles, live text, progress bars, item icons and images, in any corner

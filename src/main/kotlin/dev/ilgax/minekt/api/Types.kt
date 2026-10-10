@@ -65,6 +65,12 @@ data class PlayerInfo(
 /** A potion effect: [id] like `minecraft:speed`, [amplifier] 0 for level I, [duration] in ticks (-1 for infinite). */
 data class EffectInfo(val id: String, val amplifier: Int, val duration: Int)
 
+/**
+ * An entity, as of the moment it was read. [health], [maxHealth] and [isBaby] are for living
+ * entities (null / false otherwise). [equipment] maps slots (`mainhand`, `offhand`, `head`, `chest`,
+ * `legs`, `feet`, `body`, `saddle`) to item ids, leaving out empty ones. [effects] are only what the
+ * server shares: usually none for other entities.
+ */
 data class EntityInfo(
     val id: Int,
     val uuid: String,
@@ -74,7 +80,26 @@ data class EntityInfo(
     val position: Vec3,
     val health: Float?,
     val distance: Double,
-)
+    val maxHealth: Float? = null,
+    /** The name given with a name tag or command, or null. */
+    val customName: String? = null,
+    val isBaby: Boolean = false,
+    val equipment: Map<String, String> = emptyMap(),
+    val effects: List<EffectInfo> = emptyList(),
+    /** Blocks per tick, as last sent by the server. */
+    val velocity: Vec3 = Vec3(0.0, 0.0, 0.0),
+    val yaw: Float = 0f,
+    val pitch: Float = 0f,
+    val sneaking: Boolean = false,
+    val invisible: Boolean = false,
+    val glowing: Boolean = false,
+    val onFire: Boolean = false,
+    /** The entity it rides (an id for `entity(id)`), or null. */
+    val vehicleId: Int? = null,
+) {
+    /** What it holds in its main hand, or null. */
+    val heldItem: String? get() = equipment["mainhand"]
+}
 
 data class ItemStackInfo(val slot: Int, val id: String, val count: Int)
 

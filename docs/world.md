@@ -16,6 +16,25 @@ It also has `position`, `yaw`, `pitch`, `maxHealth`, `absorption`, `saturation`,
 `sneaking`, `sprinting`, `flying`, `gliding` (elytra), `vehicle` (what you ride, or null), `dimension` and
 `selectedSlot`. Anything else is a `game { mc -> mc.player!!… }` away.
 
+## Other entities
+
+`entities(radius)` lists the entities around you, nearest first, and `entity(id)` reads one again (null once
+it's gone):
+
+```kotlin
+for (e in entities(32)) {
+    if (e.type == "minecraft:zombie" && e.heldItem == "minecraft:iron_sword") echo("Armed zombie ${e.distance.toInt()} blocks away")
+}
+val pet = entities(16).firstOrNull { it.customName == "Rex" }
+echo(pet?.health, pet?.maxHealth, pet?.equipment, pet?.isBaby)
+```
+
+Each has `id`, `uuid`, `name`, `type`, `position`, `distance`, `health` and `maxHealth` (null for things that
+aren't alive), `customName`, `isBaby`, `equipment` (slot → item id: `mainhand`, `offhand`, `head`, `chest`,
+`legs`, `feet`, `body`, `saddle`; `heldItem` is the main hand), `velocity`, `yaw`, `pitch`, `sneaking`,
+`invisible`, `glowing`, `onFire`, `vehicleId` and `effects`. The server usually only tells the client about
+your own effects, so other entities' `effects` are mostly empty.
+
 ## Bindings
 
 `press` holds one of the game's bindings, whatever key the player put it on, and `release` lets go. Going down

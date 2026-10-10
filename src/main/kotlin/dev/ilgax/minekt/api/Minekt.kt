@@ -36,7 +36,14 @@ class Minekt internal constructor(internal val job: Job) {
     /** Print to the local chat (only you see it). */
     fun echo(vararg parts: Any?) {
         job.checkAlive()
-        job.output(parts.joinToString(" "))
+        if (parts.none { it is ChatText }) return job.output(parts.joinToString(" "))
+        // Styled: plain parts become unstyled text, joined with spaces like the rest.
+        val text = net.minecraft.network.chat.Component.empty()
+        parts.forEachIndexed { i, part ->
+            if (i > 0) text.append(" ")
+            if (part is ChatText) text.append(part.toComponent(job)) else text.append(part.toString())
+        }
+        job.output(text, parts.joinToString(" "))
     }
 
     /**
@@ -239,11 +246,13 @@ class Minekt internal constructor(internal val job: Job) {
         val level = mc.level ?: error("Not in a world")
         val self = mc.player
         level.entitiesForRendering()
-            .filter { it !== self }
+            .filter { it !== self && (self == null || self.distanceTo(it) <= radius) }
             .map { it.toInfo(self) }
-            .filter { it.distance <= radius }
             .sortedBy { it.distance }
     }
+
+    /** The entity with [id] (from `entities()`, an event or `targetedEntity()`), or null if it's gone. */
+    fun entity(id: Int): EntityInfo? = game { mc -> mc.level?.getEntity(id)?.toInfo(mc.player) }
 
     fun entities(radius: Int): List<EntityInfo> = entities(radius.toDouble())
 

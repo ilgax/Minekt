@@ -63,6 +63,8 @@ class Job internal constructor(
         data class Message(val topic: String, val value: Any?, val from: String) : Event
         data class Packet(val packet: net.minecraft.network.protocol.Packet<*>, val incoming: Boolean) : Event
         data class Setting(val key: String, val value: Any) : Event
+        /** Clickable chat text made by this script was clicked. */
+        data class Click(val id: Long) : Event
     }
 
     enum class State { COMPILING, RUNNING, LISTENING, DONE }
@@ -127,6 +129,9 @@ class Job internal constructor(
 
     internal val inputHandlers = CopyOnWriteArrayList<InputHandler>()
 
+    /** Actions behind this script's clickable chat text, by id (see [ChatClicks]). They don't keep it alive. */
+    internal val clickActions = ConcurrentHashMap<Long, () -> Unit>()
+
     /** `onHudRender` / `onWorldRender` handlers, run on the game thread every frame. */
     internal val hudRenderHandlers = CopyOnWriteArrayList<(dev.ilgax.minekt.api.HudCanvas) -> Unit>()
     internal val worldRenderHandlers = CopyOnWriteArrayList<(dev.ilgax.minekt.api.WorldCanvas) -> Unit>()
@@ -159,6 +164,12 @@ class Job internal constructor(
     internal fun output(text: String) {
         logs.add(name, ScriptLogs.Level.ECHO, text, run = id)
         host.echo(text)
+    }
+
+    /** [output] with styled text: [plain] goes to the log. */
+    internal fun output(text: net.minecraft.network.chat.Component, plain: String) {
+        logs.add(name, ScriptLogs.Level.ECHO, plain, run = id)
+        host.echo(text, plain)
     }
 
     // ---- CPU use --------------------------------------------------------------------------------
@@ -279,6 +290,7 @@ class Job internal constructor(
             is Event.Chat -> chatHandlers.isNotEmpty()
             is Event.Command -> commandHandlers.containsKey(event.name)
             is Event.Keybind -> keybindHandlers[event.id]?.any { it.onPress == event.pressed } == true
+            is Event.Click -> clickActions.containsKey(event.id)
             is Event.Game -> gameHandlers.isNotEmpty() && gameEventTypes.any { it.isInstance(event.event) }
             is Event.Message -> messageHandlers[event.topic]?.isNotEmpty() == true
             is Event.Packet -> packetHandlers.any { it.matches(event.packet, event.incoming) }
@@ -380,6 +392,7 @@ class Job internal constructor(
                     is Event.Chat -> chatHandlers.forEach { it(event.text) }
                     is Event.Command -> commandHandlers[event.name]?.invoke(event.args)
                     is Event.Keybind -> keybindHandlers[event.id]?.forEach { if (it.onPress == event.pressed) it.handler() }
+                    is Event.Click -> clickActions[event.id]?.invoke()
                     is Event.Game -> gameHandlers.forEach { it(event.event) }
                     is Event.Message -> messageHandlers[event.topic]?.forEach { it(event.value) }
                     is Event.Packet -> packetHandlers.forEach { if (it.matches(event.packet, event.incoming)) it.handler(event.packet) }
@@ -435,6 +448,7 @@ class Job internal constructor(
         packetFilters.clear()
         MethodHooks.removeAll(this)
         ClassRewrites.removeAll(this)
+        ChatClicks.removeAll(this)
         if (declaredSettings.isNotEmpty() && !killed && !failed) runCatching { settings.keepOnly(name, declaredSettings) }
         try {
             storage.release(this) // final save of `by persistent` values
