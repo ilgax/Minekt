@@ -12,7 +12,7 @@ import dev.ilgax.minekt.api.RawMouseMove
 import dev.ilgax.minekt.api.RawScroll
 import dev.ilgax.minekt.hooks.LogViewer
 import dev.ilgax.minekt.hooks.SettingsView
-import dev.ilgax.minekt.hooks.MacroRecorder
+import dev.ilgax.minekt.hooks.InputRecorder
 import dev.ilgax.minekt.hooks.PacketHooks
 import dev.ilgax.minekt.share.ScriptInstaller
 import dev.ilgax.minekt.hooks.ScriptCommands
@@ -62,7 +62,7 @@ object MinektClient : ClientModInitializer, Host {
     override val scriptDir: Path = FabricLoader.getInstance().gameDir.resolve("minekt")
     val jobs = JobManager(this)
     private val installs by lazy { InstallUi(ScriptInstaller(scriptDir), scriptDir, ::echo) }
-    private val recorder by lazy { MacroRecorder(scriptDir) }
+    private val recorder by lazy { InputRecorder(scriptDir) }
 
     /** The last few errors shown in chat, for the script manager. */
     private val recentErrors = java.util.concurrent.ConcurrentLinkedDeque<ScriptManager.RecentError>()
@@ -97,6 +97,7 @@ object MinektClient : ClientModInitializer, Host {
         }
         val gameEvents = GameEventSource(jobs, onJoin = { runAutorun(it, joined = true) }, onDimensionChange = { runAutorun(it, joined = false) }).apply { register() }
         InputHooks.filter = jobs::filterInput
+        InputHooks.observer = { recorder.input(Minecraft.getInstance(), it) }
         PacketHooks.filter = PacketHooks.Filter { packet, incoming ->
             jobs.filterPacket(packet, incoming)?.also { if (incoming) gameEvents.packetReceived(it) }
         }
@@ -104,7 +105,7 @@ object MinektClient : ClientModInitializer, Host {
             TickClock.advance()
             jobs.dispatch(Job.Event.Tick)
             ScriptKeys.tick(mc)
-            InputHooks.listening = jobs.wantsInput(RawKey::class.java) || jobs.wantsInput(RawMouseButton::class.java) || jobs.wantsInput(RawScroll::class.java)
+            InputHooks.listening = jobs.wantsInput(RawKey::class.java) || jobs.wantsInput(RawMouseButton::class.java) || jobs.wantsInput(RawScroll::class.java) || recorder.isRecording
             InputHooks.listeningToMoves = jobs.wantsInput(RawMouseMove::class.java)
             if (mc.gui.screen() == null) jobs.pollKeys(InputConstants::isKeyDown)
             if (mc.level != null) ScriptRenderer.submitTick()
@@ -216,7 +217,7 @@ object MinektClient : ClientModInitializer, Host {
             "\\scripts          list available scripts",
             "\\install <url>    install a script from a link (\\install for more)",
             "\\share <script>   copy a script to share it",
-            "\\record <name>    record your movement as a macro script (\\record stop saves it)",
+            "\\record <name>    record your keys, clicks and camera as a script (\\record stop saves it)",
         ).forEach { echo(it, MessageKind.INFO) }
     }
 

@@ -9,7 +9,7 @@ Everything below is in scope in every script, no imports needed.
 | Control | `args`, `jobId`, `sleep(ms)`, `waitTicks(n)`, `stop()` |
 | Player | `player` (name, position, yaw/pitch, health, dimension, selectedSlot), `position`, `setOrientation(yaw, pitch)`, `lookAt(x, y, z)` |
 | Keybinds | `keybind(name, default)` → `onPress { }`, `isDown`, `key`, `awaitPress()`, `remove()` |
-| Raw input | `onRawKey { }`, `onRawMouse { }`, `onMouseMove { }` (`cancel()`), `tapKey`, `keyDown`, `keyUp`, `typeText`, `clickMouse`, `mouseDown`, `mouseUp`, `scrollMouse`, `moveMouse` |
+| Raw input | `onRawKey { }`, `onRawMouse { }`, `onMouseMove { }` (`cancel()`), `tapKey`, `keyDown`, `keyUp`, `typeText`, `clickMouse`, `mouseDown`, `mouseUp`, `scrollMouse`, `moveMouse`; `\record` writes these for you |
 | Input | `press(Key.FORWARD)`, `release(key)`, `hold(key, ms)`; held keys are released when the script ends |
 | Inventory & screens | `inventory()`, `heldItem()`, `offhandItem()`, `selectSlot(n)`, `screen`, `container()`, `clickSlot(i)`, `shiftClick(i)`, `swapWithHotbar(i, n)`, `dropSlot(i)`, `openInventory()`, `closeScreen()` |
 | Targeting & interaction | `targetedBlock()`, `targetedEntity()`, `useItem()`, `useOn(pos, face)`, `placeBlock(pos)`, `attack(entityId)`, `interact(entityId)` |
@@ -29,7 +29,6 @@ Everything below is in scope in every script, no imports needed.
 | Code | `eval(code, "name" to value)`, `runScript(name, args)`, `startScript(name, args)` → `await()`, `kill()`, `isRunning` |
 | Class rewriting | `rewriteClass<Class> { node -> }` (ASM tree), `transformClass(name) { bytes -> newBytes }`, `classBytes<Class>()` |
 | Libraries | `@file:DependsOn("group:artifact:version")`, `@file:Repository("https://…")` |
-| Macros | `macro(step(ticks, "forward jump", yaw, pitch, slot), …)`; `\record` writes these for you |
 | World rendering | `highlight(pos)`, `box(min, max)`, `line(a, b)`, `arrow(a, b)`, `text(pos, "…")`, `clearShapes()` |
 | Mods | `isModLoaded(id)`, `modVersion(id)`, `baritone.*` |
 | Raw access | `game { mc -> … }` runs on the client thread with the live `Minecraft` instance |
@@ -42,7 +41,7 @@ Details by topic:
 | Page | |
 |---|---|
 | [Events](events.md) | events and a script's lifetime, coroutines, keys, commands, timers, messages between scripts |
-| [Player and world](world.md) | inventory, containers, interaction, world info and scans, macros |
+| [Player and world](world.md) | inventory, containers, interaction, world info and scans, recording input |
 | [Drawing and screens](display.md) | shapes in the world, HUD panels, script screens |
 | [Data and the web](data.md) | settings, persistent values, HTTP, Maven libraries, sharing code between scripts |
 | [Advanced](advanced.md) | packets, hooking game methods, rewriting classes, code that runs code, other mods and Baritone |

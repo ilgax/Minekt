@@ -1,4 +1,4 @@
-// In-game test for timers, packet hooks, method hooks, the macro recorder and the script manager.
+// In-game test for timers, packet hooks, method hooks, recording input and the script manager.
 // Run with dev/selftest/xdo-runner.sh: it presses real keys and clicks for the `XDO …` lines.
 import dev.ilgax.minekt.MinektClient
 import net.minecraft.client.gui.Hud
@@ -163,9 +163,9 @@ check("hook rewrites arguments of a game method") {
     (shown == "HOOKED action bar text" && after == "after removal") then "with hook: '$shown', after: '$after'"
 }
 
-// ---- macro recorder ------------------------------------------------------------------------
+// ---- recording input ------------------------------------------------------------------------
 
-check("record a macro with real keys and replay it") {
+check("record real input as a script and play it back") {
     val scripts = game { it.gameDirectory.toPath().resolve("minekt") }
     java.nio.file.Files.deleteIfExists(scripts.resolve("walktest.kts"))
     setOrientation(0f, 0f)
@@ -173,9 +173,13 @@ check("record a macro with real keys and replay it") {
     chat("\\record walktest")
     waitTicks(5)
     val start = position
+    val slot = player.selectedSlot
     xdo("keydown --window WIN w")
-    sleep(1000)
+    sleep(500)
+    setOrientation(0f, 20f) // sampled each tick, like a camera turn
+    sleep(500)
     xdo("keyup --window WIN w")
+    xdo("mousemove --window WIN 640 360 click 5")
     waitTicks(5)
     chat("\\record stop")
     if (!waitFor(5) { java.nio.file.Files.exists(scripts.resolve("walktest.kts")) }) return@check "FALSE not saved"
@@ -183,14 +187,18 @@ check("record a macro with real keys and replay it") {
     val text = java.nio.file.Files.readString(scripts.resolve("walktest.kts"))
     // Replay from where the recording started.
     server("tp $me ${start.x} ${start.y} ${start.z} 0 0")
+    selectSlot(slot)
     waitTicks(20)
     val before = position
     chat("\\walktest")
     waitFor(15) { MinektClient.jobs.jobs.none { it.name == "walktest" } && position.distanceTo(before) > 0.5 }
     waitTicks(10)
     val replayed = position.distanceTo(before)
-    ("\"forward\"" in text && recorded > 1.0 && replayed > recorded * 0.6 && replayed < recorded * 1.4) then
-        "recorded %.2f blocks, replay moved %.2f; %d step lines".format(recorded, replayed, text.lines().count { it.trim().startsWith("step(") })
+    val turned = player.pitch == 20f
+    val scrolled = player.selectedSlot != slot
+    ("keyDown(\"w\")" in text && "keyUp(\"w\")" in text && "setOrientation(0.0f, 20.0f)" in text && "scrollMouse(" in text &&
+        recorded > 1.0 && replayed > recorded * 0.6 && replayed < recorded * 1.4 && turned && scrolled) then
+        "recorded %.2f blocks, replay moved %.2f, turned %s, scrolled %s; %d lines".format(recorded, replayed, turned, scrolled, text.lines().count { it.isNotBlank() && !it.startsWith("//") })
 }
 
 // ---- script manager ------------------------------------------------------------------------

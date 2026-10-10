@@ -28,24 +28,35 @@ val diamonds = scanRegion(BlockPos(-128, -64, -128), BlockPos(128, 16, 128)) { i
 spreads the work over several frames. In testing, a 96 × 384 × 96 region took about 2 s while the game kept
 running.
 
-## Macros
+## Recording input
 
-`\record farm` starts recording. Play normally, then `\record stop` saves `farm.kts`, and `\farm` replays it.
-`\record cancel` throws a recording away. The saved script is plain Kotlin you can edit:
+`\record farm` starts recording. Play normally, then `\record stop` saves `farm.kts`, and `\farm` plays it back.
+`\record cancel` throws a recording away. The saved script is an ordinary script, made of the same calls you'd
+write by hand:
 
 ```kotlin
-macro(
-    step(20, "forward sprint", yaw = 90.0f, pitch = 10.0f, slot = 0),
-    step(1, "forward sprint jump", yaw = 90.0f, pitch = 10.0f),
-    step(8, "attack", yaw = 92.5f, pitch = 40.0f, slot = 2),
-    speed = 1.0,
-)
+// \farm, recorded with \record on 2026-10-10: 1.5 s.
+selectSlot(0)
+setOrientation(90.0f, 10.0f)
+keyDown("w")
+keyDown("left.control")
+waitTicks(20)
+keyDown("space")
+waitTicks(1)
+keyUp("space")
+setOrientation(92.5f, 40.0f)
+mouseDown(0)
+waitTicks(8)
+mouseUp(0)
+keyUp("w")
+keyUp("left.control")
 ```
 
-- Each step holds exactly the listed keys for some ticks (20 per second) while looking at yaw/pitch. A key that
-  goes down at the start of a step also counts as a click, so `attack` hits mobs and `use` places blocks.
-- Recorded: movement keys, jump, sneak, sprint, attack, use, drop, swap hands, the camera and the hotbar slot.
-  A macro replays inputs, not positions, so start it where you started recording.
-- Clicks shorter than a tick (50 ms) can be missed while recording.
-- Replays are close, not exact: in testing, a recorded 6.2-block walk replayed as 6.0 to 7.6 blocks, because
+- Recorded: every key you press (except typing in chat), mouse buttons and the scroll wheel outside screens, and
+  the camera, once per tick. Keys and clicks are sent again as [raw input](events.md#raw-keyboard-and-mouse), so
+  they go through your key bindings like the real ones.
+- It replays input, not positions, so start it where you started recording. Replays are close, not exact:
   timing and momentum differ slightly between runs. Fine for routines, not for pixel-perfect parkour.
+- To change it, edit it: loop part of it, change the waits, add `if`s. Keys still down when a script ends are
+  released.
+- Long recordings are split into functions (`part1()`, `part2()`, …), since one function can only hold so much.

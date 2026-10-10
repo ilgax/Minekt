@@ -2,7 +2,9 @@ package dev.ilgax.minekt.api
 
 import com.mojang.blaze3d.platform.InputConstants
 import dev.ilgax.minekt.hooks.InputHooks
+import dev.ilgax.minekt.job.Host
 import dev.ilgax.minekt.job.Job
+import net.minecraft.client.Minecraft
 import net.minecraft.client.input.CharacterEvent
 import net.minecraft.client.input.KeyEvent
 import net.minecraft.client.input.MouseButtonInfo
@@ -21,6 +23,7 @@ import org.lwjgl.sdl.SDLKeyboard
 //
 // Listeners run on the game thread, before the game handles the input: keep them quick. Sent input
 // goes through the same game code as real input (so it also reaches listeners, marked `synthetic`).
+// Keys and buttons a script leaves down are released when it ends.
 
 enum class InputAction {
     RELEASE, PRESS, REPEAT;
@@ -129,17 +132,40 @@ fun Minekt.moveMouse(dx: Double, dy: Double) = game { mc ->
     }
 }
 
-private fun Minekt.sendKey(name: String, action: Int) = game { mc ->
-    val key = runCatching { InputConstants.getKey(keyName(name)) }.getOrNull()
-        ?.takeIf { it != InputConstants.UNKNOWN && it.type == InputConstants.Type.KEYBOARD }
-        ?: throw IllegalArgumentException("Unknown key '$name' (use names like \"e\", \"f3\", \"left.shift\")")
-    // A key's value is its SDL scancode; the event also carries the key code for that layout.
-    val keycode = SDLKeyboard.SDL_GetKeyFromScancode(key.value, 0, false)
-    InputHooks.sending { mc.keyboardHandler.keyPress(mc.window.handle(), action, KeyEvent(key.value, keycode, 0)) }
+private fun Minekt.sendKey(name: String, action: Int) {
+    val key = game { _ ->
+        runCatching { InputConstants.getKey(keyName(name)) }.getOrNull()
+            ?.takeIf { it != InputConstants.UNKNOWN && it.type == InputConstants.Type.KEYBOARD }
+            ?: throw IllegalArgumentException("Unknown key '$name' (use names like \"e\", \"f3\", \"left.shift\")")
+    }
+    held(Release(job.host, key.value, button = false), action)
+    game { mc -> keyEvent(mc, key.value, action) }
 }
 
-private fun Minekt.sendButton(button: Int, action: Int) = game { mc ->
+private fun Minekt.sendButton(button: Int, action: Int) {
     require(button in 0..7) { "Mouse buttons are 0 to 7" }
+    held(Release(job.host, button, button = true), action)
+    game { mc -> buttonEvent(mc, button, action) }
+}
+
+/** Keys and buttons a script holds down are let go when it ends. */
+private fun Minekt.held(release: Release, action: Int) {
+    if (action == InputConstants.PRESS) job.cleanups.addIfAbsent(release) else job.cleanups.remove(release)
+}
+
+private data class Release(val host: Host, val code: Int, val button: Boolean) : () -> Unit {
+    override fun invoke() {
+        host.onGameThread { mc -> if (button) buttonEvent(mc, code, InputConstants.RELEASE) else keyEvent(mc, code, InputConstants.RELEASE) }
+    }
+}
+
+/** A key's value is its SDL scancode; the event also carries the key code for that layout. */
+private fun keyEvent(mc: Minecraft, scancode: Int, action: Int) {
+    val keycode = SDLKeyboard.SDL_GetKeyFromScancode(scancode, 0, false)
+    InputHooks.sending { mc.keyboardHandler.keyPress(mc.window.handle(), action, KeyEvent(scancode, keycode, 0)) }
+}
+
+private fun buttonEvent(mc: Minecraft, button: Int, action: Int) {
     InputHooks.sending { mc.mouseHandler.onButton(mc.window.handle(), MouseButtonInfo(toGameButton(button), 0), action) }
 }
 

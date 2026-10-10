@@ -29,7 +29,7 @@ and `\menu` opens the script manager. More in [Getting started](docs/getting-sta
 ## What scripts can do
 
 - **Read and control the game:** the player, inventory and containers, blocks and entities, keys, chat,
-  recorded macros. ([Player and world](docs/world.md))
+  recording your input as a script. ([Player and world](docs/world.md))
 - **React to things:** chat, ticks, keys, damage, blocks changing, mobs appearing, sounds, the tab list and
   scoreboard, timers, messages from other scripts, their own `/commands`. ([Events](docs/events.md))
 - **Show things:** HUD panels, shapes drawn in the world, real Minecraft screens. ([Drawing and screens](docs/display.md))

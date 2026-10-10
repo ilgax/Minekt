@@ -18,6 +18,8 @@ object InputHooks {
     @JvmField @Volatile var listening = false
     @JvmField @Volatile var listeningToMoves = false
     @Volatile internal var filter: (InputEvent) -> Boolean = { false }
+    /** Sees the input the game is about to handle (after [filter]): the `\record` recorder. */
+    @Volatile internal var observer: (InputEvent) -> Unit = {}
 
     /** True while Minekt itself is sending input, so listeners can tell real input from sent. */
     private var sending = false
@@ -34,13 +36,19 @@ object InputHooks {
 
     @JvmStatic
     fun key(key: Int, action: Int, modifiers: Int): Boolean =
-        filter(RawKey(InputConstants.Type.KEYBOARD.getOrCreate(key).name, InputAction.of(action), modifiers, sending))
+        observed(RawKey(InputConstants.Type.KEYBOARD.getOrCreate(key).name, InputAction.of(action), modifiers, sending))
 
     @JvmStatic
-    fun button(button: Int, action: Int, modifiers: Int): Boolean = filter(RawMouseButton(fromGameButton(button), InputAction.of(action), modifiers, sending))
+    fun button(button: Int, action: Int, modifiers: Int): Boolean = observed(RawMouseButton(fromGameButton(button), InputAction.of(action), modifiers, sending))
 
     @JvmStatic
-    fun scroll(x: Double, y: Double): Boolean = filter(RawScroll(x, y, sending))
+    fun scroll(x: Double, y: Double): Boolean = observed(RawScroll(x, y, sending))
+
+    private fun observed(event: InputEvent): Boolean {
+        if (filter(event)) return true
+        observer(event)
+        return false
+    }
 
     @JvmStatic
     fun move(x: Double, y: Double, dx: Double, dy: Double): Boolean = filter(RawMouseMove(x, y, dx, dy, sending))
