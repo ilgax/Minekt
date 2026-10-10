@@ -80,6 +80,8 @@ fun Minekt.classBytes(className: String): ByteArray {
 
 fun Minekt.classBytes(target: Class<*>): ByteArray = classBytes(target.name)
 
+inline fun <reified T> Minekt.classBytes(): ByteArray = classBytes(T::class.java)
+
 /** COMPUTE_FRAMES, looking classes up through the class's own loader (the game's, for game classes). */
 private class FrameWriter(private val loader: ClassLoader?) : ClassWriter(COMPUTE_FRAMES) {
     override fun getClassLoader(): ClassLoader = loader ?: super.getClassLoader()
