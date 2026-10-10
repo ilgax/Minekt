@@ -45,12 +45,6 @@ class TimersTest {
     }
 
     @Test
-    fun `at rejects bad times`() {
-        jobs.eval("""at("25:99") { }""")
-        assertTrue("like \"18:00\"" in host.next(), "message")
-    }
-
-    @Test
     fun `daytime crossing`() {
         assertTrue(passed(12990, 13010, 13000))
         assertFalse(passed(13000, 13010, 13000))

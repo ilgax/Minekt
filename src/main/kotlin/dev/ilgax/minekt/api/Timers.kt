@@ -1,17 +1,13 @@
 package dev.ilgax.minekt.api
 
 import kotlinx.coroutines.delay
-import java.time.Duration as JavaDuration
-import java.time.LocalDateTime
-import java.time.LocalTime
 import kotlin.time.Duration
 
-// Timers: run something later, repeatedly, at a time of day, or at an in-game time.
+// Timers: run something later, repeatedly, or at an in-game time.
 //
 //   every(5.seconds) { hud("HP ${player.health}") }
 //   after(30.seconds) { echo("half a minute later") }
 //   everyTicks(10) { … }
-//   at("18:00") { toast("Dinner time") }               // your computer's clock, every day
 //   atDaytime(13000) { echo("Night is falling") }       // in-game time, every Minecraft day
 //
 // Timer actions run alongside the script body, one at a time (also with screen callbacks), so they
@@ -57,20 +53,6 @@ fun Minekt.afterTicks(ticks: Int, action: () -> Unit): Timer = Timer(job.launchS
     awaitTicks(ticks)
     action()
 })
-
-/** Run [action] every day at [time] on your computer's clock: `"18:00"` or `"07:30:15"`. */
-fun Minekt.at(time: String, action: () -> Unit): Timer {
-    val target = runCatching { LocalTime.parse(time) }.getOrElse { throw IllegalArgumentException("Use a time like \"18:00\", not \"$time\"") }
-    return Timer(job.launchSerial {
-        while (true) {
-            val now = LocalDateTime.now()
-            var next = now.toLocalDate().atTime(target)
-            if (!next.isAfter(now)) next = next.plusDays(1)
-            delay(JavaDuration.between(now, next).toMillis().coerceAtLeast(1))
-            action()
-        }
-    })
-}
 
 /**
  * Run [action] whenever the in-game time of day passes [dayTime] (0–23999: 0 is sunrise, 6000 noon,

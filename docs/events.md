@@ -115,7 +115,6 @@ disappears and `/name` goes to the server again. Two scripts can't own the same 
 every(5.seconds) { hud("HP ${player.health}") }
 after(30.seconds) { echo("half a minute later") }
 everyTicks(10) { … }
-at("18:00") { toast("Dinner time") }               // your computer's clock, every day
 atDaytime(13000) { echo("Night is falling") }       // in-game time, every Minecraft day
 ```
 
