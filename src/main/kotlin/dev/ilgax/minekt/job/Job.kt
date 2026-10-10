@@ -57,8 +57,8 @@ class Job internal constructor(
         data object Tick : Event
         data class Chat(val text: String) : Event
         data class Command(val name: String, val args: List<String>) : Event
-        data class Keybind(val id: String) : Event
-        data class Key(val watch: KeyWatch) : Event
+        /** A script keybind went down ([pressed]) or up. */
+        data class Keybind(val id: String, val pressed: Boolean = true) : Event
         data class Game(val event: GameEvent) : Event
         data class Message(val topic: String, val value: Any?, val from: String) : Event
         data class Packet(val packet: net.minecraft.network.protocol.Packet<*>, val incoming: Boolean) : Event
@@ -95,7 +95,10 @@ class Job internal constructor(
     internal val chatHandlers = CopyOnWriteArrayList<(String) -> Unit>()
     internal val commandHandlers = ConcurrentHashMap<String, (List<String>) -> Unit>()
     /** `keybind(…).onPress { }`, by keybind id. */
-    internal val keybindHandlers = ConcurrentHashMap<String, CopyOnWriteArrayList<() -> Unit>>()
+    /** Keybind id → handlers for it going down (`onPress`) and up (`onRelease`). */
+    internal val keybindHandlers = ConcurrentHashMap<String, CopyOnWriteArrayList<KeybindHandler>>()
+
+    class KeybindHandler(val onPress: Boolean, val handler: () -> Unit)
     internal val gameHandlers = CopyOnWriteArrayList<(GameEvent) -> Unit>()
     /** Event types the handlers above are for (`GameEvent` itself: all), so unwanted events cost nothing. */
     internal val gameEventTypes: MutableSet<Class<*>> = ConcurrentHashMap.newKeySet()
@@ -181,24 +184,6 @@ class Job internal constructor(
         }
         lastCpuNanos = if (compiling) -1 else cpu
         lastSampleNanos = now
-    }
-
-    // ---- keys -----------------------------------------------------------------------------------
-
-    /** A physical key a script watches via `onKey`; polled on the client thread, see [pollKeys]. */
-    class KeyWatch(val keyCode: Int, val handler: () -> Unit) {
-        internal var wasDown = false
-    }
-
-    internal val keyWatches = CopyOnWriteArrayList<KeyWatch>()
-
-    /** Client thread, once per tick: turn watched keys going down into [Event.Key]s. */
-    internal fun pollKeys(isDown: (Int) -> Boolean) {
-        for (watch in keyWatches) {
-            val down = isDown(watch.keyCode)
-            if (down && !watch.wasDown) post(Event.Key(watch))
-            watch.wasDown = down
-        }
     }
 
     // ---- coroutines -----------------------------------------------------------------------------
@@ -287,10 +272,9 @@ class Job internal constructor(
         }
         val wanted = when (event) {
             Event.Tick -> tickHandlers.isNotEmpty() && tickQueued.compareAndSet(false, true)
-            is Event.Key -> true
             is Event.Chat -> chatHandlers.isNotEmpty()
             is Event.Command -> commandHandlers.containsKey(event.name)
-            is Event.Keybind -> keybindHandlers[event.id]?.isNotEmpty() == true
+            is Event.Keybind -> keybindHandlers[event.id]?.any { it.onPress == event.pressed } == true
             is Event.Game -> gameHandlers.isNotEmpty() && gameEventTypes.any { it.isInstance(event.event) }
             is Event.Message -> messageHandlers[event.topic]?.isNotEmpty() == true
             is Event.Packet -> packetHandlers.any { it.matches(event.packet, event.incoming) }
@@ -389,10 +373,9 @@ class Job internal constructor(
                         tickQueued.set(false)
                         tickHandlers.forEach { it() }
                     }
-                    is Event.Key -> event.watch.handler()
                     is Event.Chat -> chatHandlers.forEach { it(event.text) }
                     is Event.Command -> commandHandlers[event.name]?.invoke(event.args)
-                    is Event.Keybind -> keybindHandlers[event.id]?.forEach { it() }
+                    is Event.Keybind -> keybindHandlers[event.id]?.forEach { if (it.onPress == event.pressed) it.handler() }
                     is Event.Game -> gameHandlers.forEach { it(event.event) }
                     is Event.Message -> messageHandlers[event.topic]?.forEach { it(event.value) }
                     is Event.Packet -> packetHandlers.forEach { if (it.matches(event.packet, event.incoming)) it.handler(event.packet) }
@@ -406,7 +389,7 @@ class Job internal constructor(
 
     private fun hasHandlers() =
         tickHandlers.isNotEmpty() || chatHandlers.isNotEmpty() || commandHandlers.isNotEmpty() ||
-            keyWatches.isNotEmpty() || gameHandlers.isNotEmpty() || keybindHandlers.values.any { it.isNotEmpty() } ||
+            gameHandlers.isNotEmpty() || keybindHandlers.values.any { it.isNotEmpty() } ||
             messageHandlers.values.any { it.isNotEmpty() } || openScreens.get() > 0 || settingHandlers.isNotEmpty() || inputHandlers.isNotEmpty() ||
             packetHandlers.isNotEmpty() || packetFilters.isNotEmpty() || MethodHooks.hasHooks(this) || ClassRewrites.has(this)
 

@@ -5,7 +5,7 @@ import kotlin.time.Duration
 
 // Timers: run something later, repeatedly, or at an in-game time.
 //
-//   every(5.seconds) { hud("HP ${player.health}") }
+//   every(5.seconds) { actionBar("HP ${player.health}") }
 //   after(30.seconds) { echo("half a minute later") }
 //   everyTicks(10) { … }
 //   atDaytime(13000) { echo("Night is falling") }       // in-game time, every Minecraft day

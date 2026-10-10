@@ -9,7 +9,7 @@ import java.util.concurrent.CopyOnWriteArrayList
 //
 //   // stats.kts                                   // statshud.kts
 //   data class Stats(val kills: Int, val hp: Float) data class Stats(val kills: Int, val hp: Float)
-//   publish("stats", Stats(kills, player.health))  subscribe<Stats>("stats") { hud("Kills ${it.kills}") }
+//   publish("stats", Stats(kills, player.health))  subscribe<Stats>("stats") { actionBar("Kills ${it.kills}") }
 //
 // Topics are any name you like. Values can be anything; scripts each have their own classes, so a
 // data class declared the same way in both scripts (or a list/map/number/string) is the way to go:

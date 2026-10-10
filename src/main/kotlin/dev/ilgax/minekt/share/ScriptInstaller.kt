@@ -185,7 +185,7 @@ class ScriptInstaller(
             """(?m)^\s*import\s+(?!dev\.ilgax\.minekt\.|kotlin\.|kotlinx\.coroutines\.)""" to "use Minecraft's or other mods' code directly",
             """\b(chat|execute)\s*\(""" to "send chat messages or commands as you",
             """\b(attack|interact)\s*\(""" to "attack or interact with mobs and players",
-            """\b(placeBlock|useOn|useItem)\s*\(""" to "break or place blocks and use items",
+            """\b(useOn|useItem)\s*\(""" to "break or place blocks and use items",
             """\b(clickSlot|shiftClick|swapWithHotbar|dropSlot)\s*\(""" to "move or drop items in your inventory",
             """\b(press|hold|setOrientation|lookAt)\s*\(""" to "move you and turn your camera",
             """\bbaritone\b""" to "control Baritone",

@@ -27,6 +27,9 @@ internal object ScriptKeys {
     private lateinit var managerKey: KeyMapping
 
     private class Dynamic(val id: String, val owner: Job, val mapping: KeyMapping) : KeybindHandle {
+        /** Whether it was down at the last tick, to turn changes into press and release events. */
+        var wasDown = false
+
         override val keyName: String get() = onGameThread { mapping.translatedKeyMessage.string }
         override val isDown: Boolean get() = mapping.isDown
         override fun remove() = ScriptKeys.remove(this)
@@ -76,10 +79,18 @@ internal object ScriptKeys {
         }
     }
 
-    /** Called every client tick: presses become events for the owning scripts; rebinds are saved. */
+    /**
+     * Called every client tick: a key going down or up becomes one event for the owning script (a
+     * held key's repeats don't count; a tap shorter than a tick is a press and a release); rebinds are saved.
+     */
     fun tick(mc: Minecraft) {
         for (handle in dynamic.values) {
-            while (handle.mapping.consumeClick()) handle.owner.post(Job.Event.Keybind(handle.id))
+            var clicked = false
+            while (handle.mapping.consumeClick()) clicked = true
+            val down = handle.mapping.isDown
+            if (!handle.wasDown && (down || clicked)) handle.owner.post(Job.Event.Keybind(handle.id, pressed = true))
+            if ((handle.wasDown || clicked) && !down) handle.owner.post(Job.Event.Keybind(handle.id, pressed = false))
+            handle.wasDown = down
             if (mc.gui.screen() == null) remember(handle)
         }
     }

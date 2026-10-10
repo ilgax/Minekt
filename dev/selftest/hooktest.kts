@@ -5,5 +5,4 @@ command("mkt", completions = listOf("alpha", "beta")) { args ->
 }
 val hookKey = keybind("Hooktest key")
 hookKey.onPress { echo("HOOKTEST keybind fired, bound to ${hookKey.key}") }
-onKey("k") { echo("HOOKTEST onKey(k) fired") }
 echo("HOOKTEST ready")

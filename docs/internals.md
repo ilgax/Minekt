@@ -41,7 +41,7 @@ Requires JDK 25.
 `dev/selftest/` holds in-game self-tests. Copy them into `run/minekt/` and list them in `run/minekt/autorun.txt`,
 then open a singleplayer world. Each one reports `OK`/`FAIL` lines in chat and closes the game.
 - `\hooktest` then `\selftest`: core API, commands, keys and rendering. When it prints `PRESS KEYS NOW`, press
-  J and K so the key hooks get exercised.
+  J so the keybind hook gets exercised.
 - `\sharing`: feedback, and installing, updating and sharing. Needs a local web server on 127.0.0.1:8765 (see
   the top of the file).
 - `\persist`: run it in two separate launches. The first stores values; the second checks they survived the

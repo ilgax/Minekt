@@ -7,7 +7,8 @@ import java.util.concurrent.CopyOnWriteArrayList
 // Keybinds the player can change in Options → Controls → Minekt:
 //
 //   val fly = keybind("Toggle fly", default = "f")
-//   fly.onPress { flying = !flying }
+//   fly.onPress { flying = !flying }          // once per press, even when held
+//   fly.onRelease { echo("let go") }
 //   onTick { if (fly.isDown) … }
 //   echo("Press ${fly.key} to fly")
 //
@@ -36,15 +37,25 @@ class Keybind internal constructor(private val job: Job, private val id: String,
     /** Whether the key is held down right now. */
     val isDown: Boolean get() = handle.isDown
 
-    /** Run [handler] (on the script's thread) every time the key is pressed. Keeps the script alive. */
-    fun onPress(handler: () -> Unit) {
+    /** Run [handler] (on the script's thread) each time the key goes down: once per press, however long it's held. Keeps the script alive. */
+    fun onPress(handler: () -> Unit) = add(true, handler)
+
+    /** Run [handler] each time the key is let go. Keeps the script alive. */
+    fun onRelease(handler: () -> Unit) = add(false, handler)
+
+    private fun add(press: Boolean, handler: () -> Unit) {
         job.checkAlive()
-        job.keybindHandlers.computeIfAbsent(id) { CopyOnWriteArrayList() } += handler
+        job.keybindHandlers.computeIfAbsent(id) { CopyOnWriteArrayList() } += Job.KeybindHandler(press, handler)
     }
 
     /** Suspend until the key is pressed. */
     suspend fun awaitPress() {
-        job.awaitEvent { it is Job.Event.Keybind && it.id == id }
+        job.awaitEvent { it is Job.Event.Keybind && it.id == id && it.pressed }
+    }
+
+    /** Suspend until the key is let go. */
+    suspend fun awaitRelease() {
+        job.awaitEvent { it is Job.Event.Keybind && it.id == id && !it.pressed }
     }
 
     /** Take it out of Controls now (it also goes when the script ends). */

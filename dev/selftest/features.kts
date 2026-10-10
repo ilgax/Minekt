@@ -55,7 +55,7 @@ val base = position.blockPos
 val spot = base.offset(dx = 2)
 server("fill ${spot.x} ${spot.y} ${spot.z - 1} ${spot.x + 2} ${spot.y + 2} ${spot.z + 1} minecraft:air")
 waitTicks(5)
-check("placeBlock") { placeBlock(spot) && run { waitTicks(5); getBlock(spot) == "minecraft:stone" } }
+check("useOn places a block") { useOn(spot.offset(dy = -1), Face.UP) && run { waitTicks(5); getBlock(spot) == "minecraft:stone" } }
 check("lookAt + targetedBlock") {
     lookAt(spot.x + 0.5, spot.y + 0.5, spot.z + 0.5)
     waitTicks(2)
@@ -68,7 +68,7 @@ waitTicks(5)
 val chestPos = spot
 check("place chest") {
     selectSlot(inventory().first { it.id == "minecraft:chest" }.slot)
-    placeBlock(chestPos) && run { waitTicks(5); getBlock(chestPos) == "minecraft:chest" }
+    useOn(chestPos.offset(dy = -1), Face.UP) && run { waitTicks(5); getBlock(chestPos) == "minecraft:chest" }
 }
 check("open chest + awaitScreen") {
     runBlocking {
@@ -132,6 +132,9 @@ check("DimensionChange + ChunkLoad events") {
     "$change, ${seen.count { it is GameEvent.ChunkLoad }} chunk loads".takeIf { change != null } ?: false
 }
 check("world info in the nether") { world.dimension }
+// Back to the overworld, so the next test starts there.
+server("execute in minecraft:overworld run spreadplayers 0 0 0 1 false $me")
+waitTicks(60)
 
 recorder.cancel()
 echo("FEATURES DONE (${seen.size} events seen)")

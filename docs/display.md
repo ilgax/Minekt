@@ -25,8 +25,8 @@ clearShapes()                                                   // or drop them 
 
 ## HUD panels
 
-`hud("line", …)` puts plain text in the top-left corner. `hudPanel` does more: boxes with titles, live text,
-progress bars, item icons and images, in any corner or edge of the screen:
+`hudPanel` draws on the HUD: boxes with titles, live text, progress bars, item icons and images, in any corner
+or edge of the screen:
 
 ```kotlin
 var ores = 0

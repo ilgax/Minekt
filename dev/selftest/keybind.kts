@@ -33,7 +33,9 @@ dir.resolve("settings/keybinds.json").toFile().delete()
 
 val presses = AtomicInteger()
 val ping = keybind("Ping", default = "j")
+val releases = AtomicInteger()
 ping.onPress { presses.incrementAndGet() }
+ping.onRelease { releases.incrementAndGet() }
 val unbound = keybind("Nothing yet")
 
 // Handlers run after the script body, so the rest happens in a coroutine.
@@ -44,16 +46,18 @@ launch {
             m.category == game { mc -> mc.options.keyMappings.first { it.name == "key.minekt.manager" }.category }) then "${ping.key}, ${unbound.key}"
     }
     check("keybind(name) again returns the same one") { (keybind("Ping").key == "J" && game { mc -> mc.options.keyMappings.count { it.name == "Ping" } } == 1) then "one entry" }
-    check("a real key press reaches onPress") {
+    check("a real key press reaches onPress and onRelease") {
         xdo("key j")
-        waitFor(5) { presses.get() == 1 } then "presses=${presses.get()}"
+        waitFor(5) { presses.get() == 1 && releases.get() == 1 } then "presses=${presses.get()} releases=${releases.get()}"
     }
-    check("isDown while the key is held") {
+    check("isDown while the key is held; holding it is one press") {
         xdo("keydown j")
+        sleep(1500) // long enough for the keyboard to start repeating
         val down = ping.isDown
         xdo("keyup j")
         waitFor(3) { !ping.isDown }
-        down then "held: $down, released: ${ping.isDown}"
+        sleep(300)
+        (down && presses.get() == 2 && releases.get() == 2) then "held: $down, released: ${ping.isDown}, presses=${presses.get()} releases=${releases.get()}"
     }
     check("the player rebinds it (as Controls does), and the new key works") {
         game { mc ->

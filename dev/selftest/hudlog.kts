@@ -86,7 +86,6 @@ dir.resolve("typodemo.kts").writeText("val ores = 3\necho(\"found \" + oers)\n")
 
 // ---- HUD ------------------------------------------------------------------------------------------
 
-hud("Legacy hud() line", "second line")
 val miner = hudPanel(Anchor.TOP_RIGHT) {
     title("Miner")
     // Live parts run on the game thread, so game { } inside them is direct.
@@ -111,7 +110,6 @@ hudPanel(Anchor.BOTTOM) { text("Above the hotbar") }
 check("unknown items are rejected") {
     runCatching { hudPanel { item("not_an_item") } }.exceptionOrNull()?.message.let { (it == "Unknown item 'not_an_item'") then it }
 }
-check("hud() still works, as a panel") { ("Legacy hud() line" in hudTexts()) then hudTexts() }
 check("live text updates every tick") {
     waitTicks(5)
     val a = hudTexts().first { it.startsWith("Ticks:") }

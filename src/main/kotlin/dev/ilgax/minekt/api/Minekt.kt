@@ -1,6 +1,5 @@
 package dev.ilgax.minekt.api
 
-import com.mojang.blaze3d.platform.InputConstants
 import dev.ilgax.minekt.job.Job
 import dev.ilgax.minekt.job.ScriptLogs
 import dev.ilgax.minekt.job.JobKilledException
@@ -53,25 +52,6 @@ class Minekt internal constructor(internal val job: Job) {
         val connection = mc.connection ?: error("Not connected to a world")
         if (message.startsWith("/")) connection.sendCommand(message.substring(1)) else connection.sendChat(message)
     }
-
-    /** Run a command (leading `/` optional). */
-    fun execute(command: String) = chat(if (command.startsWith("/")) command else "/$command")
-
-    /**
-     * Show [lines] in the top-left HUD until changed or the script ends. `hud()` clears it.
-     * For more (corners, bars, item icons, images), see [hudPanel].
-     */
-    fun hud(vararg lines: String) {
-        job.checkAlive()
-        val panel = hudLines
-        when {
-            lines.isEmpty() -> panel?.remove()
-            panel == null || panel.isRemoved -> hudLines = hudPanel(background = false) { lines.forEach { text(it) } }
-            else -> panel.update { lines.forEach { text(it) } }
-        }
-    }
-
-    @Volatile private var hudLines: HudPanel? = null
 
     // ---- timing / control ---------------------------------------------------------------------
 
@@ -163,16 +143,6 @@ class Minekt internal constructor(internal val job: Job) {
     }
 
     fun release(key: Key) = press(key, false)
-
-    /** Hold [key] for [ms] milliseconds. */
-    fun hold(key: Key, ms: Long) {
-        press(key, true)
-        try {
-            sleep(ms)
-        } finally {
-            runCatching { job.host.onGameThread { mc -> mc.options.mapping(key).setDown(false) } }
-        }
-    }
 
     fun selectSlot(slot: Int) = game { mc ->
         require(slot in 0..8) { "Hotbar slot must be 0..8" }
@@ -283,15 +253,6 @@ class Minekt internal constructor(internal val job: Job) {
         job.tickHandlers += handler
     }
 
-    /**
-     * Call [handler] when a physical key is pressed, e.g. `onKey("k") { ... }`. Names are GLFW
-     * names without the `key.keyboard.` prefix: `"k"`, `"f6"`, `"left.shift"`. Polled each tick.
-     * The key is fixed by the script; use [keybind] to let the player choose it in Controls.
-     */
-    fun onKey(name: String, handler: () -> Unit) {
-        val key = InputConstants.getKey(if ('.' in name && name.startsWith("key.")) name else "key.keyboard.$name")
-        job.keyWatches += Job.KeyWatch(key.value, handler)
-    }
 
     /**
      * Register `/name` as a client-side command while this script runs. [handler] gets the words

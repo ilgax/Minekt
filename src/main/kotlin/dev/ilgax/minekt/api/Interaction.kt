@@ -41,22 +41,6 @@ fun Minekt.useOn(pos: BlockPos, face: Face = Face.UP): Boolean = game { mc ->
     result.consumesAction()
 }
 
-/**
- * Place the held block at [pos] by clicking a solid neighbour. Returns false if nothing to click
- * against or the placement was refused.
- */
-fun Minekt.placeBlock(pos: BlockPos): Boolean {
-    val neighbour = game { mc ->
-        val level = mc.level ?: error("Not in a world")
-        Face.entries.firstNotNullOfOrNull { face ->
-            val side = face.toMc()
-            val n = pos.toMc().relative(side)
-            if (!level.getBlockState(n).canBeReplaced()) n.toApi() to side.opposite.toApi() else null
-        }
-    } ?: return false
-    return useOn(neighbour.first, neighbour.second)
-}
-
 /** Attack (left-click) an entity by id, e.g. one from `entities()` or `targetedEntity()`. */
 fun Minekt.attack(entityId: Int) = game { mc ->
     val player = mc.player ?: error("Not in a world")

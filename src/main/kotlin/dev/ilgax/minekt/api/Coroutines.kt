@@ -8,7 +8,7 @@ import kotlinx.coroutines.launch
 
 // Coroutines: run several things at once in one script, and wait for events without callbacks.
 //
-//   launch { while (true) { awaitTicks(20); hud("HP ${player.health}") } }
+//   launch { while (true) { awaitTicks(20); actionBar("HP ${player.health}") } }
 //   launch { val msg = awaitChat { "ready" in it }; echo("got $msg") }
 //   val reply = runBlocking { withTimeoutOrNull(5_000) { awaitChat() } }
 //

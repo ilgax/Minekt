@@ -18,11 +18,13 @@ check("entities") { entities(64).take(3).map { "${it.type}@%.0f".format(it.dista
 check("inventory") { inventory().size }
 check("mods") { "fabric-api=${isModLoaded("fabric-api")} baritone=${baritone.isAvailable} kotlin=${modVersion("fabric-language-kotlin")}" }
 check("raw game access") { game { mc -> mc.options.fov().get() } }
-check("hud") { hud("Minekt selftest", "running"); "set" }
+check("hud") { hudPanel { text("Minekt selftest"); text("running") }; "set" }
 check("lookAt") { val p = player.position; lookAt(p.x + 10, p.y + 1.62, p.z); "yaw=%.0f pitch=%.0f".format(player.yaw, player.pitch) }
 check("walk") {
     val before = player.position
-    hold(Key.FORWARD, 1500)
+    press(Key.FORWARD)
+    sleep(1500)
+    release(Key.FORWARD)
     "moved %.2f blocks".format(before.distanceTo(player.position))
 }
 check("ticks") { val t = System.currentTimeMillis(); waitTicks(20); "${System.currentTimeMillis() - t} ms for 20 ticks" }
@@ -37,7 +39,7 @@ game { mc ->
 }
 check("keybind rebound") { game { mc -> mc.options.keyMappings.first { it.name == "Hooktest key" }.translatedKeyMessage.string } }
 echo("SELFTEST PRESS KEYS NOW")
-waitTicks(200) // the harness presses J and K for real via xdotool
+waitTicks(200) // the harness presses J for real via xdotool
 check("command in tab-completion") { game { it.connection!!.commands.root.getChild("mkt") != null } }
 chat("/mkt hello \"two words\"")
 waitTicks(10)

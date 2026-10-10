@@ -203,16 +203,19 @@ class ScriptEngineTest {
     }
 
     @Test
-    fun `onKey fires once per press, not while held`() {
-        val job = jobs.eval("""onKey("k") { echo("pressed") }""")
+    fun `keybind presses and releases reach their own handlers`() {
+        val job = jobs.eval(
+            """
+            val zoom = keybind("Zoom")
+            zoom.onPress { echo("down") }
+            zoom.onRelease { echo("up"); stop() }
+            """.trimIndent(),
+        )
         while (job.state != Job.State.LISTENING) Thread.sleep(20)
-        val k = com.mojang.blaze3d.platform.InputConstants.getKey("key.keyboard.k").value
-        for (down in listOf(false, true, true, true, false, true)) jobs.pollKeys { it == k && down }
-        assertEquals(MessageKind.SCRIPT to "pressed", host.next())
-        assertEquals(MessageKind.SCRIPT to "pressed", host.next())
-        Thread.sleep(200)
-        assertTrue(host.messages.isEmpty(), "held key must not repeat: ${host.messages}")
-        jobs.kill(job.id)
+        jobs.dispatch(Job.Event.Keybind("eval/Zoom", pressed = true))
+        assertEquals(MessageKind.SCRIPT to "down", host.next())
+        jobs.dispatch(Job.Event.Keybind("eval/Zoom", pressed = false))
+        assertEquals(MessageKind.SCRIPT to "up", host.next())
         awaitDone(job)
     }
 

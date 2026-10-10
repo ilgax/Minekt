@@ -132,7 +132,9 @@ check("onPacketSent sees movement packets") {
     val moves = AtomicInteger()
     val counter = launch { while (true) { awaitPacket<ServerboundMovePlayerPacket>(sent = true); moves.incrementAndGet() } }
     sleep(200)
-    hold(Key.FORWARD, 600)
+    press(Key.FORWARD)
+    sleep(600)
+    release(Key.FORWARD)
     sleep(300)
     counter.cancel()
     (moves.get() > 3) then "${moves.get()} move packets"
@@ -149,7 +151,9 @@ check("hook counts and cancels jumps") {
             if (cancel) call.cancel()
         }
     }
-    hold(Key.JUMP, 300)
+    press(Key.JUMP)
+    sleep(300)
+    release(Key.JUMP)
     sleep(1000)
     val counted = jumps.get()
     cancel = true

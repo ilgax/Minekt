@@ -9,7 +9,7 @@ val chest = container()                                // slots of the open menu
 chest.playerSlots.filter { it.id == "minecraft:cobblestone" }.forEach { shiftClick(it.index) }
 closeScreen()
 
-placeBlock(BlockPos(10, 64, 10))                       // places the held block against a neighbour
+useOn(BlockPos(10, 63, 10), Face.UP)                   // place the held block on top of (10, 63, 10)
 attack(targetedEntity()!!.id)
 ```
 

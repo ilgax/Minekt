@@ -8,7 +8,7 @@ handling events until it calls `stop()` or you `\kill` it:
 ```kotlin
 // \chatbot
 onChat { msg -> if (msg.endsWith("ping")) echo("pong!") }
-onKey("k") { stop() }
+keybind("Stop chatbot", default = "k").onPress { stop() }
 ```
 
 Game events work the same way:
@@ -34,7 +34,7 @@ onSound { id, pos, category -> if (id == "minecraft:entity.creeper.primed") titl
 onParticle { id, pos, count -> … }                     // particles the server sends
 onPlayerJoin { name -> echo("$name joined") }          // tab list changes
 onPlayerLeave { name -> echo("$name left") }
-onScoreboardChange { sidebar -> hud(sidebar.title, *sidebar.lines.toTypedArray()) }
+onScoreboardChange { sidebar -> echo(sidebar.title, sidebar.lines) }
 echo(tabList(), sidebar())                              // read them any time
 ```
 
@@ -55,7 +55,7 @@ Coroutines let one script do several things at once and wait for things without 
 
 ```kotlin
 launch {                                   // runs alongside everything else
-    while (true) { hud("HP ${player.health}"); awaitTicks(10) }
+    while (true) { actionBar("HP ${player.health}"); awaitTicks(10) }
 }
 launch {
     val msg = awaitChat { "ready" in it }  // suspends until a matching message arrives
@@ -83,8 +83,8 @@ echo("Press ${fly.key} to fly")                  // the key it's bound to, as th
 launch { fly.awaitPress(); echo("pressed") }
 ```
 
-- Holding the key down repeats `onPress` at the keyboard's repeat rate, like vanilla keys (holding Q drops item
-  after item). For a toggle that shouldn't repeat, check `isDown` in `onTick` and act when it changes.
+- `onPress` runs once each time the key goes down, however long it's held; `onRelease` runs when it's let go.
+  For something that repeats while held, check `isDown` in `onTick`.
 - A keybind exists while its script runs (or until `remove()`), and `onPress` keeps the script alive. Calling
   `keybind` again with the same name returns the same keybind.
 - The key the player picks is remembered for the next time the script makes that keybind, in
@@ -92,8 +92,7 @@ launch { fly.awaitPress(); echo("pressed") }
 - Key names: `"f"`, `"f6"`, `"left.shift"`, `"space"`, `"mouse.middle"`, or the full `"key.keyboard.f"`.
 - If another script already has a keybind with the same name, Controls shows yours as `Name (script)`.
 
-`onKey("k") { }` watches a fixed key instead, without anything in Controls: handy for quick personal scripts.
-It only fires when no screen is open.
+For a fixed key that isn't in Controls, or to see every press, release and repeat, use `onRawKey` below.
 
 ## Raw keyboard and mouse
 
@@ -138,7 +137,7 @@ disappears and `/name` goes to the server again. Two scripts can't own the same 
 ## Timers
 
 ```kotlin
-every(5.seconds) { hud("HP ${player.health}") }
+every(5.seconds) { actionBar("HP ${player.health}") }
 after(30.seconds) { echo("half a minute later") }
 everyTicks(10) { … }
 atDaytime(13000) { echo("Night is falling") }       // in-game time, every Minecraft day
@@ -159,7 +158,7 @@ onTick { publish("stats", Stats(player.health, player.dimension)) }
 
 // statshud.kts
 data class Stats(val health: Float, val dimension: String)
-subscribe<Stats>("stats", latest = true) { hud("HP: ${it.health}", "In: ${it.dimension}") }
+subscribe<Stats>("stats", latest = true) { actionBar("HP: ${it.health} in ${it.dimension}") }
 ```
 
 - Topics are any name you like. `subscribe` handlers run after the script body; the script stays alive while

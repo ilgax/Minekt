@@ -1,6 +1,5 @@
 package dev.ilgax.minekt
 
-import com.mojang.blaze3d.platform.InputConstants
 import dev.ilgax.minekt.api.ScriptHud
 import dev.ilgax.minekt.hooks.GameEventSource
 import dev.ilgax.minekt.hooks.ErrorChat
@@ -107,7 +106,6 @@ object MinektClient : ClientModInitializer, Host {
             ScriptKeys.tick(mc)
             InputHooks.listening = jobs.wantsInput(RawKey::class.java) || jobs.wantsInput(RawMouseButton::class.java) || jobs.wantsInput(RawScroll::class.java) || recorder.isRecording
             InputHooks.listeningToMoves = jobs.wantsInput(RawMouseMove::class.java)
-            if (mc.gui.screen() == null) jobs.pollKeys(InputConstants::isKeyDown)
             if (mc.level != null) ScriptRenderer.submitTick()
             ScriptHud.tick()
             gameEvents.tick(mc)

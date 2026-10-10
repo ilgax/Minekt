@@ -13,8 +13,8 @@ while kill -0 $GRADLE 2>/dev/null; do
   while [ $done_lines -lt ${#cmds[@]} ]; do
     WIN=$(xdotool search --name "Minecraft" | head -1)
     xdotool windowfocus --sync "$WIN" 2>/dev/null
-    read -ra args <<< "${cmds[$done_lines]//WIN/$WIN}"
-    xdotool "${args[@]}"
+    # xargs splits the line like a shell would, so 'quoted text' stays one argument (and isn't run).
+    printf '%s\n' "${cmds[$done_lines]//WIN/$WIN}" | xargs xdotool
     done_lines=$((done_lines + 1))
   done
 done
