@@ -53,7 +53,7 @@ internal object ScriptKeys {
         }
         val default = defaultKey?.let { key ->
             runCatching { InputConstants.getKey(key) }.getOrNull()?.takeIf { it != InputConstants.UNKNOWN }
-                ?: throw IllegalArgumentException("Unknown key '$key' (use names like \"f\", \"f6\", \"left.shift\", \"mouse.middle\")")
+                ?: throw IllegalArgumentException("Unknown key '${key.removePrefix("key.keyboard.").removePrefix("key.")}' (use names like \"f\", \"f6\", \"left.shift\", \"mouse.middle\")")
         } ?: InputConstants.UNKNOWN
         // The name is what Controls shows (it's not a translation key) and must be unique in the game.
         val name = if (KeyMappingAccessor.`minekt$all`().containsKey(label)) "$label (${owner.name})" else label
