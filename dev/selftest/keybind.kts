@@ -69,7 +69,7 @@ launch {
             dir.resolve("settings/keybinds.json").toFile().readText().replace("\n", " ")
     }
     check("screenshot of Controls with the script keybinds") {
-        game { mc -> mc.gui.setScreen(KeyBindsScreen(null, mc.options)) }
+        game { mc -> mc.gui.setScreen(KeyBindsScreen(object : net.minecraft.client.gui.screens.Screen(net.minecraft.network.chat.Component.empty()) {}, mc.options)) }
         waitTicks(5)
         game { mc ->
             // Scroll to the end, where the mod categories are.
