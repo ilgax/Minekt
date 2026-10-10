@@ -72,6 +72,15 @@ server("gamerule doDaylightCycle true")
 server("difficulty peaceful")
 waitTicks(20)
 
+/** Stand at the start of a clear stone strip running towards +z, so walking checks don't depend on the terrain. */
+fun runway() {
+    server("fill -3 199 -3 3 199 40 minecraft:stone")
+    server("fill -3 200 -3 3 203 40 minecraft:air")
+    server("tp $me 0.5 200 0.5 0 0")
+    waitFor(5) { Math.abs(player.position.z - 0.5) < 0.1 && Math.abs(player.position.y - 200) < 0.1 }
+    waitTicks(10)
+}
+
 // ---- timers --------------------------------------------------------------------------------
 
 check("every / after / everyTicks") {
@@ -119,6 +128,7 @@ check("interceptPacket drops a chat packet, rewrites another") {
 }
 check("onPacketSent sees movement packets") {
     // onPacketSent handlers run after the script body; while the body runs, a coroutine can count.
+    runway()
     val moves = AtomicInteger()
     val counter = launch { while (true) { awaitPacket<ServerboundMovePlayerPacket>(sent = true); moves.incrementAndGet() } }
     sleep(200)
@@ -168,6 +178,7 @@ check("hook rewrites arguments of a game method") {
 check("record real input as a script and play it back") {
     val scripts = game { it.gameDirectory.toPath().resolve("minekt") }
     java.nio.file.Files.deleteIfExists(scripts.resolve("walktest.kts"))
+    runway()
     setOrientation(0f, 0f)
     waitTicks(2)
     chat("\\record walktest")
@@ -199,6 +210,20 @@ check("record real input as a script and play it back") {
     ("keyDown(\"w\")" in text && "keyUp(\"w\")" in text && "setOrientation(0.0f, 20.0f)" in text && "scrollMouse(" in text &&
         recorded > 1.0 && replayed > recorded * 0.6 && replayed < recorded * 1.4 && turned && scrolled) then
         "recorded %.2f blocks, replay moved %.2f, turned %s, scrolled %s; %d lines".format(recorded, replayed, turned, scrolled, text.lines().count { it.isNotBlank() && !it.startsWith("//") })
+}
+
+check("a timed recording saves by itself") {
+    val scripts = game { it.gameDirectory.toPath().resolve("minekt") }
+    java.nio.file.Files.deleteIfExists(scripts.resolve("timedtest.kts"))
+    chat("\\record timedtest 2s")
+    waitTicks(10)
+    xdo("keydown --window WIN w")
+    sleep(500)
+    xdo("keyup --window WIN w")
+    val saved = waitFor(5) { java.nio.file.Files.exists(scripts.resolve("timedtest.kts")) }
+    val text = if (saved) java.nio.file.Files.readString(scripts.resolve("timedtest.kts")) else ""
+    val said = chatLines().any { it.contains("Saved timedtest.kts (2.0 s)") }
+    (saved && said && "keyDown(\"w\")" in text && "2.0 s." in text) then text.lines().filter { it.isNotBlank() && !it.startsWith("//") }
 }
 
 // ---- script manager ------------------------------------------------------------------------

@@ -18,11 +18,12 @@ import java.util.Locale
  * and saves them as `<name>.kts`, an ordinary script of `keyDown`, `mouseDown`, `setOrientation`,
  * `waitTicks`, … that sends the same input again. Runs on the client thread.
  */
-class InputRecorder(private val scriptDir: Path) {
+class InputRecorder(private val scriptDir: Path, private val notify: (String) -> Unit) {
     /** One line of the script, [tick] ticks after the recording started. */
     internal class Action(val tick: Int, val code: String, val chatKey: Boolean = false, val initial: Boolean = false)
 
-    private class Recording(val name: String) {
+    /** [limit]: ticks to record before saving on its own, or null to record until `\record stop`. */
+    private class Recording(val name: String, val limit: Int?) {
         val actions = ArrayList<Action>()
         var ticks = 0
         val keys = HashSet<String>()
@@ -35,11 +36,14 @@ class InputRecorder(private val scriptDir: Path) {
 
     val isRecording get() = recording != null
 
-    fun start(name: String): String {
+    /** Start recording into `<name>.kts`; with [ticks], it stops and saves by itself after that long. */
+    fun start(name: String, ticks: Int? = null): String {
         recording?.let { return "Already recording '${it.name}': \\record stop saves it" }
-        recording = Recording(name)
+        require(ticks == null || ticks > 0) { "The time must be above 0" }
+        recording = Recording(name, ticks)
         InputHooks.listening = true
-        return "Recording '$name'. Play, then \\record stop to save (or \\record cancel)"
+        return if (ticks == null) "Recording '$name'. Play, then \\record stop to save (or \\record cancel)"
+        else "Recording '$name' for %s. It saves by itself (\\record stop saves early, \\record cancel drops it)".format(seconds(ticks))
     }
 
     fun cancel(): String {
@@ -49,18 +53,21 @@ class InputRecorder(private val scriptDir: Path) {
     }
 
     /** Save the recording as a script; returns what to tell the player. */
-    fun stop(): String {
+    fun stop(): String = save(typed = true)
+
+    /** [typed]: stopped by typing `\record stop` in chat, so the key that opened chat isn't part of the recording. */
+    private fun save(typed: Boolean): String {
         val r = recording ?: return "Not recording"
         recording = null
-        // `\record stop` was typed in chat: the key that opened chat isn't part of the recording.
-        val actions = r.actions.indexOfLast { it.chatKey }.let { if (it < 0) r.actions else r.actions.subList(0, it) }
+        val chat = r.actions.indexOfLast { it.chatKey }.takeIf { typed && it >= 0 }
+        val actions = if (chat == null) r.actions else r.actions.subList(0, chat)
+        val length = if (chat == null) r.ticks else r.actions[chat].tick
         if (actions.all { it.initial }) return "Nothing was recorded"
         val file = scriptDir.resolve("${r.name}.kts")
         val replaced = Files.exists(file)
         Files.createDirectories(scriptDir)
-        Files.writeString(file, script(r.name, actions))
-        val seconds = (actions.lastOrNull()?.tick ?: 0) / 20.0
-        return "Saved ${r.name}.kts (%.1f s)%s. Run it with \\${r.name}".format(Locale.ROOT, seconds, if (replaced) ", replacing the old one" else "")
+        Files.writeString(file, script(r.name, actions, length))
+        return "Saved ${r.name}.kts (%s)%s. Run it with \\${r.name}".format(seconds(length), if (replaced) ", replacing the old one" else "")
     }
 
     /** Client thread, every tick: the camera and the hotbar slot are sampled once per tick. */
@@ -76,8 +83,14 @@ class InputRecorder(private val scriptDir: Path) {
             r.pitch = pitch
         }
         r.ticks++
+        if (r.limit != null && r.ticks >= r.limit) {
+            notify(save(typed = false))
+            mc.gui.hud.setOverlayMessage(Component.literal("■ Saved ${r.name}"), false)
+            return
+        }
         if (r.ticks % 10 == 1) {
-            mc.gui.hud.setOverlayMessage(Component.literal("● REC %s  %.1f s".format(Locale.ROOT, r.name, r.ticks / 20.0)), false)
+            val left = r.limit?.let { "  (%s left)".format(seconds(it - r.ticks)) }.orEmpty()
+            mc.gui.hud.setOverlayMessage(Component.literal("● REC %s  %s%s".format(r.name, seconds(r.ticks), left)), false)
         }
     }
 
@@ -116,11 +129,28 @@ class InputRecorder(private val scriptDir: Path) {
     }
 
     companion object {
+        /**
+         * A recording length in ticks: `30` or `30s` seconds, `2m` minutes, `1.5s`, `100t` ticks.
+         * Null if it isn't one.
+         */
+        internal fun parseDuration(text: String): Int? {
+            val match = Regex("""(\d+(?:\.\d+)?)([smt]?)""").matchEntire(text.trim().lowercase()) ?: return null
+            val amount = match.groupValues[1].toDouble()
+            val ticks = when (match.groupValues[2]) {
+                "t" -> amount
+                "m" -> amount * 60 * 20
+                else -> amount * 20
+            }
+            return if (ticks < 1 || ticks > Int.MAX_VALUE) null else Math.round(ticks).toInt()
+        }
+
+        private fun seconds(ticks: Int) = "%.1f s".format(Locale.ROOT, ticks / 20.0)
+
         /** Script lines per function: one function can't hold a long recording (the JVM limits method size). */
         internal const val LINES_PER_PART = 500
 
-        /** Write [actions] as a script, waiting between them; keys still down at the end are released. */
-        internal fun script(name: String, actions: List<Action>): String {
+        /** Write [actions] as a script, waiting between them; keys still down at [length] ticks are released then. */
+        internal fun script(name: String, actions: List<Action>, length: Int = actions.lastOrNull()?.tick ?: 0): String {
             val held = LinkedHashSet<String>()
             val lines = ArrayList<String>()
             var tick = 0
@@ -135,10 +165,11 @@ class InputRecorder(private val scriptDir: Path) {
                     action.code.startsWith("mouseUp(") -> held -= action.code
                 }
             }
+            if (held.isNotEmpty() && length > tick) lines += "waitTicks(${length - tick})"
             lines += held
             val parts = lines.chunked(LINES_PER_PART)
             return buildString {
-                appendLine("// \\$name, recorded with \\record on ${LocalDate.now()}: %.1f s.".format(Locale.ROOT, tick / 20.0))
+                appendLine("// \\$name, recorded with \\record on ${LocalDate.now()}: ${seconds(maxOf(tick, length))}.")
                 appendLine("// It sends the same keys, clicks and camera turns again (20 ticks a second), through your key")
                 appendLine("// bindings. It replays input, not positions: start where you started recording. Edit freely.")
                 appendLine()

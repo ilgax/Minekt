@@ -62,7 +62,7 @@ object MinektClient : ClientModInitializer, Host {
     override val scriptDir: Path = FabricLoader.getInstance().gameDir.resolve("minekt")
     val jobs = JobManager(this)
     private val installs by lazy { InstallUi(ScriptInstaller(scriptDir), scriptDir, ::echo) }
-    private val recorder by lazy { InputRecorder(scriptDir) }
+    private val recorder by lazy { InputRecorder(scriptDir) { echo(it, MessageKind.INFO) } }
 
     /** The last few errors shown in chat, for the script manager. */
     private val recentErrors = java.util.concurrent.ConcurrentLinkedDeque<ScriptManager.RecentError>()
@@ -185,10 +185,19 @@ object MinektClient : ClientModInitializer, Host {
             }
             "record" -> echo(
                 when (val what = parts.getOrNull(1)) {
-                    null -> "Usage: \\record <name> to start, \\record stop to save, \\record cancel"
+                    null -> "Usage: \\record <name> [time, like 30s or 2m] to start, \\record stop to save, \\record cancel"
                     "stop" -> recorder.stop()
                     "cancel" -> recorder.cancel()
-                    else -> ScriptInstaller.sanitizeName(what).takeIf { it.isNotEmpty() }?.let(recorder::start) ?: "Pick a name with letters and digits"
+                    else -> {
+                        val name = ScriptInstaller.sanitizeName(what)
+                        val time = parts.getOrNull(2)
+                        val ticks = time?.let(InputRecorder::parseDuration)
+                        when {
+                            name.isEmpty() -> "Pick a name with letters and digits"
+                            time != null && ticks == null -> "'$time' isn't a time: use 30 or 30s (seconds), 2m (minutes) or 100t (ticks)"
+                            else -> recorder.start(name, ticks)
+                        }
+                    }
                 },
                 MessageKind.INFO,
             )
@@ -217,7 +226,7 @@ object MinektClient : ClientModInitializer, Host {
             "\\scripts          list available scripts",
             "\\install <url>    install a script from a link (\\install for more)",
             "\\share <script>   copy a script to share it",
-            "\\record <name>    record your keys, clicks and camera as a script (\\record stop saves it)",
+            "\\record <name> [30s]    record your keys, clicks and camera as a script (\\record stop saves it)",
         ).forEach { echo(it, MessageKind.INFO) }
     }
 

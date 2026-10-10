@@ -54,6 +54,16 @@ class InputRecorderTest {
     }
 
     @Test
+    fun `keys held when the recording ends are released at its end`() {
+        val text = InputRecorder.script("timed", listOf(Action(0, "selectSlot(0)", initial = true), Action(17, "keyDown(\"w\")")), length = 40)
+        assertTrue("on " in text && ": 2.0 s." in text, text.lines().first())
+        assertEquals(
+            listOf("selectSlot(0)", "waitTicks(17)", "keyDown(\"w\")", "waitTicks(23)", "keyUp(\"w\")"),
+            text.lines().filter { it.isNotBlank() && !it.startsWith("//") },
+        )
+    }
+
+    @Test
     fun `long recordings are split into functions that run in order`() {
         val count = InputRecorder.LINES_PER_PART * 2 + 10
         val text = InputRecorder.script("long", List(count) { Action(0, "echo(\"$it\")") })
@@ -68,5 +78,15 @@ class InputRecorderTest {
             if (System.currentTimeMillis() > deadline) fail("didn't finish")
             Thread.sleep(10)
         }
+    }
+
+    @Test
+    fun `recording times`() {
+        assertEquals(600, InputRecorder.parseDuration("30"))
+        assertEquals(600, InputRecorder.parseDuration("30s"))
+        assertEquals(30, InputRecorder.parseDuration("1.5s"))
+        assertEquals(2400, InputRecorder.parseDuration("2M"))
+        assertEquals(100, InputRecorder.parseDuration("100t"))
+        for (bad in listOf("", "0", "0.01", "-5", "ten", "5h", "1e9m")) assertEquals(null, InputRecorder.parseDuration(bad), bad)
     }
 }

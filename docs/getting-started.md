@@ -38,7 +38,7 @@ shows when a download starts and finishes.
 | `\install clipboard [name]` | install a script someone shared with you |
 | `\update <script>` | get a newer version from where it was installed from |
 | `\share <script>` | copy a script to the clipboard to share it |
-| `\record <name>` / `\record stop` | record your keys, clicks and camera as a script ([more](world.md#recording-input)) |
+| `\record <name> [30s]` / `\record stop` | record your keys, clicks and camera as a script ([more](world.md#recording-input)) |
 | `\settings <script>` | change a script's settings (see [Settings](data.md#settings)) |
 | `\help` | show this list |
 
