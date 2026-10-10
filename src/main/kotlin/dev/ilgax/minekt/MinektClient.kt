@@ -185,17 +185,20 @@ object MinektClient : ClientModInitializer, Host {
             }
             "record" -> echo(
                 when (val what = parts.getOrNull(1)) {
-                    null -> "Usage: \\record <name> [time, like 30s or 2m] to start, \\record stop to save, \\record cancel"
+                    null -> "Usage: \\record <name> [time, like 30s or 2m] [now] to start, \\record stop to save, \\record cancel"
                     "stop" -> recorder.stop()
                     "cancel" -> recorder.cancel()
                     else -> {
                         val name = ScriptInstaller.sanitizeName(what)
-                        val time = parts.getOrNull(2)
+                        // After the name: a time to record for, and `now` to skip the countdown, in any order.
+                        val options = parts.drop(2)
+                        val now = options.any { it.equals("now", ignoreCase = true) }
+                        val time = options.firstOrNull { !it.equals("now", ignoreCase = true) }
                         val ticks = time?.let(InputRecorder::parseDuration)
                         when {
                             name.isEmpty() -> "Pick a name with letters and digits"
                             time != null && ticks == null -> "'$time' isn't a time: use 30 or 30s (seconds), 2m (minutes) or 100t (ticks)"
-                            else -> recorder.start(name, ticks)
+                            else -> recorder.start(name, ticks, if (now) 0 else InputRecorder.COUNTDOWN)
                         }
                     }
                 },
@@ -226,7 +229,7 @@ object MinektClient : ClientModInitializer, Host {
             "\\scripts          list available scripts",
             "\\install <url>    install a script from a link (\\install for more)",
             "\\share <script>   copy a script to share it",
-            "\\record <name> [30s]    record your keys, clicks and camera as a script (\\record stop saves it)",
+            "\\record <name> [30s] [now]    record your keys, clicks and camera as a script (\\record stop saves it)",
         ).forEach { echo(it, MessageKind.INFO) }
     }
 

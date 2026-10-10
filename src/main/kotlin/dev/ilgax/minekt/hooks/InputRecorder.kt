@@ -7,7 +7,9 @@ import dev.ilgax.minekt.api.RawMouseButton
 import dev.ilgax.minekt.api.RawScroll
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.ChatScreen
+import net.minecraft.client.resources.sounds.SimpleSoundInstance
 import net.minecraft.network.chat.Component
+import net.minecraft.sounds.SoundEvents
 import java.nio.file.Files
 import java.nio.file.Path
 import java.time.LocalDate
@@ -22,8 +24,11 @@ class InputRecorder(private val scriptDir: Path, private val notify: (String) ->
     /** One line of the script, [tick] ticks after the recording started. */
     internal class Action(val tick: Int, val code: String, val chatKey: Boolean = false, val initial: Boolean = false)
 
-    /** [limit]: ticks to record before saving on its own, or null to record until `\record stop`. */
-    private class Recording(val name: String, val limit: Int?) {
+    /**
+     * [limit]: ticks to record before saving on its own, or null to record until `\record stop`.
+     * [countdown]: ticks left before recording starts; input isn't recorded until then.
+     */
+    private class Recording(val name: String, val limit: Int?, var countdown: Int) {
         val actions = ArrayList<Action>()
         var ticks = 0
         val keys = HashSet<String>()
@@ -36,14 +41,18 @@ class InputRecorder(private val scriptDir: Path, private val notify: (String) ->
 
     val isRecording get() = recording != null
 
-    /** Start recording into `<name>.kts`; with [ticks], it stops and saves by itself after that long. */
-    fun start(name: String, ticks: Int? = null): String {
+    /**
+     * Start recording into `<name>.kts` after a [countdown] (ticks, shown as a big 3, 2, 1); with
+     * [ticks], it stops and saves by itself after that long.
+     */
+    fun start(name: String, ticks: Int? = null, countdown: Int = COUNTDOWN): String {
         recording?.let { return "Already recording '${it.name}': \\record stop saves it" }
         require(ticks == null || ticks > 0) { "The time must be above 0" }
-        recording = Recording(name, ticks)
+        recording = Recording(name, ticks, countdown)
         InputHooks.listening = true
-        return if (ticks == null) "Recording '$name'. Play, then \\record stop to save (or \\record cancel)"
-        else "Recording '$name' for %s. It saves by itself (\\record stop saves early, \\record cancel drops it)".format(seconds(ticks))
+        val starts = if (countdown > 0) "Recording '$name' in ${countdown / 20} s" else "Recording '$name'"
+        return if (ticks == null) "$starts. Play, then \\record stop to save (or \\record cancel)"
+        else "$starts, for %s. It saves by itself (\\record stop saves early, \\record cancel drops it)".format(seconds(ticks))
     }
 
     fun cancel(): String {
@@ -74,6 +83,10 @@ class InputRecorder(private val scriptDir: Path, private val notify: (String) ->
     fun tick(mc: Minecraft) {
         val r = recording ?: return
         val player = mc.player ?: return
+        if (r.countdown > 0) {
+            countdown(mc, r)
+            return
+        }
         val yaw = angle(player.yRot)
         val pitch = angle(player.xRot)
         if (r.ticks == 0) r.actions += Action(0, "selectSlot(${player.inventory.selectedSlot})", initial = true)
@@ -94,6 +107,23 @@ class InputRecorder(private val scriptDir: Path, private val notify: (String) ->
         }
     }
 
+    /** A big 3, 2, 1 with a click on each, then "REC" as recording starts on the next tick. */
+    private fun countdown(mc: Minecraft, r: Recording) {
+        val hud = mc.gui.hud
+        if (r.countdown % 20 == 0) {
+            hud.setTimes(0, 25, 5)
+            hud.setSubtitle(Component.literal("Recording ${r.name}"))
+            hud.setTitle(Component.literal("${r.countdown / 20}"))
+            mc.soundManager.play(SimpleSoundInstance.forUI(SoundEvents.NOTE_BLOCK_HAT.value(), 1f))
+        }
+        r.countdown--
+        if (r.countdown == 0) {
+            hud.setTimes(0, 20, 10)
+            hud.setTitle(Component.literal("● REC"))
+            mc.soundManager.play(SimpleSoundInstance.forUI(SoundEvents.NOTE_BLOCK_PLING.value(), 2f))
+        }
+    }
+
     /**
      * Client thread, for input the game is about to handle. Keys count unless chat is open (typing
      * isn't recorded); mouse buttons and the wheel only outside screens, where the cursor doesn't matter.
@@ -101,7 +131,7 @@ class InputRecorder(private val scriptDir: Path, private val notify: (String) ->
      */
     internal fun input(mc: Minecraft, event: InputEvent) {
         val r = recording ?: return
-        if (event.synthetic) return
+        if (event.synthetic || r.countdown > 0) return
         val screen = mc.gui.screen()
         when (event) {
             is RawKey -> {
@@ -129,6 +159,9 @@ class InputRecorder(private val scriptDir: Path, private val notify: (String) ->
     }
 
     companion object {
+        /** Ticks before a recording starts, so the player can get ready after typing the command. */
+        const val COUNTDOWN = 3 * 20
+
         /**
          * A recording length in ticks: `30` or `30s` seconds, `2m` minutes, `1.5s`, `100t` ticks.
          * Null if it isn't one.

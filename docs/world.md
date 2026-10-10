@@ -30,10 +30,11 @@ running.
 
 ## Recording input
 
-`\record farm` starts recording. Play normally, then `\record stop` saves `farm.kts`, and `\farm` plays it back.
+`\record farm` starts recording after a 3-second countdown (a big 3, 2, 1 on screen; add `now` to skip it, like
+`\record farm now`). Play normally, then `\record stop` saves `farm.kts`, and `\farm` plays it back.
 `\record cancel` throws a recording away. To record for a set time, add it: `\record farm 30s` (or `30`, `2m`,
-`100t` for ticks) saves by itself when the time is up, with what's left shown above the hotbar. The saved script is an ordinary script, made of the same calls you'd
-write by hand:
+`100t` for ticks) saves by itself when the time is up, with what's left shown above the hotbar. The saved script
+is an ordinary script, made of the same calls you'd write by hand:
 
 ```kotlin
 // \farm, recorded with \record on 2026-10-10: 1.5 s.

@@ -181,7 +181,7 @@ check("record real input as a script and play it back") {
     runway()
     setOrientation(0f, 0f)
     waitTicks(2)
-    chat("\\record walktest")
+    chat("\\record walktest now")
     waitTicks(5)
     val start = position
     val slot = player.selectedSlot
@@ -212,18 +212,25 @@ check("record real input as a script and play it back") {
         "recorded %.2f blocks, replay moved %.2f, turned %s, scrolled %s; %d lines".format(recorded, replayed, turned, scrolled, text.lines().count { it.isNotBlank() && !it.startsWith("//") })
 }
 
-check("a timed recording saves by itself") {
+check("a timed recording counts down, then saves by itself") {
     val scripts = game { it.gameDirectory.toPath().resolve("minekt") }
     java.nio.file.Files.deleteIfExists(scripts.resolve("timedtest.kts"))
+    val titleField = Hud::class.java.getDeclaredField("title").apply { isAccessible = true }
     chat("\\record timedtest 2s")
-    waitTicks(10)
+    waitTicks(5)
+    val shown = game { mc -> (titleField.get(mc.gui.hud) as Component?)?.string }
+    // Pressed during the countdown: not recorded.
+    xdo("keydown --window WIN s")
+    xdo("keyup --window WIN s")
+    waitFor(5) { game { mc -> (titleField.get(mc.gui.hud) as Component?)?.string } == "● REC" }
     xdo("keydown --window WIN w")
-    sleep(500)
+    sleep(300)
     xdo("keyup --window WIN w")
     val saved = waitFor(5) { java.nio.file.Files.exists(scripts.resolve("timedtest.kts")) }
     val text = if (saved) java.nio.file.Files.readString(scripts.resolve("timedtest.kts")) else ""
     val said = chatLines().any { it.contains("Saved timedtest.kts (2.0 s)") }
-    (saved && said && "keyDown(\"w\")" in text && "2.0 s." in text) then text.lines().filter { it.isNotBlank() && !it.startsWith("//") }
+    (shown == "3" && saved && said && "keyDown(\"w\")" in text && "\"s\"" !in text && "2.0 s." in text) then
+        "title '$shown', then " + text.lines().filter { it.isNotBlank() && !it.startsWith("//") }
 }
 
 // ---- script manager ------------------------------------------------------------------------
