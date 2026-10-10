@@ -83,6 +83,8 @@ echo("Press ${fly.key} to fly")                  // the key it's bound to, as th
 launch { fly.awaitPress(); echo("pressed") }
 ```
 
+- Holding the key down repeats `onPress` at the keyboard's repeat rate, like vanilla keys (holding Q drops item
+  after item). For a toggle that shouldn't repeat, check `isDown` in `onTick` and act when it changes.
 - A keybind exists while its script runs (or until `remove()`), and `onPress` keeps the script alive. Calling
   `keybind` again with the same name returns the same keybind.
 - The key the player picks is remembered for the next time the script makes that keybind, in
