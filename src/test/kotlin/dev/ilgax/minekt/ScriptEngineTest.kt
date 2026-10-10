@@ -10,6 +10,7 @@ import java.nio.file.Path
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 import kotlin.io.path.writeText
+import kotlin.script.experimental.host.toScriptSource
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -289,6 +290,17 @@ class ScriptEngineTest {
                 val result = dev.ilgax.minekt.script.ScriptCompiler.compile(kotlin.script.experimental.host.FileScriptSource(file.toFile()))
                 if (result is kotlin.script.experimental.api.ResultWithDiagnostics.Failure) "${file.fileName}: ${result.reports.map { it.message }}" else null
             }
+        }
+        assertTrue(failures.isEmpty(), failures.joinToString("\n"))
+    }
+
+    @Test
+    fun `the tutorial's scripts compile`() {
+        val blocks = Regex("```kotlin\\n(.*?)```", RegexOption.DOT_MATCHES_ALL).findAll(Files.readString(Path.of("docs/tutorial.md"))).map { it.groupValues[1] }.toList()
+        assertTrue(blocks.size >= 6, "found ${blocks.size} blocks")
+        val failures = blocks.mapIndexedNotNull { i, code ->
+            val result = dev.ilgax.minekt.script.ScriptCompiler.compile(code.toScriptSource("tutorial$i.kts"))
+            if (result is kotlin.script.experimental.api.ResultWithDiagnostics.Failure) "block ${i + 1}: ${result.reports.filter { it.severity == kotlin.script.experimental.api.ScriptDiagnostic.Severity.ERROR }.map { it.message }}" else null
         }
         assertTrue(failures.isEmpty(), failures.joinToString("\n"))
     }

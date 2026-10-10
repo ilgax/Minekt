@@ -76,6 +76,29 @@ class JobManager(private val host: Host) {
     fun pollKeys(isDown: (Int) -> Boolean) = running.values.forEach { it.pollKeys(isDown) }
 
     /**
+     * Game thread, for every key, mouse button, scroll and mouse move: every script's input listeners
+     * run in turn until one cancels it. Returns whether it was cancelled.
+     */
+    fun filterInput(event: dev.ilgax.minekt.api.InputEvent): Boolean {
+        for (job in running.values) {
+            for (listener in job.inputHandlers) {
+                if (!listener.type.isInstance(event)) continue
+                try {
+                    listener.handler(event)
+                } catch (t: Throwable) {
+                    job.inputHandlers.remove(listener) // a broken listener must not break input
+                    job.handleThrowable(t)
+                }
+                if (event.isCancelled) return true
+            }
+        }
+        return false
+    }
+
+    /** Whether any script listens for [type] input (the mixins stay idle otherwise). */
+    fun wantsInput(type: Class<out dev.ilgax.minekt.api.InputEvent>) = running.values.any { job -> job.inputHandlers.any { it.type == type } }
+
+    /**
      * Network thread, for every packet the client receives ([incoming]) or sends. Every script's
      * packet filters run in turn, then listeners are notified. Returns the packet to use (possibly
      * replaced) or null to drop it.

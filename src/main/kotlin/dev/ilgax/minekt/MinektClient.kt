@@ -4,7 +4,12 @@ import com.mojang.blaze3d.platform.InputConstants
 import dev.ilgax.minekt.api.ScriptHud
 import dev.ilgax.minekt.hooks.GameEventSource
 import dev.ilgax.minekt.hooks.ErrorChat
+import dev.ilgax.minekt.hooks.InputHooks
 import dev.ilgax.minekt.hooks.InstallUi
+import dev.ilgax.minekt.api.RawKey
+import dev.ilgax.minekt.api.RawMouseButton
+import dev.ilgax.minekt.api.RawMouseMove
+import dev.ilgax.minekt.api.RawScroll
 import dev.ilgax.minekt.hooks.LogViewer
 import dev.ilgax.minekt.hooks.SettingsView
 import dev.ilgax.minekt.hooks.MacroRecorder
@@ -49,6 +54,7 @@ object MinektClient : ClientModInitializer, Host {
     private val logger = LoggerFactory.getLogger("minekt")
     private const val PREFIX = "\\"
     private const val RECENT_ERRORS = 5
+    private val BUILT_IN_COMMANDS = setOf("help", "jobs", "kill", "eval", "install", "update", "share", "menu", "log", "settings", "record", "scripts")
     /** `[miner] …` or `[miner:3:5] …`: which script a chat message is about. */
     private val SCRIPT_PREFIX = Regex("^\\[([A-Za-z0-9_.-]+)(?::\\d+)*] ")
     private val EXAMPLES = listOf("hello", "whereami", "ores", "autowalk", "chatbot", "hud", "commands", "deathpoint", "stash", "waypoints", "baritone_mine")
@@ -90,6 +96,7 @@ object MinektClient : ClientModInitializer, Host {
             jobs.dispatch(Job.Event.Chat(message.string))
         }
         val gameEvents = GameEventSource(jobs, onJoin = { runAutorun(it, joined = true) }, onDimensionChange = { runAutorun(it, joined = false) }).apply { register() }
+        InputHooks.filter = jobs::filterInput
         PacketHooks.filter = PacketHooks.Filter { packet, incoming ->
             jobs.filterPacket(packet, incoming)?.also { if (incoming) gameEvents.packetReceived(it) }
         }
@@ -97,6 +104,8 @@ object MinektClient : ClientModInitializer, Host {
             TickClock.advance()
             jobs.dispatch(Job.Event.Tick)
             ScriptKeys.tick(mc)
+            InputHooks.listening = jobs.wantsInput(RawKey::class.java) || jobs.wantsInput(RawMouseButton::class.java) || jobs.wantsInput(RawScroll::class.java)
+            InputHooks.listeningToMoves = jobs.wantsInput(RawMouseMove::class.java)
             if (mc.gui.screen() == null) jobs.pollKeys(InputConstants::isKeyDown)
             if (mc.level != null) ScriptRenderer.submitTick()
             ScriptHud.tick()
@@ -182,7 +191,14 @@ object MinektClient : ClientModInitializer, Host {
                 },
                 MessageKind.INFO,
             )
-            "scripts" -> echo("Scripts: " + jobs.availableScripts().joinToString(", ").ifEmpty { "(none)" }, MessageKind.INFO)
+            "scripts" -> {
+                val scripts = jobs.availableScripts()
+                echo("Scripts: " + scripts.joinToString(", ").ifEmpty { "(none)" }, MessageKind.INFO)
+                // A script named like a built-in command can't be started by typing its name.
+                scripts.filter { it in BUILT_IN_COMMANDS }.forEach {
+                    echo("$it.kts has the name of the built-in \\$it command: rename it, or run it from \\menu", MessageKind.ERROR)
+                }
+            }
             else -> jobs.runScript(command, parts.drop(1))
         }
     }

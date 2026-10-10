@@ -50,6 +50,7 @@ then open a singleplayer world. Each one reports `OK`/`FAIL` lines in chat and c
   uses the singleplayer server to give items, deal damage and teleport.
 - `\startuptest` (with `double.kts`): put it under `[startup]` in `autorun.txt` and launch without joining a world;
   it checks it runs on the title screen, with `eval` and `runScript`, then closes the game.
+- `\input`: raw keyboard and mouse input, listened to, cancelled and sent. Needs `xdo-runner.sh`.
 - `\rewrite`: rewriting real game classes, reading bytes with mixins applied, hooks on rewritten code.
 - `\more`: timers, packet hooks, method hooks, recording and replaying a macro, and the script manager. Needs
   `xdo-runner.sh` too.

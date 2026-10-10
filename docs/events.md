@@ -95,6 +95,32 @@ launch { fly.awaitPress(); echo("pressed") }
 `onKey("k") { }` watches a fixed key instead, without anything in Controls: handy for quick personal scripts.
 It only fires when no screen is open.
 
+## Raw keyboard and mouse
+
+See input before the game does, cancel it, or send your own:
+
+```kotlin
+onRawKey { e -> if (e.key == "key.keyboard.q" && e.action == InputAction.PRESS) e.cancel() }   // the game never sees Q
+onRawMouse { e -> if (e is RawMouseButton && e.button == 1) echo("right ${e.action}") }        // buttons and scrolling
+onMouseMove { e -> if (frozen) e.cancel() }                                                     // camera stays put
+
+tapKey("e")                        // press and release: opens the inventory, like the real key
+keyDown("w"); sleep(1000); keyUp("w")
+typeText("hello")                  // into whatever has focus: chat, a sign, a text box
+clickMouse(); mouseDown(1); mouseUp(1)
+scrollMouse(-1.0)                  // one notch down: next hotbar slot
+moveMouse(200.0, 0.0)              // turns the camera in game, moves the cursor in screens
+```
+
+- Listeners run on the game thread, before the game handles the input, and in script order: once one cancels,
+  the game and later listeners don't see it. Keep them quick; one that throws is removed.
+- Keys are named like keybinds: `key.keyboard.q`, `key.keyboard.left.shift`. Mouse buttons are 0 left, 1 right,
+  2 middle, 3 and up for extra buttons. `action` is `PRESS`, `RELEASE` or `REPEAT` (a held key).
+- Sent input goes through the same game code as real input: keybinds, screens and text boxes react to it, and
+  listeners see it too, with `synthetic = true`.
+- `keyDown` / `press(Key.FORWARD)`: `press` holds one of the game's own bindings whatever key it's bound to;
+  `keyDown` presses a physical key, and whatever is bound to it reacts.
+
 ## Commands
 
 `command(...)` registers a real client-side `/` command, with Tab completion, for as long as the script runs:

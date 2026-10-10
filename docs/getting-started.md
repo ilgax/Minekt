@@ -42,7 +42,9 @@ shows when a download starts and finishes.
 | `\settings <script>` | change a script's settings (see [Settings](data.md#settings)) |
 | `\help` | show this list |
 
-Lines starting with `\` never reach the server.
+Lines starting with `\` never reach the server. A script named like one of these commands (`menu.kts`,
+`log.kts`, …) can't be started by typing its name, since the command wins; `\scripts` points such scripts out, and
+the script manager still runs them.
 
 **Script manager:** `\menu`, or a key you bind under Controls → Minekt → Script manager, opens a screen with
 the running scripts (CPU use and a Stop button each), every script with Run and Edit (opens it in your editor),
@@ -91,4 +93,4 @@ echo("Hello, ${player.name}! You're at ${player.position}")
 ```
 
 and type `\hello` in chat. Edit the file and run it again: changes are picked up without restarting. Next:
-the [API overview](api.md).
+[Your first scripts](tutorial.md), then the [API overview](api.md).

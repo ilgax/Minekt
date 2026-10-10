@@ -119,6 +119,11 @@ class Job internal constructor(
     internal val packetFilters = CopyOnWriteArrayList<PacketHook>()
 
 
+    /** A raw keyboard or mouse listener; runs on the game thread, see [JobManager.filterInput]. */
+    class InputHandler(val type: Class<out dev.ilgax.minekt.api.InputEvent>, val handler: (dev.ilgax.minekt.api.InputEvent) -> Unit)
+
+    internal val inputHandlers = CopyOnWriteArrayList<InputHandler>()
+
     /** Keys the script pressed; released when the job ends so the player doesn't keep walking. */
     internal val heldKeys: MutableSet<KeyMapping> = ConcurrentHashMap.newKeySet()
     /** Arbitrary cleanup registered by API helpers (unregistering HUD lines, keybind handlers, ...). */
@@ -402,7 +407,7 @@ class Job internal constructor(
     private fun hasHandlers() =
         tickHandlers.isNotEmpty() || chatHandlers.isNotEmpty() || commandHandlers.isNotEmpty() ||
             keyWatches.isNotEmpty() || gameHandlers.isNotEmpty() || keybindHandlers.values.any { it.isNotEmpty() } ||
-            messageHandlers.values.any { it.isNotEmpty() } || openScreens.get() > 0 || settingHandlers.isNotEmpty() ||
+            messageHandlers.values.any { it.isNotEmpty() } || openScreens.get() > 0 || settingHandlers.isNotEmpty() || inputHandlers.isNotEmpty() ||
             packetHandlers.isNotEmpty() || packetFilters.isNotEmpty() || MethodHooks.hasHooks(this) || ClassRewrites.has(this)
 
     internal fun handleThrowable(t: Throwable) {
