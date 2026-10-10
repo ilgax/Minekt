@@ -76,15 +76,6 @@ class JobManager(private val host: Host) {
     fun pollKeys(isDown: (Int) -> Boolean) = running.values.forEach { it.pollKeys(isDown) }
 
     /**
-     * Client thread, synchronously, for each chat line received. Every script's interceptors run in
-     * turn; returns the (possibly rewritten) text, or null if one of them hid it.
-     */
-    fun interceptIncoming(text: String): String? = intercept(text, Job::incomingInterceptors)
-
-    /** Same for chat the player sends (not commands). */
-    fun interceptOutgoing(text: String): String? = intercept(text, Job::outgoingInterceptors)
-
-    /**
      * Network thread, for every packet the client receives ([incoming]) or sends. Every script's
      * packet filters run in turn, then listeners are notified. Returns the packet to use (possibly
      * replaced) or null to drop it.
@@ -106,24 +97,6 @@ class JobManager(private val host: Host) {
         }
         val event = Job.Event.Packet(current, incoming)
         for (job in running.values) job.post(event) // cheap when nobody listens; also wakes awaitPacket
-        return current
-    }
-
-    private fun intercept(text: String, select: (Job) -> MutableList<(String) -> String?>): String? {
-        var current = text
-        for (job in running.values) {
-            val interceptors = select(job)
-            for (interceptor in interceptors) {
-                val result = try {
-                    interceptor(current)
-                } catch (t: Throwable) {
-                    interceptors.remove(interceptor) // a broken interceptor must not break chat
-                    job.handleThrowable(t)
-                    continue
-                }
-                current = result ?: return null
-            }
-        }
         return current
     }
 

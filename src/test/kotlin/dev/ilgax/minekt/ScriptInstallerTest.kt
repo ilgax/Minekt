@@ -39,7 +39,6 @@ class ScriptInstallerTest {
             // game { } in a comment doesn't count, nor does chat("x")
             import net.minecraft.client.Minecraft
             val f = java.io.File("x")
-            interceptChat { it }
             attack(1)
             """.trimIndent()
         )
@@ -47,7 +46,6 @@ class ScriptInstallerTest {
             listOf(
                 "read or write files on your computer",
                 "use Minecraft's or other mods' code directly",
-                "hide or rewrite chat messages you receive",
                 "attack or interact with mobs and players",
             ),
             caps,

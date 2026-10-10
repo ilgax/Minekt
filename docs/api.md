@@ -7,15 +7,14 @@ Everything below is in scope in every script, no imports needed.
 | Output | `echo(vararg parts)`, `chat(msg)` (a leading `/` makes it a command), `execute(cmd)`, `hud(vararg lines)`, `hudPanel { … }`, `writeLog(vararg parts)` |
 | Feedback | `playSound(id)`, `toast(title, message)`, `actionBar(text)`, `title(title, subtitle)`, `screenshot(name)` |
 | Control | `args`, `jobId`, `sleep(ms)`, `waitTicks(n)`, `stop()` |
-| Player | `player` (name, position, yaw/pitch, health, dimension, selectedSlot), `position`, `setOrientation(yaw, pitch)`, `lookAt(x, y, z)`, `turnTo(yaw, pitch, ticks)`, `turnToward(x, y, z, ticks)` |
+| Player | `player` (name, position, yaw/pitch, health, dimension, selectedSlot), `position`, `setOrientation(yaw, pitch)`, `lookAt(x, y, z)` |
 | Keybinds | `keybind(name, default)` → `onPress { }`, `isDown`, `key`, `awaitPress()`, `remove()` |
 | Input | `press(Key.FORWARD)`, `release(key)`, `hold(key, ms)`; held keys are released when the script ends |
 | Inventory & screens | `inventory()`, `heldItem()`, `offhandItem()`, `selectSlot(n)`, `screen`, `container()`, `clickSlot(i)`, `shiftClick(i)`, `swapWithHotbar(i, n)`, `dropSlot(i)`, `openInventory()`, `closeScreen()` |
-| Targeting & interaction | `targetedBlock()`, `targetedEntity()`, `useItem()`, `useOn(pos, face)`, `placeBlock(pos)`, `breakBlock(pos)`, `attack(entityId)`, `interact(entityId)` |
+| Targeting & interaction | `targetedBlock()`, `targetedEntity()`, `useItem()`, `useOn(pos, face)`, `placeBlock(pos)`, `attack(entityId)`, `interact(entityId)` |
 | World | `world` (dimension, timeOfDay, gameTime, isDay, rain, thunder), `getBlock(x, y, z)`, `findBlocks(radius) { id -> … }`, `scanRegion(from, to) { id -> … }`, `isLoaded(x, z)`, `entities(radius)`, `players()` |
 | Events | `onChat`, `onTick`, `onKey("k")`, `onDamage`, `onDeath`, `onRespawn`, `onJoinWorld`, `onLeaveWorld`, `onDimensionChange`, `onScreenOpen`, `onScreenClose`, `onChunkLoad`, `onItemGained`, `onBlockChange`, `onEntityAppear`, `onEntityGone`, `onSound`, `onParticle`, `onPlayerJoin`, `onPlayerLeave`, `onScoreboardChange`, `onEvent` |
 | Server info | `tabList()`, `sidebar()` |
-| Chat filters | `interceptChat { text -> text or null }` (incoming), `interceptSend { … }` (outgoing) |
 | Settings | `var x by setting(default, …)`, `onSettingChange { key, value -> }` |
 | Persistence | `val x by persistent { default }` (options `perWorld`, `store`, `key`), `save()` |
 | Web | `httpGet(url)`, `httpPost(url, body)`, `http(method, url, body)` → `status`, `body`, `ok`, `json<T>()` |
@@ -40,7 +39,7 @@ Details by topic:
 
 | Page | |
 |---|---|
-| [Events](events.md) | events and a script's lifetime, coroutines, keys, commands, chat filters, timers, messages between scripts |
+| [Events](events.md) | events and a script's lifetime, coroutines, keys, commands, timers, messages between scripts |
 | [Player and world](world.md) | inventory, containers, interaction, world info and scans, macros |
 | [Drawing and screens](display.md) | shapes in the world, HUD panels, script screens |
 | [Data and the web](data.md) | settings, persistent values, HTTP, Maven libraries, sharing code between scripts |

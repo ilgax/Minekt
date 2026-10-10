@@ -17,7 +17,7 @@
 
 - Stopping works inside script code only: a script stuck inside a single call into the game, another mod or a
   Java library (a huge regex, say) stops once that call returns.
-- Script code that runs on the game thread (`game { }` blocks, chat filters, live screen and HUD values) is never cut
+- Script code that runs on the game thread (`game { }` blocks, packet filters, method hooks, live screen and HUD values) is never cut
   short. An endless loop there freezes the game, and `\kill` can't be typed while it's frozen.
 - Screens are a single column.
 - The small jar adds Minekt's compiler jar to Fabric's class loader through a Fabric Loader internal
@@ -46,7 +46,7 @@ then open a singleplayer world. Each one reports `OK`/`FAIL` lines in chat and c
   the top of the file).
 - `\persist`: run it in two separate launches. The first stores values; the second checks they survived the
   restart.
-- `\features`: inventory and containers, interaction, events, chat filters, world info, scans and coroutines. It
+- `\features`: inventory and containers, interaction, events, world info, scans and coroutines. It
   uses the singleplayer server to give items, deal damage and teleport.
 - `\rewrite`: rewriting real game classes, reading bytes with mixins applied, hooks on rewritten code.
 - `\more`: timers, packet hooks, method hooks, recording and replaying a macro, and the script manager. Needs

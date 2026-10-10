@@ -14,7 +14,7 @@ import java.lang.management.ManagementFactory
  * Java can't force-stop a thread any more, so the stop has to come from inside: [instrument]
  * rewrites each compiled script class so that every loop (each backward jump) calls [check] first.
  * [check] throws [JobKilledException] on the script's own threads once its job was killed. Script
- * code running on the game thread (`game { }` blocks, chat filters, screen text) is not checked.
+ * code running on the game thread (`game { }` blocks, packet filters, method hooks, screen and HUD values) is not checked.
  *
  * Code the script calls into (the game, other mods, Java libraries) isn't rewritten: a script
  * stuck inside one of those calls stops when the call returns.

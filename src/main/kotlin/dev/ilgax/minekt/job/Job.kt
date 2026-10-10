@@ -111,9 +111,6 @@ class Job internal constructor(
     /** `interceptPacket` / `interceptPacketSent`: run synchronously on the network thread; see [JobManager]. */
     internal val packetFilters = CopyOnWriteArrayList<PacketHook>()
 
-    /** Run synchronously on the client thread for each incoming / outgoing chat line. See [JobManager]. */
-    internal val incomingInterceptors = CopyOnWriteArrayList<(String) -> String?>()
-    internal val outgoingInterceptors = CopyOnWriteArrayList<(String) -> String?>()
 
     /** Keys the script pressed; released when the job ends so the player doesn't keep walking. */
     internal val heldKeys: MutableSet<KeyMapping> = ConcurrentHashMap.newKeySet()
@@ -388,8 +385,7 @@ class Job internal constructor(
         tickHandlers.isNotEmpty() || chatHandlers.isNotEmpty() || commandHandlers.isNotEmpty() ||
             keyWatches.isNotEmpty() || gameHandlers.isNotEmpty() || keybindHandlers.values.any { it.isNotEmpty() } ||
             messageHandlers.values.any { it.isNotEmpty() } || openScreens.get() > 0 || settingHandlers.isNotEmpty() ||
-            packetHandlers.isNotEmpty() || packetFilters.isNotEmpty() || MethodHooks.hasHooks(this) || ClassRewrites.has(this) ||
-            incomingInterceptors.isNotEmpty() || outgoingInterceptors.isNotEmpty()
+            packetHandlers.isNotEmpty() || packetFilters.isNotEmpty() || MethodHooks.hasHooks(this) || ClassRewrites.has(this)
 
     internal fun handleThrowable(t: Throwable) {
         val root = generateSequence(t) { it.cause }.last()
@@ -425,8 +421,6 @@ class Job internal constructor(
     private fun cleanup() {
         shutdownCoroutines()
         waiters.forEach { it.result.cancel() }
-        incomingInterceptors.clear()
-        outgoingInterceptors.clear()
         packetFilters.clear()
         MethodHooks.removeAll(this)
         ClassRewrites.removeAll(this)

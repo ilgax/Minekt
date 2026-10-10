@@ -2,7 +2,7 @@
 
 - [Getting started](getting-started.md): install, the compiler download, chat commands, the script manager, autorun
 - [API overview](api.md): everything a script can call, on one page
-- [Events](events.md): a script's lifetime, events, coroutines, keys, commands, chat filters, timers, messages
+- [Events](events.md): a script's lifetime, events, coroutines, keys, commands, timers, messages
 - [Player and world](world.md): inventory, interaction, world info and scans, macros
 - [Drawing and screens](display.md): shapes in the world, HUD panels, script screens
 - [Data and the web](data.md): settings, persistent values, HTTP, Maven libraries, sharing code

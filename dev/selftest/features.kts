@@ -56,12 +56,13 @@ val spot = base.offset(dx = 2)
 server("fill ${spot.x} ${spot.y} ${spot.z - 1} ${spot.x + 2} ${spot.y + 2} ${spot.z + 1} minecraft:air")
 waitTicks(5)
 check("placeBlock") { placeBlock(spot) && run { waitTicks(5); getBlock(spot) == "minecraft:stone" } }
-check("turnToward + targetedBlock") {
-    turnToward(spot.x + 0.5, spot.y + 0.5, spot.z + 0.5, ticks = 8)
+check("lookAt + targetedBlock") {
+    lookAt(spot.x + 0.5, spot.y + 0.5, spot.z + 0.5)
     waitTicks(2)
     targetedBlock()?.let { "${it.id} at ${it.pos} face ${it.face}" } ?: false
 }
-check("breakBlock") { breakBlock(spot) && getBlock(spot) == "minecraft:air" }
+server("setblock ${spot.x} ${spot.y} ${spot.z} minecraft:air")
+waitTicks(5)
 
 // ---- containers ----
 val chestPos = spot
@@ -101,7 +102,7 @@ check("targetedEntity + attack") {
     server("summon minecraft:pig ${base.x + 0.5} ${base.y} ${base.z + 3.5} {NoAI:1b}")
     waitTicks(10)
     val pig = entities(8.0).first { it.type == "minecraft:pig" }
-    turnToward(pig.position.x, pig.position.y + 0.5, pig.position.z, ticks = 5)
+    lookAt(pig.position.x, pig.position.y + 0.5, pig.position.z)
     waitTicks(2)
     val target = targetedEntity()
     attack(pig.id)
@@ -109,31 +110,6 @@ check("targetedEntity + attack") {
     val after = entities(8.0).firstOrNull { it.id == pig.id }
     "targeted ${target?.type}, health ${pig.health} -> ${after?.health ?: "dead"}".takeIf { target?.id == pig.id }
         ?: "FALSE targeted=$target pig=$pig"
-}
-
-// ---- chat interception ----
-interceptChat { if ("SECRET" in it) null else it.replace("hello", "HOWDY") }
-interceptSend { it.replace("foo", "bar") }
-check("interceptChat rewrites") {
-    runBlocking {
-        val got = async { withTimeoutOrNull(3000) { awaitChat { "there" in it } } }
-        delay(100); server("tellraw @a \"hello there\"")
-        got.await() ?: false
-    }
-}
-check("interceptChat hides") {
-    runBlocking {
-        val got = async { withTimeoutOrNull(1500) { awaitChat { "SECRET" in it } } }
-        delay(100); server("tellraw @a \"SECRET stuff\"")
-        got.await() == null
-    }
-}
-check("interceptSend rewrites what you send") {
-    runBlocking {
-        val got = async { withTimeoutOrNull(3000) { awaitChat { "test" in it } } }
-        delay(100); chat("foo test")
-        got.await() ?: false
-    }
 }
 
 // ---- damage / death / respawn / dimension ----

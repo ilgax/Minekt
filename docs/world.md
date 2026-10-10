@@ -10,9 +10,7 @@ chest.playerSlots.filter { it.id == "minecraft:cobblestone" }.forEach { shiftCli
 closeScreen()
 
 placeBlock(BlockPos(10, 64, 10))                       // places the held block against a neighbour
-breakBlock(BlockPos(10, 64, 10))                       // mines it, taking as long as survival would
 attack(targetedEntity()!!.id)
-turnToward(0.5, 64.0, 0.5, ticks = 10)                 // smooth turn instead of a snap
 ```
 
 Slot numbers are the open menu's indices, as listed by `container().slots`. Each slot says whether it

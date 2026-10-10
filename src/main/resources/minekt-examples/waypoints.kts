@@ -23,7 +23,7 @@ fun openMenu() {
         for ((name, pos) in points.toList()) row {
             button("$name  (%.0f, %.0f, %.0f)".format(pos.x, pos.y, pos.z), tooltip = "Look towards it") {
                 menu.close()
-                turnToward(pos.x, pos.y, pos.z)
+                lookAt(pos.x, pos.y, pos.z)
             }
             button("Delete") {
                 points.remove(name)

@@ -282,29 +282,6 @@ class ScriptEngineTest {
     }
 
     @Test
-    fun `chat interceptors hide, rewrite and survive broken handlers`() {
-        val job = jobs.eval(
-            """
-            interceptChat { if ("[AD]" in it) null else it.replace("noob", "friend") }
-            interceptChat { if (it == "boom") error("broken interceptor") else it }
-            interceptSend { if (it.startsWith("secret")) null else it.uppercase() }
-            """.trimIndent()
-        )
-        awaitListening(job)
-        assertEquals(null, jobs.interceptIncoming("[AD] buy now"))
-        assertEquals("hi friend", jobs.interceptIncoming("hi noob"))
-        assertEquals("boom", jobs.interceptIncoming("boom")) // broken interceptor is skipped...
-        assertTrue("broken interceptor" in host.next().second) // ...reported...
-        assertEquals("boom", jobs.interceptIncoming("boom")) // ...and removed
-        assertTrue(host.messages.isEmpty())
-        assertEquals(null, jobs.interceptOutgoing("secret plan"))
-        assertEquals("HELLO", jobs.interceptOutgoing("hello"))
-        jobs.kill(job.id)
-        awaitDone(job)
-        assertEquals("hi noob", jobs.interceptIncoming("hi noob")) // gone with the script
-    }
-
-    @Test
     fun `bundled examples compile`() {
         val dir = Path.of(javaClass.getResource("/minekt-examples/hello.kts")!!.toURI()).parent
         val failures = Files.list(dir).use { files ->

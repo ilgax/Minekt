@@ -65,7 +65,7 @@ val reply = runBlocking { withTimeoutOrNull(5_000) { awaitChat() } }   // wait i
 ```
 
 - A script stays alive while any of its coroutines run; `\kill` cancels them all.
-- They run on the script's own threads, so blocking calls (`game { }`, `sleep`, `breakBlock`) are fine inside.
+- They run on the script's own threads, so blocking calls (`game { }`, `sleep`, `httpGet`) are fine inside.
 - `stop()` or an error inside a coroutine ends the whole script.
 - `await…` only sees things that happen after it starts waiting.
 - `kotlinx.coroutines.*` is imported by default (`delay`, `withTimeout`, `async`, `coroutineScope`, ...).
@@ -108,17 +108,6 @@ command("mark", completions = listOf("home", "mine")) { args ->
 Words after the command arrive as `args` (`"quoted words"` stay together). While the script runs, its
 command takes priority over a server command with the same name. When the script ends, the command
 disappears and `/name` goes to the server again. Two scripts can't own the same name.
-
-## Chat filters
-
-```kotlin
-interceptChat { text -> if ("[AD]" in text) null else text.replace(":)", "☺") }   // incoming: hide or rewrite
-interceptSend { text -> text.replace("teh", "the") }                               // outgoing chat
-```
-
-Return the text to show/send, or `null` to drop it. Unlike other handlers these run **synchronously on the
-game thread**, because they decide what happens to the message, so keep them fast. Rewritten incoming
-messages lose their original formatting.
 
 ## Timers
 

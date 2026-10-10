@@ -131,48 +131,12 @@ object MinektClient : ClientModInitializer, Host {
         }
     }
 
-    /**
-     * `\commands`, and scripts' chat interceptors. Fabric runs ALLOW_* before MODIFY_* for the
-     * same message, so ALLOW decides (hide / keep) and stashes a rewrite for MODIFY to apply.
-     */
+    /** `\\commands`: lines starting with the prefix are handled here and never reach the server. */
     private fun registerChatHooks() {
-        var pendingSend: Pair<String, String>? = null
         ClientSendMessageEvents.ALLOW_CHAT.register { message ->
-            if (message.startsWith(PREFIX)) {
-                runCatching { handleCommand(message.removePrefix(PREFIX).trim()) }
-                    .onFailure { echo("Error: ${it.message}", MessageKind.ERROR) }
-                return@register false
-            }
-            val result = jobs.interceptOutgoing(message) ?: return@register false
-            pendingSend = if (result != message) message to result else null
-            true
-        }
-        ClientSendMessageEvents.MODIFY_CHAT.register { message ->
-            val rewrite = pendingSend?.takeIf { it.first == message }?.second
-            pendingSend = null
-            rewrite ?: message
-        }
-
-        var pendingGame: Pair<String, String>? = null
-        ClientReceiveMessageEvents.ALLOW_GAME.register { message, overlay ->
-            if (overlay) return@register true
-            val text = message.string
-            val result = jobs.interceptIncoming(text) ?: return@register false
-            pendingGame = if (result != text) text to result else null
-            true
-        }
-        ClientReceiveMessageEvents.MODIFY_GAME.register { message, overlay ->
-            val rewrite = pendingGame?.takeIf { !overlay && it.first == message.string }?.second
-            pendingGame = null
-            if (rewrite != null) Component.literal(rewrite) else message
-        }
-        // Player chat has no MODIFY event: hide the original and show the rewrite locally.
-        ClientReceiveMessageEvents.ALLOW_CHAT.register { message, _, _, _, _ ->
-            val text = message.string
-            val result = jobs.interceptIncoming(text) ?: return@register false
-            if (result == text) return@register true
-            Minecraft.getInstance().player?.sendSystemMessage(Component.literal(result))
-            jobs.dispatch(Job.Event.Chat(result))
+            if (!message.startsWith(PREFIX)) return@register true
+            runCatching { handleCommand(message.removePrefix(PREFIX).trim()) }
+                .onFailure { echo("Error: ${it.message}", MessageKind.ERROR) }
             false
         }
     }
