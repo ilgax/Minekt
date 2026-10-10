@@ -50,6 +50,7 @@ class Job internal constructor(
     internal val bus: MessageBus,
     internal val logs: ScriptLogs,
     internal val settings: ScriptSettings,
+    internal val jobs: JobManager,
     private val onExit: (Job) -> Unit,
 ) {
     sealed interface Event {
@@ -68,6 +69,12 @@ class Job internal constructor(
 
     @Volatile var state = State.COMPILING
         private set
+
+    /**
+     * What the script body evaluated to (its last expression), once it has finished. Fails if the
+     * script didn't compile, threw, or was killed or stopped before its body finished.
+     */
+    internal val result = java.util.concurrent.CompletableFuture<Any?>()
 
     @Volatile private var killed = false
     @Volatile private var stopRequested = false
@@ -303,6 +310,7 @@ class Job internal constructor(
                 is ResultWithDiagnostics.Success -> ScriptCompiler.instrumented(result.value)
                 is ResultWithDiagnostics.Failure -> {
                     reportDiagnostics(result.reports)
+                    this.result.completeExceptionally(IllegalStateException("$name didn't compile (its errors are in chat and \\log $name)"))
                     return
                 }
             }
@@ -317,8 +325,12 @@ class Job internal constructor(
             when (result) {
                 is ResultWithDiagnostics.Failure -> reportDiagnostics(result.reports)
                 is ResultWithDiagnostics.Success -> when (val value = result.value.returnValue) {
-                    is ResultValue.Error -> handleThrowable(value.error)
+                    is ResultValue.Error -> {
+                        this.result.completeExceptionally(IllegalStateException("$name failed: ${ErrorReport.describe(rootCause(value.error))}", value.error))
+                        handleThrowable(value.error)
+                    }
                     is ResultValue.Value -> {
+                        this.result.complete(value.value)
                         // `\eval launch { … }` returns a coroutine handle; not worth echoing.
                         if (name == EVAL_NAME && value.value !is kotlinx.coroutines.Job) {
                             logs.add(name, ScriptLogs.Level.ECHO, "= ${value.value}", run = id)
@@ -326,12 +338,18 @@ class Job internal constructor(
                         }
                         listen()
                     }
-                    else -> listen()
+                    else -> {
+                        this.result.complete(Unit)
+                        listen()
+                    }
                 }
             }
         } catch (t: Throwable) {
             handleThrowable(t)
         } finally {
+            if (!result.isDone) {
+                result.completeExceptionally(IllegalStateException(if (killed) "$name was killed before it finished" else "$name ended before its body finished"))
+            }
             state = State.DONE
             cleanup()
             logEnd()
@@ -438,6 +456,8 @@ class Job internal constructor(
             heldKeys.clear()
         }
     }
+
+    private fun rootCause(t: Throwable) = generateSequence(t) { it.cause }.last()
 
     companion object {
         const val EVAL_NAME = "eval"

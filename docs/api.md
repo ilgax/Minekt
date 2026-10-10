@@ -25,6 +25,7 @@ Everything below is in scope in every script, no imports needed.
 | Timers | `every(5.seconds) { }`, `after(30.seconds) { }`, `everyTicks(n) { }`, `afterTicks(n) { }`, `atDaytime(13000) { }` |
 | Packets | `onPacket<T> { }`, `onPacketSent<T> { }`, `interceptPacket<T> { it or null }`, `interceptPacketSent<T> { }`, `awaitPacket<T>()`, `sendPacket(p)` |
 | Method hooks | `hook<Class>("method") { call -> }`, `hookAfter<Class>("method") { call -> }` (change `args`, `cancel(value)`, replace `result`) |
+| Code | `eval(code, "name" to value)`, `runScript(name, args)`, `startScript(name, args)` → `await()`, `kill()`, `isRunning` |
 | Class rewriting | `rewriteClass<Class> { node -> }` (ASM tree), `transformClass(name) { bytes -> newBytes }`, `classBytes<Class>()` |
 | Libraries | `@file:DependsOn("group:artifact:version")`, `@file:Repository("https://…")` |
 | Macros | `macro(step(ticks, "forward jump", yaw, pitch, slot), …)`; `\record` writes these for you |
@@ -43,7 +44,7 @@ Details by topic:
 | [Player and world](world.md) | inventory, containers, interaction, world info and scans, macros |
 | [Drawing and screens](display.md) | shapes in the world, HUD panels, script screens |
 | [Data and the web](data.md) | settings, persistent values, HTTP, Maven libraries, sharing code between scripts |
-| [Advanced](advanced.md) | packets, hooking game methods, rewriting classes, other mods and Baritone |
+| [Advanced](advanced.md) | packets, hooking game methods, rewriting classes, code that runs code, other mods and Baritone |
 | [Errors and logs](errors-and-logs.md) | what failing scripts show, and where logs go |
 | [Installing and sharing scripts](sharing.md) | `\install`, `\share`, `\update` |
 | [How it works](internals.md) | the engine, limitations, building, self-tests |

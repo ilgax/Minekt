@@ -28,16 +28,28 @@ object ScriptCompiler {
     private val cache = ConcurrentHashMap<String, CompiledScript>()
     private val lock = Any()
 
-    fun compile(source: SourceCode): ResultWithDiagnostics<CompiledScript> {
-        val key = cacheKey(source)
+    fun compile(source: SourceCode): ResultWithDiagnostics<CompiledScript> = compile(source, configuration, cacheKey(source))
+
+    /** Compile code for `eval`: like a script, plus whatever [configure] adds (e.g. provided properties). */
+    fun compileEval(code: String, configure: ScriptCompilationConfiguration.Builder.() -> Unit): ResultWithDiagnostics<CompiledScript> {
+        val source = code.toScriptSource("eval.kts")
+        val config = ScriptCompilationConfiguration(configuration, body = configure)
+        // Evals are often generated on the fly: keep the cache from growing without bound.
+        if (cache.size > MAX_CACHED) cache.clear()
+        return compile(source, config, "eval+" + cacheKey(source))
+    }
+
+    private fun compile(source: SourceCode, config: ScriptCompilationConfiguration, key: String): ResultWithDiagnostics<CompiledScript> {
         cache[key]?.let { return it.asSuccess() }
         CompilerSetup.awaitReady()
         // The embedded compiler isn't designed for concurrent use; compiles are serialized.
-        val result = synchronized(lock) { runBlocking { compiler(source, configuration) } }
+        val result = synchronized(lock) { runBlocking { compiler(source, config) } }
         // Scripts with @file:Import depend on other files, so only cache self-contained ones.
         if (result is ResultWithDiagnostics.Success && "@file:Import" !in source.text) cache[key] = result.value
         return result
     }
+
+    private const val MAX_CACHED = 500
 
     private val instrumented = Collections.synchronizedMap(WeakHashMap<CompiledScript, Map<String, ByteArray>>())
 

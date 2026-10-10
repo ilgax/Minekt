@@ -84,6 +84,32 @@ val bytes = classBytes<ClientLevel>()                               // what the 
 - `classBytes` is handy with `ClassReader`, or saved to a file and read with `javap -c`.
 - It uses the same runtime Java agent as method hooks, so it needs a full JDK too.
 
+## Code that runs code
+
+```kotlin
+val n = eval("(1..10).sum()") as Int                                   // 55
+eval("echo(name.uppercase() + count * 2)", "name" to "hi", "count" to 21)   // pass values in by name
+val generated = (1..3).joinToString("\n") { "echo(\"line $it\")" }
+eval(generated)                                                       // code built at runtime
+
+val result = runScript("ores", "32")      // run minekt/ores.kts and wait for its result
+val miner = startScript("miner")          // or start it and carry on
+miner.isRunning; miner.await(); miner.kill()
+```
+
+- `eval` compiles and runs Kotlin as part of this script: the whole API is in scope, handlers it registers
+  belong to this script, and it returns the last expression (`Unit` if there is none). Compiling takes a moment
+  the first time; the same code is only compiled once.
+- Values passed in are typed by what they are: `String`, `Int`, …, lists, sets and maps (with `Any?` elements),
+  Minekt's and the game's classes. A class a script declared itself comes in as `Any`.
+- A compile error throws `IllegalArgumentException` with the error and its line; an exception in the code is
+  rethrown as it is.
+- A script's result is what its body evaluates to: its last expression. `runScript` / `await` wait for the body
+  to finish (the script may keep running for its handlers) and throw if it didn't compile, failed or was killed.
+  Started scripts are scripts of their own: they show up in `\jobs` and keep running after the caller ends.
+- Results cross between scripts as they are, so stick to strings, numbers, collections and Minekt's types:
+  a class declared in one script isn't the same class in another.
+
 ## Other mods (Baritone and anything else)
 
 Scripts compile against **every loaded mod's jar**, so any mod's public API can be used directly:

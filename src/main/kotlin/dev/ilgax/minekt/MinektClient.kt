@@ -125,6 +125,7 @@ object MinektClient : ClientModInitializer, Host {
             isDaemon = true
             contextClassLoader = MinektClient::class.java.classLoader
         }.start()
+        ClientLifecycleEvents.CLIENT_STARTED.register { runStartup() }
         ClientLifecycleEvents.CLIENT_STOPPING.register {
             jobs.storage.saveAll() // jobs save as they end, but the JVM may exit before they get to
             jobs.killAll()
@@ -227,16 +228,29 @@ object MinektClient : ClientModInitializer, Host {
 
     /** Run the `\\command` lines of `autorun.txt` that apply here (see [Autorun]). */
     private fun runAutorun(mc: Minecraft, joined: Boolean) {
-        val file = scriptDir.resolve("autorun.txt")
-        if (!file.exists()) return
-        val autorun = Autorun(Files.readString(file))
+        val autorun = readAutorun() ?: return
         if (joined) autorun.problems.forEach { echo(it, MessageKind.ERROR) }
         val place = Autorun.Place(
             server = mc.currentServer?.takeIf { mc.singleplayerServer == null }?.ip,
             world = mc.singleplayerServer?.worldData?.levelName,
             dimension = mc.level?.dimension()?.identifier()?.toString() ?: return,
         )
-        val lines = if (joined) autorun.onJoin(place) else autorun.onDimensionChange(place)
+        runAutorunLines(if (joined) autorun.onJoin(place) else autorun.onDimensionChange(place))
+    }
+
+    /** The `[startup]` section, once the game has started (before any world). Output goes to the log and script logs. */
+    private fun runStartup() {
+        val autorun = readAutorun() ?: return
+        autorun.problems.forEach { logger.warn(it) }
+        runAutorunLines(autorun.onStartup())
+    }
+
+    private fun readAutorun(): Autorun? {
+        val file = scriptDir.resolve("autorun.txt")
+        return if (file.exists()) Autorun(Files.readString(file)) else null
+    }
+
+    private fun runAutorunLines(lines: List<String>) {
         for (line in lines) {
             val command = line.removePrefix(PREFIX).trim()
             // Rejoining or coming back to a dimension shouldn't start a second copy of a script.

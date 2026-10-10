@@ -68,10 +68,16 @@ where the lines below them run:
 \endtools
 [always]                         # back to every world
 \clock
+[startup]                        # once per launch, when the game has started: on the title screen
+\patches
 ```
 
 - Sections without `dimension` run once, on joining. Sections with one also run whenever you enter that
   dimension, so `[dimension the_nether]` alone means "every time I'm in the Nether".
+- `[startup]` runs before any world exists, so `player` and the like aren't available yet, but `game { }`, class
+  rewriting, keybinds, HTTP and the rest are. It's the place to rewrite classes before the game loads them:
+  then a rewrite can change anything, not just method bodies. Startup scripts that keep running (with handlers)
+  carry on into every world. Their output goes to the game log and their script log, since there's no chat yet.
 - A script that is already running isn't started a second time.
 - Matching ignores case; `minecraft:` is optional in dimension names. An unknown section name is reported in
   chat when you join, and its lines don't run.

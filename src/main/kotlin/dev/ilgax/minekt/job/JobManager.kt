@@ -54,7 +54,7 @@ class JobManager(private val host: Host) {
 
     fun start(name: String, args: List<String>, source: SourceCode): Job {
         cpuMonitor
-        val job = Job(nextId.getAndIncrement(), name, args, source, host, storage, bus, logs, settings) { running.remove(it.id) }
+        val job = Job(nextId.getAndIncrement(), name, args, source, host, storage, bus, logs, settings, this) { running.remove(it.id) }
         running[job.id] = job
         job.start()
         return job

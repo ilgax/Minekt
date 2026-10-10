@@ -12,6 +12,7 @@ package dev.ilgax.minekt.job
  * [multiplayer]               # any server; [singleplayer] any local world
  * [server play.x.net, dimension the_end]   # all conditions must match
  * [always]                    # back to every world
+ * [startup]                   # once when the game has started, before any world (title screen)
  * ```
  *
  * Sections with a `dimension` condition run on joining (if you join in that dimension) and every
@@ -45,6 +46,11 @@ class Autorun(text: String) {
             override fun matches(place: Place) = place.server != null
         }
 
+        /** `[startup]`: run once when the game starts, never on joining a world. */
+        data object Startup : Condition {
+            override fun matches(place: Place) = false
+        }
+
         /** Under a section that couldn't be read: better not to run than to run everywhere. */
         data object Never : Condition {
             override fun matches(place: Place) = false
@@ -76,11 +82,15 @@ class Autorun(text: String) {
     /** Commands to run on joining a world at [place]. */
     fun onJoin(place: Place): List<String> = lines.filter { it.matches(place) }.map { it.command }
 
+    /** Commands to run once when the game has started: the `[startup]` section. */
+    fun onStartup(): List<String> = lines.filter { it.conditions == listOf(Condition.Startup) }.map { it.command }
+
     /** Commands to run on entering a new dimension at [place]: only `dimension` sections. */
     fun onDimensionChange(place: Place): List<String> = lines.filter { it.perDimension && it.matches(place) }.map { it.command }
 
     private fun parseSection(header: String, lineNumber: Int): List<Condition>? {
         if (header.trim().equals("always", ignoreCase = true)) return emptyList()
+        if (header.trim().equals("startup", ignoreCase = true)) return listOf(Condition.Startup)
         val conditions = header.split(',').map { part ->
             val word = part.trim().substringBefore(' ').lowercase()
             val value = part.trim().substringAfter(' ', "").trim()
@@ -93,7 +103,7 @@ class Autorun(text: String) {
                 word == "dimension" -> Condition.Dimension(glob(value))
                 else -> null
             } ?: run {
-                problems += "autorun.txt line $lineNumber: unknown section '[$header]' (use server, world, dimension, singleplayer, multiplayer or always)"
+                problems += "autorun.txt line $lineNumber: unknown section '[$header]' (use server, world, dimension, singleplayer, multiplayer, always or startup)"
                 return null
             }
         }
