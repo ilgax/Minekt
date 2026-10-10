@@ -2,6 +2,7 @@ package dev.ilgax.minekt.job
 
 import dev.ilgax.minekt.api.GameEvent
 import dev.ilgax.minekt.api.Minekt
+import dev.ilgax.minekt.hooks.ClassRewrites
 import dev.ilgax.minekt.hooks.MethodHooks
 import dev.ilgax.minekt.script.CompilerSetup
 import dev.ilgax.minekt.script.ScriptCompiler
@@ -386,7 +387,7 @@ class Job internal constructor(
         tickHandlers.isNotEmpty() || chatHandlers.isNotEmpty() || commandHandlers.isNotEmpty() ||
             keyWatches.isNotEmpty() || gameHandlers.isNotEmpty() || bindingHandlers.values.any { it.isNotEmpty() } ||
             messageHandlers.values.any { it.isNotEmpty() } || openScreens.get() > 0 || settingHandlers.isNotEmpty() ||
-            packetHandlers.isNotEmpty() || packetFilters.isNotEmpty() || MethodHooks.hasHooks(this) ||
+            packetHandlers.isNotEmpty() || packetFilters.isNotEmpty() || MethodHooks.hasHooks(this) || ClassRewrites.has(this) ||
             incomingInterceptors.isNotEmpty() || outgoingInterceptors.isNotEmpty()
 
     internal fun handleThrowable(t: Throwable) {
@@ -427,6 +428,7 @@ class Job internal constructor(
         outgoingInterceptors.clear()
         packetFilters.clear()
         MethodHooks.removeAll(this)
+        ClassRewrites.removeAll(this)
         if (declaredSettings.isNotEmpty() && !killed && !failed) runCatching { settings.keepOnly(name, declaredSettings) }
         try {
             storage.release(this) // final save of `by persistent` values

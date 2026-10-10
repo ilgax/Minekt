@@ -30,31 +30,6 @@ val diamonds = scanRegion(BlockPos(-128, -64, -128), BlockPos(128, 16, 128)) { i
 spreads the work over several frames. In testing, a 96 × 384 × 96 region took about 2 s while the game kept
 running.
 
-## Walking somewhere
-
-```kotlin
-walkTo(100, 64, -20)                                     // blocks until there, or until it gives up
-val r = walkTo(chest.pos, sprint = true)                  // a block you can't stand in: stops next to it
-if (!r.arrived) echo("couldn't get there: ${r.reason}")
-walkToNearest { pos -> getBlock(pos.offset(dy = -1)) == "minecraft:grass_block" }
-val route = pathTo(0, 64, 0)                              // just plan (a list of feet positions), e.g. to draw it
-```
-
-- Minekt plans the route itself through loaded chunks: walking (also diagonally, never cutting corners), jumping
-  up one block, dropping down up to 3 blocks (any height into water) and swimming. It never walks into or onto
-  lava, fire, cactus, magma, berry bushes, powder snow or cobwebs; add your own with `avoid = listOf("…")`.
-- It walks the route with the normal movement keys, steered every tick on the game thread, and re-plans when it
-  gets stuck or pushed off course. `showPath = true` draws the route while walking.
-- `walkTo` returns a `WalkResult`: `arrived`, plus `status` (`ARRIVED`, `NO_PATH`, `STUCK`, `TIMED_OUT`) and a
-  readable `reason`. The default `timeout` is 2 minutes.
-- **Baritone fallback:** if Baritone is installed, targets beyond loaded chunks, or ones Minekt finds no route to,
-  are handed to Baritone (`usedBaritone` in the result). Turn that off with `useBaritone = false`. Without
-  Baritone, far targets are approached in stages: walk to the closest visible spot, look again as chunks load.
-- It doesn't break or place blocks, open doors, climb ladders, or do parkour. For those, and for mining or
-  building, use Baritone directly (`baritone.*`).
-- A target that can't be reached at all is only known once the search has looked everywhere it could go (up to
-  40,000 spots, spread over a few ticks), so `NO_PATH` can take a moment in open terrain.
-
 ## Macros
 
 `\record farm` starts recording. Play normally, then `\record stop` saves `farm.kts`, and `\farm` replays it.

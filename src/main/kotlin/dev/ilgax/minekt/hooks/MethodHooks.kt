@@ -2,7 +2,6 @@ package dev.ilgax.minekt.hooks
 
 import dev.ilgax.minekt.api.HookCall
 import dev.ilgax.minekt.job.Job
-import net.bytebuddy.agent.ByteBuddyAgent
 import org.objectweb.asm.ClassReader
 import org.objectweb.asm.ClassVisitor
 import org.objectweb.asm.ClassWriter
@@ -48,20 +47,7 @@ object MethodHooks {
     /** Nested hooked calls made by a handler itself don't run handlers again. */
     private val inHandler = ThreadLocal.withInitial { false }
 
-    private val instrumentation: Instrumentation by lazy {
-        val inst = try {
-            ByteBuddyAgent.install()
-        } catch (e: Exception) {
-            throw IllegalStateException(
-                "Method hooks need to attach a Java agent, and this Java runtime doesn't allow it (${e.message}). " +
-                    "Running Minecraft on a full JDK usually fixes this.",
-                e,
-            )
-        }
-        check(inst.isRetransformClassesSupported) { "This Java runtime can't change loaded classes" }
-        inst.addTransformer(Transformer, true)
-        inst
-    }
+    private val instrumentation: Instrumentation get() = Agent.instrumentation
 
     // ---- adding and removing ------------------------------------------------------------------
 
@@ -196,7 +182,7 @@ object MethodHooks {
 
     // ---- bytecode -----------------------------------------------------------------------------
 
-    private object Transformer : ClassFileTransformer {
+    internal object Transformer : ClassFileTransformer {
         override fun transform(loader: ClassLoader?, className: String?, classBeingRedefined: Class<*>?, domain: ProtectionDomain?, bytes: ByteArray): ByteArray? {
             val methods = className?.let(hooked::get)?.takeIf { it.isNotEmpty() } ?: return null
             return try {

@@ -2,7 +2,6 @@ package dev.ilgax.minekt
 
 import com.mojang.blaze3d.platform.InputConstants
 import dev.ilgax.minekt.api.ScriptHud
-import dev.ilgax.minekt.api.Steering
 import dev.ilgax.minekt.hooks.GameEventSource
 import dev.ilgax.minekt.hooks.ErrorChat
 import dev.ilgax.minekt.hooks.InstallUi
@@ -102,7 +101,6 @@ object MinektClient : ClientModInitializer, Host {
             ScriptHud.tick()
             gameEvents.tick(mc)
             recorder.tick(mc)
-            Steering.tickAll(mc)
             if (ScriptKeys.consumeManagerKey()) pendingScreen = manager::open
             pendingScreen?.let { open ->
                 pendingScreen = null

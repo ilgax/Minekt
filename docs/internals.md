@@ -48,7 +48,7 @@ then open a singleplayer world. Each one reports `OK`/`FAIL` lines in chat and c
   restart.
 - `\features`: inventory and containers, interaction, events, chat filters, world info, scans and coroutines. It
   uses the singleplayer server to give items, deal damage and teleport.
-- `\walk`: builds an obstacle course on a platform in the sky and walks it with `walkTo` / `walkToNearest`.
+- `\rewrite`: rewriting real game classes, reading bytes with mixins applied, hooks on rewritten code.
 - `\more`: timers, packet hooks, method hooks, recording and replaying a macro, and the script manager. Needs
   `xdo-runner.sh` too.
 - `\hudlog`: HUD panels, script errors in chat, `\log` and the log viewer. Needs `xdo-runner.sh`.

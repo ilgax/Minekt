@@ -46,6 +46,44 @@ hook<Hud>("setOverlayMessage", Component::class.java, Boolean::class.java) {   /
 - How: Minekt attaches a Java agent at runtime and rewrites the method. That needs a Java runtime that allows
   attaching agents (a full JDK does; some minimal runtimes don't, and then `hook` says so).
 
+## Rewriting classes
+
+Replace the bytecode of any class, while the game runs. You get the bytes and return new ones; Minekt
+doesn't check or fix anything in between.
+
+```kotlin
+import org.objectweb.asm.Opcodes
+import org.objectweb.asm.tree.*
+
+// ASM's tree API: change the ClassNode in place.
+val rewrite = rewriteClass<Minecraft> { node ->
+    val method = node.methods.first { it.name == "getLaunchedVersion" }
+    method.instructions.clear(); method.tryCatchBlocks.clear(); method.localVariables?.clear()
+    method.instructions.add(LdcInsnNode("my version"))
+    method.instructions.add(InsnNode(Opcodes.ARETURN))
+}
+rewrite.remove()                                                    // the original code is back
+
+transformClass("net.minecraft.client.player.LocalPlayer") { bytes -> myBytes(bytes) }  // raw bytes; null = unchanged
+val bytes = classBytes<ClientLevel>()                               // what the JVM runs now
+```
+
+- You get the class as it was defined, after Fabric's and mixins' changes, plus earlier rewrites by any
+  script, in order. `rewriteClass` writes it back with stack map frames computed; `transformClass` takes your
+  bytes as they are.
+- **Loaded classes** change right away. The JVM only lets a loaded class change its method bodies: adding,
+  removing or renaming methods or fields, or changing the superclass or interfaces, is refused, and
+  `rewriteClass` / `transformClass` throw with the JVM's reason. Errors in your code throw there too, and the class
+  is left as it was.
+- **Classes that aren't loaded yet** are changed when they load, and then anything goes: new methods, fields,
+  interfaces. Your code then runs on whichever thread loads the class. If it throws, the class loads unchanged
+  and the error goes to the script's log.
+- A rewrite lasts until `remove()` or the script ends, and keeps the script alive meanwhile. Removing one
+  re-applies the others.
+- Method hooks still work on rewritten methods: they wrap the new code.
+- `classBytes` is handy with `ClassReader`, or saved to a file and read with `javap -c`.
+- It uses the same runtime Java agent as method hooks, so it needs a full JDK too.
+
 ## Other mods (Baritone and anything else)
 
 Scripts compile against **every loaded mod's jar**, so any mod's public API can be used directly:
