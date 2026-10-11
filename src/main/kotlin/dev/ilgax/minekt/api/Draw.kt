@@ -93,6 +93,15 @@ class HudCanvas internal constructor(
         if (texture != null) raw.blit(RenderPipelines.GUI_TEXTURED, texture, x, y, 0f, 0f, width, height, width, height)
         else raw.fill(x, y, x + width, y + height, 0x80FF00FF.toInt())
     }
+
+    /**
+     * Draw [pixels] with the top left at [x], [y], stretched to [width] × [height] (sharp, without
+     * blurring: double the size for each pixel to be 2 × 2).
+     */
+    fun pixels(pixels: Pixels, x: Int, y: Int, width: Int = pixels.width, height: Int = pixels.height) {
+        val id = pixels.texture()
+        raw.blit(RenderPipelines.GUI_TEXTURED, id, x, y, 0f, 0f, width, height, pixels.width, pixels.height, pixels.width, pixels.height)
+    }
 }
 
 /** The world, in block coordinates. Colors are 0xRRGGBB or 0xAARRGGBB. */

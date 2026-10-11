@@ -31,6 +31,11 @@ import dev.ilgax.minekt.job.Job
 import dev.ilgax.minekt.job.JobManager
 import dev.ilgax.minekt.job.MessageKind
 import dev.ilgax.minekt.job.TickClock
+import dev.ilgax.minekt.hooks.FakeBlocks
+import dev.ilgax.minekt.hooks.MinektConfig
+import dev.ilgax.minekt.hooks.MinektSettingsView
+import net.minecraft.client.gui.screens.Screen
+import dev.ilgax.minekt.hooks.Glows
 import dev.ilgax.minekt.script.ScriptClasspath
 import dev.ilgax.minekt.script.CompilerSetup
 import dev.ilgax.minekt.script.ScriptCompiler
@@ -59,7 +64,6 @@ import kotlin.io.path.exists
 
 object MinektClient : ClientModInitializer, Host {
     private val logger = LoggerFactory.getLogger("minekt")
-    private const val PREFIX = "\\"
     private const val RECENT_ERRORS = 5
     private val BUILT_IN_COMMANDS = setOf("help", "jobs", "kill", "eval", "install", "update", "share", "menu", "log", "settings", "record", "scripts")
     /** `[miner] …` or `[miner:3:5] …`: which script a chat message is about. */
@@ -78,12 +82,19 @@ object MinektClient : ClientModInitializer, Host {
     private val manager: ScriptManager by lazy {
         ScriptManager(jobs, scriptDir, { installs.install(listOf(it)) }, { recentErrors.toList() }, openLog = { mc, script -> logViewer.open(mc, script, back = { manager.open(mc) }) },
             openSettings = { mc, script -> settingsView.open(mc, script, back = { manager.open(mc) }) },
+            openMinektSettings = { mc -> minektSettings.open(mc, parent = null) },
         )
     }
+    private val minektSettings by lazy { MinektSettingsView(scriptDir) { mc -> manager.open(mc) } }
+
+    /** Minekt's settings screen, for Mod Menu's Configure button. */
+    internal fun settingsScreen(parent: Screen?): Screen = minektSettings.screen(parent)
     /** A screen to open on the next tick, once the chat screen has closed (`\menu`, `\log`). */
     @Volatile private var pendingScreen: ((Minecraft) -> Unit)? = null
 
     override fun onInitializeClient() {
+        MinektConfig.file = scriptDir.resolve("config.json")
+        MinektConfig.load()
         ScriptClasspath.scriptDir = scriptDir
         ScriptDependencies.libDir = scriptDir.resolve("lib")
         ScriptDependencies.onDownload = { notifyCompiler(it, false) }
@@ -115,6 +126,7 @@ object MinektClient : ClientModInitializer, Host {
             ScriptKeys.tick(mc)
             InputHooks.listening = jobs.wantsInput(RawKey::class.java) || jobs.wantsInput(RawMouseButton::class.java) || jobs.wantsInput(RawScroll::class.java) || recorder.isRecording
             InputHooks.listeningToMoves = jobs.wantsInput(RawMouseMove::class.java)
+            mc.level?.let(FakeBlocks::tick)
             if (mc.level != null) ScriptRenderer.submitTick()
             ScriptHud.tick()
             gameEvents.tick(mc)
@@ -152,8 +164,9 @@ object MinektClient : ClientModInitializer, Host {
     /** `\\commands`: lines starting with the prefix are handled here and never reach the server. */
     private fun registerChatHooks() {
         ClientSendMessageEvents.ALLOW_CHAT.register { message ->
-            if (!message.startsWith(PREFIX)) return@register true
-            runCatching { handleCommand(message.removePrefix(PREFIX).trim()) }
+            val prefix = MinektConfig.prefix
+            if (!message.startsWith(prefix)) return@register true
+            runCatching { handleCommand(message.removePrefix(prefix).trim()) }
                 .onFailure { echo("Error: ${it.message}", MessageKind.ERROR) }
             false
         }
@@ -238,7 +251,7 @@ object MinektClient : ClientModInitializer, Host {
             "\\share <script>   copy a script to share it",
             "\\record <name> [30s] [now]    record your keys, clicks and camera as a script (\\record stop saves it)",
             "/mk <command> works too: /mk menu is \\menu",
-        ).forEach { echo(it, MessageKind.INFO) }
+        ).map { line -> line.replace("\\", MinektConfig.prefix) }.forEach { echo(it, MessageKind.INFO) }
     }
 
     /** `\log <script>`, or the log of the script that failed last. Also `/minekt log`, which error messages link to. */
@@ -319,7 +332,8 @@ object MinektClient : ClientModInitializer, Host {
 
     private fun runAutorunLines(lines: List<String>) {
         for (line in lines) {
-            val command = line.removePrefix(PREFIX).trim()
+            // autorun.txt lines start with \ (or the prefix chosen in the settings).
+            val command = line.removePrefix(MinektConfig.prefix).removePrefix(MinektConfig.DEFAULT_PREFIX).trim()
             // Rejoining or coming back to a dimension shouldn't start a second copy of a script.
             val script = splitArgs(command).firstOrNull()
             if (script != null && jobs.jobs.any { it.name == script }) continue
@@ -400,9 +414,11 @@ object MinektClient : ClientModInitializer, Host {
         }
         // After the world's state for this frame is gathered, before it's drawn: gizmos added now show this frame.
         LevelExtractionEvents.END_EXTRACTION.register { context ->
-            if (jobs.wantsWorldRender()) context.levelRenderer().collectPerFrameRenderThreadGizmos().use {
+            val glows = Glows.hasBlocks
+            if (jobs.wantsWorldRender() || glows) context.levelRenderer().collectPerFrameRenderThreadGizmos().use {
+                if (glows) Minecraft.getInstance().level?.let(Glows::renderBlocks)
                 val camera = context.camera().position()
-                jobs.renderWorld(WorldCanvas(context.deltaTracker().getGameTimeDeltaPartialTick(true), Vec3(camera.x, camera.y, camera.z)))
+                if (jobs.wantsWorldRender()) jobs.renderWorld(WorldCanvas(context.deltaTracker().getGameTimeDeltaPartialTick(true), Vec3(camera.x, camera.y, camera.z)))
             }
         }
     }

@@ -133,6 +133,27 @@ unbreakable), `lightEmission`, and `signFront` / `signBack` (a sign's four lines
 spreads the work over several frames. In testing, a 96 × 384 × 96 region took about 2 s while the game kept
 running.
 
+## Fake blocks
+
+Blocks only you can see, for build previews, markers or trying out a design:
+
+```kotlin
+val marker = fakeBlock(10, 64, 10, "minecraft:glowstone")
+fakeBlock(player.position.blockPos.offset(dy = -1), "minecraft:oak_stairs[facing=east,half=top]")
+marker.remove()                                            // the real block comes back
+fakeBlocks(plan.associate { it.pos to it.block })          // many at once: one trip to the game thread
+clearFakeBlocks()
+```
+
+- Block names take state properties like commands do. A wrong name throws, saying why.
+- The fake is put in your client's world, so it looks and collides like a real block, and `getBlock` and
+  `blockAt` see it. The server doesn't know: standing on a fake block, or walking through a fake wall into a
+  real one, gets you pulled back, and breaking one shows the real block again.
+- If the server changes a faked block, the fake stays and the new block shows when the fake is removed. Fakes
+  come back by themselves after their chunk loads again.
+- With two fakes on one block, the newest shows. Fakes don't fire `onBlockChange`.
+- They come off when the script ends (they don't keep it running on their own).
+
 ## Recording input
 
 `\record farm` starts recording after a 3-second countdown (a big 3, 2, 1 on screen; add `now` to skip it, like

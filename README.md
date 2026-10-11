@@ -24,8 +24,9 @@ findBlocks(radius) { it.endsWith("_ore") }
 3. Start the game. Minekt creates `.minecraft/minekt/` with example scripts: type `\hello` in chat.
 
 New to it? [Your first scripts](docs/tutorial.md) walks through six short ones, and [examples/](examples/README.md)
-has more to copy from: tracers, a radar, a custom crosshair, clickable coordinates and others. `\help` (or `/mk help`) lists the
-chat commands, and `\menu` opens the script manager. More in [Getting started](docs/getting-started.md).
+has more to copy from: tracers, a radar, a minimap, a custom crosshair, clickable coordinates and others. `\help` (or `/mk help`) lists the
+chat commands, and `\menu` opens the script manager. With [Mod Menu](https://modrinth.com/mod/modmenu), Minekt's
+settings (command prefix, editor) are under Configure. More in [Getting started](docs/getting-started.md).
 Write Fabric mods? [Coming from Fabric](docs/from-fabric.md) shows the same mod both ways.
 
 ## What scripts can do
@@ -34,7 +35,8 @@ Write Fabric mods? [Coming from Fabric](docs/from-fabric.md) shows the same mod 
   recording your input as a script. ([Player and world](docs/world.md))
 - **React to things:** chat, ticks, keys, damage, blocks changing, mobs appearing, sounds, the tab list and
   scoreboard, timers, messages from other scripts, their own `/commands`. ([Events](docs/events.md))
-- **Show things:** HUD panels, shapes drawn in the world, your own drawing every frame, real Minecraft screens. ([Drawing and screens](docs/display.md))
+- **Show things:** HUD panels, shapes drawn in the world, glow outlines through walls, your own drawing every
+  frame down to single pixels, blocks only you can see, real Minecraft screens. ([Drawing and screens](docs/display.md))
 - **Keep and fetch data:** settings the player can change in a menu, values that survive restarts, web
   requests, any Maven library. ([Data and the web](docs/data.md))
 - **Go deep:** raw packets, hooking any game method at runtime, rewriting any class's bytecode, other mods' APIs, Baritone. ([Advanced](docs/advanced.md))

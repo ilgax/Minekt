@@ -64,6 +64,9 @@ then open a singleplayer world. Each one reports `OK`/`FAIL` lines in chat and c
 - `\raycast`: raycasts against blocks, see-through blocks, entities and yourself, and line of sight.
 - `\details`: item details (durability, enchantments, names, lore, food) and block details (state, light,
   sign text, hardness, biome).
+- `\visuals`: glow outlines on entities and blocks (counted in screenshots, through a wall), fake blocks
+  (states, server updates underneath, several on one block, many at once, removal when the script ends), pixels
+  on the HUD, and Minekt's settings screen through Mod Menu's entry point.
 - `\hudlog`: HUD panels, script errors in chat, `\log` and the log viewer. Needs `xdo-runner.sh`.
 - `\events`: settings (real clicks), autorun sections, HTTP and the newer events. Needs `xdo-runner.sh` and the
   `autorun.txt` shown at the top of the file.

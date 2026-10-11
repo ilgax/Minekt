@@ -16,6 +16,9 @@ base { archivesName = "minekt" }
 
 repositories {
     mavenCentral()
+    maven("https://maven.terraformersmc.com/releases") {
+        content { includeGroup("com.terraformersmc") }
+    }
 }
 
 // The Kotlin scripting host + embeddable compiler are not shipped by fabric-language-kotlin,
@@ -54,6 +57,11 @@ dependencies {
     implementation("net.fabricmc:fabric-loader:${property("loader_version")}")
     implementation("net.fabricmc.fabric-api:fabric-api:${property("fabric_api_version")}")
     implementation("net.fabricmc:fabric-language-kotlin:${property("fabric_kotlin_version")}")
+    // Optional: Minekt's settings behind Mod Menu's Configure button.
+    compileOnly("com.terraformersmc:modmenu:${property("modmenu_version")}") { isTransitive = false }
+    // ...and in the dev and production test runs, to try it.
+    localRuntime("com.terraformersmc:modmenu:${property("modmenu_version")}") { isTransitive = false }
+    testRuntimeOnly("com.terraformersmc:modmenu:${property("modmenu_version")}") { isTransitive = false } // self-tests use it
 
     bundled("org.jetbrains.kotlin:kotlin-scripting-jvm-host:$kotlinVersion")
     bundled("org.jetbrains.kotlin:kotlin-scripting-jvm:$kotlinVersion")
@@ -189,6 +197,7 @@ val prodMods: Configuration by configurations.creating { isTransitive = false }
 dependencies {
     prodMods("net.fabricmc.fabric-api:fabric-api:${property("fabric_api_version")}")
     prodMods("net.fabricmc:fabric-language-kotlin:${property("fabric_kotlin_version")}")
+    prodMods("com.terraformersmc:modmenu:${property("modmenu_version")}")
 }
 for ((name, jar) in listOf("prodClient" to tasks.jar.flatMap { it.archiveFile }, "prodClientSmall" to smallJar.flatMap { it.archiveFile })) {
     tasks.register<net.fabricmc.loom.task.prod.ClientProductionRunTask>(name) {

@@ -23,6 +23,22 @@ clearShapes()                                                   // or drop them 
 - Shapes use Minecraft's built-in gizmo renderer. They're redrawn every tick from data the script sets; for
   drawing that changes every frame, see below.
 
+## Glow outlines
+
+The Glowing effect's outline, on any entity or block, in any color, seen through walls, only on your screen:
+
+```kotlin
+for (e in entities(32.0)) if (e.type == "minecraft:zombie") glow(e, Color.RED)
+val chest = glowBlock(12, 64, -30, Color.YELLOW)          // fill = true also tints it
+chest.color = Color.GREEN                                 // change it while it shows
+chest.remove()
+```
+
+- Entities get exactly the game's glowing outline (the newest glow wins if two scripts glow the same one).
+  `glow` takes an entity or its id, so it also works with ids from `targetedEntity()` or `onEntityAppear`.
+- Blocks are outlined in their own shape (a slab is a slab, a fence is a post), through walls.
+- Like shapes, glows come off when the script ends and don't keep it running on their own.
+
 ## Drawing every frame
 
 For anything that moves, or drawing of your own, a script can draw on the HUD and in the world every frame:
@@ -52,6 +68,23 @@ onWorldRender { w ->
   smoothing.
 - Colors are `0xRRGGBB` (opaque) or `0xAARRGGBB`, like `Color.RED` or `Color.rgb(r, g, b, a)`.
 - The handlers keep the script alive. One that throws is removed and its error shown in chat.
+
+### Pixels
+
+A grid of pixels you set one by one, drawn on the HUD: images, minimaps, graphs, an emulator's screen.
+
+```kotlin
+val screen = pixels(160, 144)                     // all transparent at first
+screen.fill(0x202020)
+screen[10, 20] = Color.RED
+onHudRender { g -> g.pixels(screen, 10, 10, 320, 288) }   // drawn at twice the size, sharp
+```
+
+- For speed, write `screen.data` (an `IntArray` of `0xAARRGGBB`, row by row: `y * width + x`) and call
+  `screen.changed()`. Only changed pixels go to the graphics card, once a frame however often you write.
+- `set` and `fill` take `0xRRGGBB` as opaque, like every color in Minekt; `clear()` and `clear(x, y)` make pixels
+  transparent. Writing `data` directly is exact: `0` is transparent.
+- Up to 4096 × 4096. Pixels are freed when the script ends.
 
 ## Chat messages
 

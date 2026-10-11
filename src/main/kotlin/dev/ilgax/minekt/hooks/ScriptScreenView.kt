@@ -31,7 +31,13 @@ internal class ScriptScreenView(
     private val signature: (() -> Any?)? = null,
     /** Use the whole width instead of a centered column (log viewer). */
     private val wide: Boolean = false,
+    /** The screen to go back to when closed (like Mod Menu's list), or none. */
+    private val parent: Screen? = null,
 ) : Screen(Component.literal(title)) {
+
+    override fun onClose() {
+        if (parent != null) minecraft.gui.setScreen(parent) else super.onClose()
+    }
 
     /** Text drawn by [extractRenderState]: static lines, live text and text-field labels. */
     private class TextSlot(val item: ScreenItem.Text?, val x: Int, val y: Int, val width: Int, val centered: Boolean, var lines: List<String>)

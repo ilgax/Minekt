@@ -5,6 +5,7 @@
   "client": [
     "ClientLevelMixin",
     "ConnectionMixin",
+    "EntityRendererMixin",
     "KeyMappingAccessor",
     "KeyboardHandlerMixin",
     "MouseHandlerMixin",

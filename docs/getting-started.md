@@ -54,6 +54,19 @@ the running scripts (CPU use and a Stop button each), every script with Run and 
 arguments, New script, Open folder, installing from a link, and the last few errors. Every script has a Log
 button, and clicking a recent error opens that script's log.
 
+## Minekt settings
+
+Mod Menu's Configure button on Minekt, or Minekt settings in `\menu`:
+
+- **Command prefix:** what chat commands start with, `\` by default. Pick another if `\` is awkward on your
+  keyboard (`!`, `.`, `;;`…). `/mk` works whatever the prefix is.
+- **Editor:** the command that Edit and New script open scripts with, like `code` or
+  `"C:\Program Files\Notepad++\notepad++.exe"`. The file goes at the end, or where you write `{file}`. Empty:
+  your system's default app for `.kts` files.
+- Buttons for the script manager, the scripts folder, `autorun.txt` and these docs.
+
+They're saved in `minekt/config.json`.
+
 ## Autorun
 
 `minekt/autorun.txt` lists `\commands` to run when you join a world. `#` starts a comment. Sections pick

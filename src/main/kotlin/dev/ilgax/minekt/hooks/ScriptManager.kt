@@ -21,6 +21,7 @@ internal class ScriptManager(
     private val recentErrors: () -> List<RecentError>,
     private val openLog: (Minecraft, String) -> Unit,
     private val openSettings: (Minecraft, String) -> Unit,
+    private val openMinektSettings: (Minecraft) -> Unit,
 ) {
     /** An error shown in chat, and the script it came from if known. */
     data class RecentError(val script: String?, val text: String)
@@ -50,13 +51,14 @@ internal class ScriptManager(
         if (scripts.isEmpty()) text("No scripts yet: put .kts files in the folder")
         for (name in scripts) row {
             button("▶ $name", tooltip = "Run \\$name with the arguments above") { jobs.runScript(name, splitArgs(args)) }
-            button("Edit", tooltip = "Open $name.kts in your editor") { Blaze3D.openPath(scriptDir.resolve("$name.kts")) }
+            button("Edit", tooltip = "Open $name.kts in your editor") { MinektConfig.edit(scriptDir.resolve("$name.kts")) }
             button("Log", tooltip = "Its output and errors, also from earlier runs") { openLog(Minecraft.getInstance(), name) }
             if (jobs.settings.has(name)) button("Settings", tooltip = "\\settings $name") { openSettings(Minecraft.getInstance(), name) }
         }
         row {
             button("Open folder") { Files.createDirectories(scriptDir); Blaze3D.openPath(scriptDir) }
-            button("New script") { newScript()?.let { Blaze3D.openPath(it) } }
+            button("New script") { newScript()?.let(MinektConfig::edit) }
+            button("Minekt settings", tooltip = "Command prefix, editor, autorun.txt") { openMinektSettings(Minecraft.getInstance()) }
         }
 
         text("\nInstall from a link")

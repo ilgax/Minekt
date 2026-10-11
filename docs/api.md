@@ -31,6 +31,9 @@ Everything below is in scope in every script, no imports needed.
 | Class rewriting | `rewriteClass<Class> { node -> }` (ASM tree), `transformClass(name) { bytes -> newBytes }`, `classBytes<Class>()` |
 | Libraries | `@file:DependsOn("group:artifact:version")`, `@file:Repository("https://…")` |
 | World shapes | `highlight(pos)`, `box(min, max)`, `line(a, b)`, `arrow(a, b)`, `text(pos, "…")`, `clearShapes()` |
+| Glow outlines | `glow(entity, color)`, `glowBlock(pos, color, fill)` → `color`, `remove()` |
+| Fake blocks | `fakeBlock(pos, "minecraft:glass")`, `fakeBlocks(map)`, `clearFakeBlocks()` → `remove()` |
+| Pixels | `pixels(w, h)` → `[x, y] = color`, `fill`, `clear`, `data` + `changed()`; drawn with `g.pixels(p, x, y, w, h)` |
 | Drawing every frame | `onHudRender { g -> g.rect(…); g.text(…); g.item(…); g.image(…) }`, `onWorldRender { w -> w.line(…); w.box(…); w.text(…); w.point(…); w.entityPosition(id) }` |
 | Mods | `isModLoaded(id)`, `modVersion(id)`, `baritone.*` |
 | Raw access | `game { mc -> … }` runs on the client thread with the live `Minecraft` instance |
@@ -43,8 +46,8 @@ Details by topic:
 | Page | |
 |---|---|
 | [Events](events.md) | events and a script's lifetime, coroutines, keys, commands, timers, messages between scripts |
-| [Player and world](world.md) | the player, other entities, bindings, raycasts, inventory, containers, interaction, world info and scans, recording input |
-| [Drawing and screens](display.md) | shapes in the world, drawing every frame, styled chat, HUD panels, script screens |
+| [Player and world](world.md) | the player, other entities, bindings, raycasts, inventory, containers, interaction, world info and scans, fake blocks, recording input |
+| [Drawing and screens](display.md) | shapes in the world, glow outlines, drawing every frame, pixels, styled chat, HUD panels, script screens |
 | [Data and the web](data.md) | settings, persistent values, HTTP, Maven libraries, sharing code between scripts |
 | [Coming from Fabric](from-fabric.md) | the same mod written as a Fabric mod and as a script; what maps to what |
 | [Advanced](advanced.md) | packets, hooking game methods, rewriting classes, code that runs code, Fabric API events (experimental), other mods and Baritone |

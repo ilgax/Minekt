@@ -1,5 +1,6 @@
 package dev.ilgax.minekt.mixin;
 
+import dev.ilgax.minekt.hooks.FakeBlocks;
 import dev.ilgax.minekt.hooks.WorldHooks;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
@@ -14,6 +15,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 /**
  * Block changes for `onBlockChange`. Server updates go through setServerVerifiedBlockState (which
  * calls Level.setBlock directly); the client's own predictions and their corrections through setBlock.
+ * Server updates to blocks that scripts fake ({@link FakeBlocks}) are kept from the world.
  */
 @Mixin(ClientLevel.class)
 public abstract class ClientLevelMixin {
@@ -22,7 +24,7 @@ public abstract class ClientLevelMixin {
 
     @Unique
     private void minekt$before(BlockPos pos) {
-        if (WorldHooks.wantBlocks) {
+        if (WorldHooks.wantBlocks && !FakeBlocks.applying) {
             minekt$depth++;
             WorldHooks.beforeSetBlock((ClientLevel) (Object) this, pos);
         }
@@ -47,8 +49,13 @@ public abstract class ClientLevelMixin {
         minekt$after(pos);
     }
 
-    @Inject(method = "setServerVerifiedBlockState", at = @At("HEAD"))
+    @Inject(method = "setServerVerifiedBlockState", at = @At("HEAD"), cancellable = true)
     private void minekt$beforeServerBlock(BlockPos pos, BlockState state, int flags, CallbackInfo ci) {
+        // A script shows a fake block here: remember the real one, keep showing the fake.
+        if (FakeBlocks.serverUpdate((ClientLevel) (Object) this, pos, state)) {
+            ci.cancel();
+            return;
+        }
         minekt$before(pos);
     }
 

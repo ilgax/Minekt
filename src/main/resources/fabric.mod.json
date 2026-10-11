@@ -16,7 +16,8 @@
         "adapter": "kotlin",
         "value": "dev.ilgax.minekt.MinektClient"
       }
-    ]
+    ],
+    "modmenu": ["dev.ilgax.minekt.ModMenuEntry"]
   },
   "mixins": ["minekt.mixins.json"],
   "depends": {
@@ -27,6 +28,7 @@
     "fabric-language-kotlin": ">=${fabric_kotlin_version}"
   },
   "suggests": {
-    "baritone": "*"
+    "baritone": "*",
+    "modmenu": "*"
   }
 }
