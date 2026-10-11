@@ -2,6 +2,7 @@ package dev.ilgax.minekt.api
 
 import net.minecraft.client.KeyMapping
 import net.minecraft.core.Direction
+import net.minecraft.core.component.DataComponents
 import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.EquipmentSlot
@@ -40,7 +41,24 @@ internal fun Entity.toInfo(self: Entity?) = EntityInfo(
     vehicleId = vehicle?.id,
 )
 
-internal fun ItemStack.toInfo(slot: Int) = ItemStackInfo(slot, BuiltInRegistries.ITEM.getKey(item).toString(), count)
+internal fun ItemStack.toInfo(slot: Int): ItemStackInfo {
+    val enchantments = (get(DataComponents.ENCHANTMENTS)?.entrySet().orEmpty() + get(DataComponents.STORED_ENCHANTMENTS)?.entrySet().orEmpty())
+        .associate { it.key.registeredName to it.intValue }
+    return ItemStackInfo(
+        slot = slot,
+        id = BuiltInRegistries.ITEM.getKey(item).toString(),
+        count = count,
+        name = hoverName.string,
+        customName = get(DataComponents.CUSTOM_NAME)?.string,
+        damage = if (isDamageableItem) damageValue else 0,
+        maxDamage = if (isDamageableItem) maxDamage else 0,
+        unbreakable = has(DataComponents.UNBREAKABLE),
+        enchantments = enchantments,
+        lore = get(DataComponents.LORE)?.lines()?.map { it.string }.orEmpty(),
+        maxStackSize = get(DataComponents.MAX_STACK_SIZE) ?: 1,
+        nutrition = get(DataComponents.FOOD)?.nutrition(),
+    )
+}
 
 internal fun Level.blockId(pos: McBlockPos): String = BuiltInRegistries.BLOCK.getKey(getBlockState(pos).block).toString()
 

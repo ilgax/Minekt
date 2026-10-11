@@ -1,15 +1,11 @@
 // \autoeat — eats when you're hungry: picks food from your hotbar, holds "use" until you've eaten,
 // then goes back to the slot you were on. Only while no menu is open.
-// Shows: player.food, the item's data components through game { }, press/release by binding name.
-import net.minecraft.core.component.DataComponents
+// Shows: player.food, item details (isFood), press/release by binding name.
 
 val eatBelow by setting(14, 1..19, label = "Eat when food is below")
 
-/** Hotbar slots (0–8) holding something edible. */
-fun foodSlots(): List<Int> = game { mc ->
-    val inv = mc.player!!.inventory
-    (0..8).filter { inv.getItem(it).has(DataComponents.FOOD) }
-}
+/** Hotbar slots (0–8) holding something edible, the most filling first. */
+fun foodSlots(): List<Int> = inventory().filter { it.slot in 0..8 && it.isFood }.sortedByDescending { it.nutrition }.map { it.slot }
 
 launch {
     while (true) {

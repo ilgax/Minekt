@@ -32,6 +32,28 @@ data class BlockPos(val x: Int, val y: Int, val z: Int) {
 data class Block(val pos: BlockPos, val id: String)
 
 /**
+ * Everything about one block, from `blockAt`. [properties] are its state, like a crop's `age` or a door's
+ * `facing` and `open` (names and values as in F3 and commands). [skyLight] and [blockLight] are 0–15;
+ * [light] is the brightness there now (sky light dims at night), which is what decides mob spawning.
+ * [hardness] is how long it takes to break (-1: unbreakable). [signFront] / [signBack] are a sign's four lines.
+ */
+data class BlockInfo(
+    val pos: BlockPos,
+    val id: String,
+    val properties: Map<String, String>,
+    val biome: String,
+    val skyLight: Int,
+    val blockLight: Int,
+    val light: Int,
+    val isAir: Boolean,
+    val isSolid: Boolean,
+    val hardness: Float,
+    val lightEmission: Int,
+    val signFront: List<String>? = null,
+    val signBack: List<String>? = null,
+)
+
+/**
  * The player, as of the moment `player` was read. [food] and [saturation] are 0–20; [air] counts
  * down from [maxAir] underwater; [velocity] is blocks per tick; [gameMode] is `survival`,
  * `creative`, `adventure` or `spectator`; [vehicle] is what you ride (an entity id like
@@ -112,7 +134,31 @@ data class EntityInfo(
     val heldItem: String? get() = equipment["mainhand"]
 }
 
-data class ItemStackInfo(val slot: Int, val id: String, val count: Int)
+/**
+ * An item stack, as of the moment it was read. [name] is what its tooltip shows (its [customName] if it has
+ * one). [damage] counts up as it wears; [maxDamage] is 0 for items that don't wear out. [enchantments] maps
+ * ids like `minecraft:sharpness` to levels (an enchanted book's too). [nutrition] is null for things you
+ * can't eat.
+ */
+data class ItemStackInfo(
+    val slot: Int,
+    val id: String,
+    val count: Int,
+    val name: String = id,
+    val customName: String? = null,
+    val damage: Int = 0,
+    val maxDamage: Int = 0,
+    val unbreakable: Boolean = false,
+    val enchantments: Map<String, Int> = emptyMap(),
+    val lore: List<String> = emptyList(),
+    val maxStackSize: Int = 64,
+    val nutrition: Int? = null,
+) {
+    /** Uses left before it breaks, or null for items that don't wear out. */
+    val durability: Int? get() = if (maxDamage > 0 && !unbreakable) maxDamage - damage else null
+
+    val isFood: Boolean get() = nutrition != null
+}
 
 /** Movement / action keys a script can hold down. */
 enum class Key { FORWARD, BACK, LEFT, RIGHT, JUMP, SNEAK, SPRINT, ATTACK, USE, DROP, SWAP_OFFHAND }
@@ -130,7 +176,14 @@ data class ScreenInfo(val title: String, val type: String, val isContainer: Bool
  * One slot of the open container menu. [index] is what `clickSlot` etc. take. [isPlayerInventory]
  * separates the player's own slots from the container's (chest, furnace, ...).
  */
-data class SlotInfo(val index: Int, val id: String?, val count: Int, val isPlayerInventory: Boolean)
+data class SlotInfo(
+    val index: Int,
+    val id: String?,
+    val count: Int,
+    val isPlayerInventory: Boolean,
+    /** Everything about the item in it (durability, enchantments, …), or null if it's empty. */
+    val item: ItemStackInfo? = null,
+)
 
 /** The open container (or the player's inventory menu when nothing else is open). */
 data class ContainerInfo(val title: String, val slots: List<SlotInfo>) {

@@ -68,6 +68,22 @@ Slot numbers are the open menu's indices, as listed by `container().slots`. Each
 belongs to the player's inventory or to the container. The server applies its usual reach and permission
 checks to every action.
 
+### Item details
+
+Items from `inventory()`, `heldItem()`, `offhandItem()` and a slot's `item` carry what their tooltip would
+tell you:
+
+```kotlin
+val sword = heldItem() ?: stop()
+if (sword.durability != null && sword.durability!! < 20) echo("${sword.name} is about to break!")
+echo(sword.enchantments)                                   // {minecraft:sharpness=3, minecraft:looting=2}
+val food = inventory().filter { it.isFood }.maxByOrNull { it.nutrition ?: 0 }
+```
+
+`id`, `count`, `slot`, `name` (what the tooltip shows), `customName`, `damage` and `maxDamage` (0 for items that
+don't wear out), `durability` (uses left, or null), `unbreakable`, `enchantments` (an enchanted book's too),
+`lore`, `maxStackSize`, `nutrition` and `isFood`.
+
 ## Raycasts
 
 `raycast(from, to)` finds the first block or entity along any straight line, or null if the line is clear:
@@ -99,6 +115,19 @@ val sees = raycast(mobEyes, p.eyePosition, entities = false, solidOnly = true) =
 if (!world.isDay) echo("Night falls (${world.timeOfDay})")
 val diamonds = scanRegion(BlockPos(-128, -64, -128), BlockPos(128, 16, 128)) { it == "minecraft:deepslate_diamond_ore" }
 ```
+
+`blockAt(pos)` tells you everything about one block, where `getBlock` only gives its id:
+
+```kotlin
+val crop = blockAt(BlockPos(10, 64, 10))
+if (crop.id == "minecraft:wheat" && crop.properties["age"] == "7") echo("ripe")
+if (blockAt(spot).light <= 0) echo("mobs can spawn here")     // light right now; sky light dims at night
+blockAt(signPos).signFront?.let { lines -> echo(lines.joinToString(" ")) }
+```
+
+It has `id`, `properties` (the block's state, as in F3: `age`, `facing`, `open`, `waterlogged`…), `biome`,
+`skyLight` and `blockLight` (0–15), `light` (the brightness there now), `isAir`, `isSolid`, `hardness` (-1 for
+unbreakable), `lightEmission`, and `signFront` / `signBack` (a sign's four lines, null for other blocks).
 
 `scanRegion` works on big areas without freezing the game. It skips unloaded chunks and all-air sections, and
 spreads the work over several frames. In testing, a 96 × 384 × 96 region took about 2 s while the game kept

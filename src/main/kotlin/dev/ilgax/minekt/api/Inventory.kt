@@ -25,11 +25,13 @@ fun Minekt.container(): ContainerInfo = game { mc ->
         title,
         menu.slots.map { slot ->
             val stack = slot.item
+            val item = if (stack.isEmpty) null else stack.toInfo(slot.index)
             SlotInfo(
                 index = slot.index,
-                id = if (stack.isEmpty) null else stack.toInfo(slot.index).id,
+                id = item?.id,
                 count = stack.count,
                 isPlayerInventory = slot.container is Inventory,
+                item = item,
             )
         },
     )
