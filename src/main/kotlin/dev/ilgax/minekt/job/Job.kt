@@ -343,7 +343,9 @@ class Job internal constructor(
                 is ResultWithDiagnostics.Failure -> reportDiagnostics(result.reports)
                 is ResultWithDiagnostics.Success -> when (val value = result.value.returnValue) {
                     is ResultValue.Error -> {
-                        this.result.completeExceptionally(IllegalStateException("$name failed: ${ErrorReport.describe(rootCause(value.error))}", value.error))
+                        // stop() in the body is a normal end, not a failure.
+                        if (rootCause(value.error) is JobStopException) this.result.complete(null)
+                        else this.result.completeExceptionally(IllegalStateException("$name failed: ${ErrorReport.describe(rootCause(value.error))}", value.error))
                         handleThrowable(value.error)
                     }
                     is ResultValue.Value -> {
