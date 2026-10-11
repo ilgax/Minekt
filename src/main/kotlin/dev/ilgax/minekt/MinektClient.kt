@@ -237,6 +237,7 @@ object MinektClient : ClientModInitializer, Host {
             "\\install <url>    install a script from a link (\\install for more)",
             "\\share <script>   copy a script to share it",
             "\\record <name> [30s] [now]    record your keys, clicks and camera as a script (\\record stop saves it)",
+            "/mk <command> works too: /mk menu is \\menu",
         ).forEach { echo(it, MessageKind.INFO) }
     }
 
@@ -266,6 +267,28 @@ object MinektClient : ClientModInitializer, Host {
                         },
                     ),
                 ),
+            )
+            // `/mk <command>` is the same as `\\<command>`, for those used to slash commands.
+            dispatcher.register(
+                ClientCommands.literal("mk")
+                    .executes { help(); 1 }
+                    .then(
+                        ClientCommands.argument("command", StringArgumentType.greedyString())
+                            .suggests { ctx, builder ->
+                                // Only the first word: built-in commands and scripts.
+                                if (' ' !in builder.remaining) {
+                                    (BUILT_IN_COMMANDS + jobs.availableScripts()).distinct()
+                                        .filter { it.startsWith(builder.remainingLowerCase) }
+                                        .forEach(builder::suggest)
+                                }
+                                builder.buildFuture()
+                            }
+                            .executes { ctx ->
+                                runCatching { handleCommand(StringArgumentType.getString(ctx, "command").trim()) }
+                                    .onFailure { echo("Error: ${it.message}", MessageKind.ERROR) }
+                                1
+                            },
+                    ),
             )
         }
     }

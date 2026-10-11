@@ -42,6 +42,9 @@ shows when a download starts and finishes.
 | `\settings <script>` | change a script's settings (see [Settings](data.md#settings)) |
 | `\help` | show this list |
 
+Every command also works with `/mk` in front instead of `\`: `/mk menu`, `/mk hello`, `/mk kill all`, with
+tab completion for commands and script names.
+
 Lines starting with `\` never reach the server. A script named like one of these commands (`menu.kts`,
 `log.kts`, …) can't be started by typing its name, since the command wins; `\scripts` points such scripts out, and
 the script manager still runs them.
