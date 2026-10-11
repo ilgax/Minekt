@@ -14,6 +14,13 @@ data class Vec3(val x: Double, val y: Double, val z: Double) {
 
     val blockPos: BlockPos get() = BlockPos(Math.floor(x).toInt(), Math.floor(y).toInt(), Math.floor(z).toInt())
 
+    operator fun plus(other: Vec3) = Vec3(x + other.x, y + other.y, z + other.z)
+    operator fun minus(other: Vec3) = Vec3(x - other.x, y - other.y, z - other.z)
+    operator fun times(factor: Double) = Vec3(x * factor, y * factor, z * factor)
+
+    /** How long this is, as a direction or offset. */
+    val length: Double get() = sqrt(x * x + y * y + z * z)
+
     override fun toString() = "(%.2f, %.2f, %.2f)".format(x, y, z)
 }
 
@@ -60,6 +67,10 @@ data class PlayerInfo(
     val gliding: Boolean = false,
     val gameMode: String = "survival",
     val vehicle: String? = null,
+    /** Where your eyes are: where the crosshair looks from. */
+    val eyePosition: Vec3 = position,
+    /** The way you look, one block long: `eyePosition + lookDirection * 20.0` is 20 blocks ahead. */
+    val lookDirection: Vec3 = Vec3(0.0, 0.0, 1.0),
 )
 
 /** A potion effect: [id] like `minecraft:speed`, [amplifier] 0 for level I, [duration] in ticks (-1 for infinite). */

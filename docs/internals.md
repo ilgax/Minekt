@@ -61,6 +61,7 @@ then open a singleplayer world. Each one reports `OK`/`FAIL` lines in chat and c
 - `\examples`: starts every script in `examples/` and checks it runs without errors, then takes a screenshot.
 - `\stopdamage`: `onDamage`'s cause and attacker from real server damage (fall, a zombie, a skeleton's arrow),
   and `onStop` putting a setting back after `\kill`.
+- `\raycast`: raycasts against blocks, see-through blocks, entities and yourself, and line of sight.
 - `\hudlog`: HUD panels, script errors in chat, `\log` and the log viewer. Needs `xdo-runner.sh`.
 - `\events`: settings (real clicks), autorun sections, HTTP and the newer events. Needs `xdo-runner.sh` and the
   `autorun.txt` shown at the top of the file.

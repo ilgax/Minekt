@@ -145,6 +145,8 @@ class Minekt internal constructor(internal val job: Job) {
                 gliding = p.isFallFlying,
                 gameMode = mc.gameMode?.playerMode?.serializedName ?: "survival",
                 vehicle = p.vehicle?.let { BuiltInRegistries.ENTITY_TYPE.getKey(it.type).toString() },
+                eyePosition = p.eyePosition.let { Vec3(it.x, it.y, it.z) },
+                lookDirection = p.lookAngle.let { Vec3(it.x, it.y, it.z) },
             )
         }
 

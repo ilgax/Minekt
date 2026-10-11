@@ -12,7 +12,7 @@ if (!p.onGround && p.velocity.y < -0.8) echo("Falling fast")
 if (p.inWater || p.inLava || p.onFire) echo("Get out!")
 ```
 
-It also has `position`, `yaw`, `pitch`, `maxHealth`, `absorption`, `saturation`, `xpProgress`, `maxAir`,
+It also has `position`, `eyePosition`, `lookDirection` (see [Raycasts](#raycasts)), `yaw`, `pitch`, `maxHealth`, `absorption`, `saturation`, `xpProgress`, `maxAir`,
 `sneaking`, `sprinting`, `flying`, `gliding` (elytra), `vehicle` (what you ride, or null), `dimension` and
 `selectedSlot`. Anything else is a `game { mc -> mc.player!!… }` away.
 
@@ -67,6 +67,31 @@ attack(targetedEntity()!!.id)
 Slot numbers are the open menu's indices, as listed by `container().slots`. Each slot says whether it
 belongs to the player's inventory or to the container. The server applies its usual reach and permission
 checks to every action.
+
+## Raycasts
+
+`raycast(from, to)` finds the first block or entity along any straight line, or null if the line is clear:
+
+```kotlin
+val p = player
+when (val hit = raycast(p.eyePosition, p.eyePosition + p.lookDirection * 50.0)) {
+    is RayHit.Block -> echo("${hit.id} ${hit.distance.toInt()} blocks away, ${hit.face} face")
+    is RayHit.Entity -> echo("${hit.entity.name} in the way")
+    null -> echo("nothing within 50 blocks")
+}
+
+// Can that mob see me? Only solid blocks block the view; other mobs don't.
+val sees = raycast(mobEyes, p.eyePosition, entities = false, solidOnly = true) == null
+```
+
+- Both kinds of hit have `pos` (the exact point) and `distance` (from `from`). Blocks also have `block`, `id` and
+  `face`; entities have `entity`.
+- `blocks = false` / `entities = false` leave one kind out. `fluids = true` stops at water and lava surfaces.
+- By default, anything you could point at stops the line, like the crosshair: tall grass, cobwebs, signs.
+  `solidOnly = true` only counts blocks you'd bump into.
+- You never stop your own raycasts unless `includeSelf = true`. Unloaded chunks count as empty.
+- `player.eyePosition` and `player.lookDirection` (one block long) give the crosshair's line; `Vec3` has `+`,
+  `-`, `*` and `length` for the math.
 
 ## World info and large scans
 
