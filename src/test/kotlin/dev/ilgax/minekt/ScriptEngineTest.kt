@@ -298,6 +298,16 @@ class ScriptEngineTest {
     }
 
     @Test
+    fun `the example scripts compile`() {
+        val examples = Files.list(Path.of("examples")).use { files -> files.filter { it.toString().endsWith(".kts") }.toList() }
+        assertTrue(examples.size >= 10, "examples: $examples")
+        for (file in examples) {
+            val result = dev.ilgax.minekt.script.ScriptCompiler.compile(Files.readString(file).toScriptSource(file.fileName.toString()))
+            assertTrue(result is kotlin.script.experimental.api.ResultWithDiagnostics.Success, "${file.fileName} doesn't compile: ${result.reports.filter { it.severity >= kotlin.script.experimental.api.ScriptDiagnostic.Severity.ERROR }.joinToString { "${it.location?.start?.line}: ${it.message}" }}")
+        }
+    }
+
+    @Test
     fun `the tutorial's scripts compile`() {
         val blocks = Regex("```kotlin\\n(.*?)```", RegexOption.DOT_MATCHES_ALL).findAll(Files.readString(Path.of("docs/tutorial.md"))).map { it.groupValues[1] }.toList()
         assertTrue(blocks.size >= 6, "found ${blocks.size} blocks")

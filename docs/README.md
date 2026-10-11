@@ -1,6 +1,7 @@
 # Minekt docs
 
 - [Your first scripts](tutorial.md): a short tutorial, six small scripts
+- [Example scripts](../examples/README.md): tracers, a radar, a custom crosshair, clickable coordinates, a damage log, …
 - [Getting started](getting-started.md): install, the compiler download, chat commands, the script manager, autorun and startup scripts
 - [API overview](api.md): everything a script can call, on one page
 - [Events](events.md): a script's lifetime, events, coroutines, keys, commands, timers, messages

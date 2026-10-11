@@ -93,4 +93,5 @@ restarting the game.
 
 - When something goes wrong, the chat says where; click it for the full log (`\log greeter`).
 - [API overview](api.md) lists everything a script can call, and the topic pages explain each part.
+- [More example scripts](../examples/README.md): tracers, a radar, a custom crosshair, clickable coordinates, …
 - `\install <link>` installs scripts other people share; `\share <script>` shares yours.
