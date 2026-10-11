@@ -6,6 +6,7 @@ import dev.ilgax.minekt.job.Job
 import dev.ilgax.minekt.job.JobManager
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientChunkEvents
 import net.minecraft.client.Minecraft
+import net.minecraft.client.multiplayer.ClientLevel
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.client.player.LocalPlayer
 import net.minecraft.core.registries.BuiltInRegistries
@@ -15,6 +16,7 @@ import dev.ilgax.minekt.api.readSidebar
 import dev.ilgax.minekt.api.readTabList
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientEntityEvents
 import net.minecraft.network.protocol.Packet
+import net.minecraft.network.protocol.game.ClientboundDamageEventPacket
 import net.minecraft.network.protocol.game.ClientboundLevelParticlesPacket
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.LivingEntity
@@ -58,8 +60,14 @@ internal class GameEventSource(
         }
     }
 
+    /** The last damage event the server sent for any entity, with the tick it came in: matched to a health drop in [tick]. */
+    @Volatile private var lastDamagePacket: Pair<ClientboundDamageEventPacket, Int>? = null
+
     /** Network thread, every packet received (after scripts' filters). */
     fun packetReceived(packet: Packet<*>) {
+        if (packet is ClientboundDamageEventPacket && packet.entityId() == Minecraft.getInstance().player?.id) {
+            lastDamagePacket = packet to ticks
+        }
         if (packet is ClientboundLevelParticlesPacket && jobs.wantsGame(GameEvent.Particle::class.java)) {
             val id = BuiltInRegistries.PARTICLE_TYPE.getKey(packet.particle().type).toString()
             emit(GameEvent.Particle(id, Vec3(packet.x(), packet.y(), packet.z()), packet.count()))
@@ -82,6 +90,25 @@ internal class GameEventSource(
             sidebar = now
             sidebarKnown = true
         } else sidebarKnown = false
+    }
+
+    /**
+     * A health drop, with what caused it if the server said so (its damage event arrives just before the
+     * health update; one older than a second is someone else's hit, already over).
+     */
+    private fun damage(amount: Float, player: LocalPlayer, level: ClientLevel): GameEvent.Damage {
+        val (packet, at) = lastDamagePacket ?: return GameEvent.Damage(amount, player.health)
+        lastDamagePacket = null
+        if (packet.entityId() != player.id || ticks - at > 20) return GameEvent.Damage(amount, player.health)
+        val source = runCatching { packet.getSource(level) }.getOrNull()
+        val attacker = source?.entity
+        val direct = source?.directEntity?.takeIf { it !== attacker }
+        return GameEvent.Damage(
+            amount, player.health,
+            cause = packet.sourceType().registeredName,
+            attacker = attacker?.toInfo(player),
+            projectile = direct?.toInfo(player),
+        )
     }
 
     /** Client thread, end of every tick. */
@@ -124,7 +151,7 @@ internal class GameEventSource(
         dimension = dim
 
         val nowDead = current.isDeadOrDying
-        if (current.health < health && health > 0f) emit(GameEvent.Damage(health - current.health, current.health))
+        if (current.health < health && health > 0f) emit(damage(health - current.health, current, level))
         if (nowDead && !dead) emit(GameEvent.Death)
         if (!nowDead && dead) emit(GameEvent.Respawn)
         dead = nowDead

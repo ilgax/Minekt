@@ -8,6 +8,7 @@
 - [Player and world](world.md): the player, other entities, bindings, inventory, interaction, world info and scans, recording input
 - [Drawing and screens](display.md): shapes in the world, drawing every frame, styled chat, HUD panels, script screens
 - [Data and the web](data.md): settings, persistent values, HTTP, Maven libraries, sharing code
+- [Coming from Fabric](from-fabric.md): if you write Fabric mods, the same mod as a script, and what maps to what
 - [Advanced](advanced.md): packets, method hooks, rewriting classes, Fabric API events (experimental), eval and running scripts, other mods and Baritone, raw access
 - [Errors and logs](errors-and-logs.md)
 - [Installing and sharing scripts](sharing.md)

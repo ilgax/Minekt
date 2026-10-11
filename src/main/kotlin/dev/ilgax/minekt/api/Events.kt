@@ -6,6 +6,26 @@ package dev.ilgax.minekt.api
 /** Every [GameEvent]; use `when (event) { is GameEvent.Damage -> … }` or the specific helpers below. */
 fun Minekt.onEvent(handler: (GameEvent) -> Unit) = addGameHandler(GameEvent::class.java, handler)
 
+/** Why a script ended, for [onStop]. */
+enum class StopReason {
+    /** Its body finished and nothing kept it running, or it called `stop()`. */
+    FINISHED,
+    /** `\kill`, the Stop button, or the game closing. */
+    KILLED,
+    /** It ended with an error. */
+    FAILED,
+}
+
+/**
+ * Run [handler] once when the script ends, however it ends: to put back something it changed, save, or
+ * say goodbye. The API still works in it, even after `\kill` (for up to 3 seconds). Doesn't keep the
+ * script running.
+ */
+fun Minekt.onStop(handler: (reason: StopReason) -> Unit) {
+    job.checkAlive()
+    job.stopHandlers += handler
+}
+
 @PublishedApi
 internal fun Minekt.addGameHandler(type: Class<out GameEvent>, handler: (GameEvent) -> Unit) {
     job.checkAlive()
@@ -19,6 +39,13 @@ internal inline fun <reified T : GameEvent> Minekt.onEventOf(crossinline handler
 
 /** The player lost health: [handler] gets the amount lost and the health left. */
 fun Minekt.onDamage(handler: (amount: Float, health: Float) -> Unit) = onEventOf<GameEvent.Damage> { handler(it.amount, it.health) }
+
+/**
+ * The player lost health, and what did it: [cause] like `minecraft:fall` or `minecraft:mob_attack`, and the
+ * [attacker] (the archer, not the arrow; `GameEvent.Damage.projectile` has that). Either is null when unknown.
+ */
+fun Minekt.onDamage(handler: (amount: Float, health: Float, cause: String?, attacker: EntityInfo?) -> Unit) =
+    onEventOf<GameEvent.Damage> { handler(it.amount, it.health, it.cause, it.attacker) }
 fun Minekt.onDeath(handler: () -> Unit) = onEventOf<GameEvent.Death> { handler() }
 fun Minekt.onRespawn(handler: () -> Unit) = onEventOf<GameEvent.Respawn> { handler() }
 fun Minekt.onJoinWorld(handler: (dimension: String) -> Unit) = onEventOf<GameEvent.JoinWorld> { handler(it.dimension) }

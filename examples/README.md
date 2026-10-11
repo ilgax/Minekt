@@ -15,6 +15,7 @@ keeps running until you `\kill` it (or, for `coords`, for a minute).
 | [coords.kts](coords.kts) | Your position in chat with copy, share and save buttons | `chatText`, every kind of `ChatClick`, `persistent` |
 | [damagelog.kts](damagelog.kts) | Says what hurt you and who: fall, lava, a mob, an arrow and its archer | a vanilla packet with `onPacket`, `game { }` |
 | [autoeat.kts](autoeat.kts) | Eats from your hotbar when you're hungry | `player.food`, `press("use")`, item data components |
+| [quicktools.kts](quicktools.kts) | Full bright on a key, a low-health warning, no jumping while sneaking | the same mod as in [Coming from Fabric](../docs/from-fabric.md): Fabric events, `hook`, `onStop` |
 | [chatfilter.kts](chatfilter.kts) | Hides chat messages with words you choose | Fabric API events (experimental), `setting` |
 
 They're compiled by the unit tests (`the example scripts compile`) and run by `dev/selftest/examples.kts`.

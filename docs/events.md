@@ -11,17 +11,29 @@ onChat { msg -> if (msg.endsWith("ping")) echo("pong!") }
 keybind("Stop chatbot", default = "k").onPress { stop() }
 ```
 
+`onStop { }` runs once when the script ends, however it ends: finished, `stop()`, an error or `\kill`. Use it
+to put back what the script changed. The API still works in it, even after a kill, for up to 3 seconds:
+
+```kotlin
+val before = game { mc -> mc.options.gamma().get() }
+game { mc -> mc.options.gamma().set(1.0) }
+onStop { reason -> game { mc -> mc.options.gamma().set(before) } }   // reason: FINISHED, KILLED or FAILED
+```
+
 Game events work the same way:
 
 ```kotlin
 onDamage { amount, health -> if (health < 6) echo("Low health!") }
+onDamage { amount, health, cause, attacker -> echo("$cause by ${attacker?.name}") }   // "minecraft:arrow by Skeleton"
 onItemGained { id, count -> if ("diamond" in id) echo("+$count diamond") }
 onScreenOpen { screen -> if (screen.isContainer) echo("Opened ${screen.title}") }
 onEvent { event -> if (event is GameEvent.DimensionChange) echo("Now in ${event.to}") }
 ```
 
 Damage, death, respawn, world and dimension changes, screens and item gains are detected by comparing the
-player's state each tick. `onItemGained` fires whenever the count of an item in your inventory goes up, from
+player's state each tick. Damage also gets what caused it from the server's damage event: `cause` is the damage
+type (`minecraft:fall`, `minecraft:mob_attack`, `minecraft:arrow`, …), `attacker` who's responsible (the
+skeleton, not its arrow; `GameEvent.Damage.projectile` has the arrow). Both are null when the server didn't say. `onItemGained` fires whenever the count of an item in your inventory goes up, from
 pickups, crafting or taking items out of chests.
 
 ## More events

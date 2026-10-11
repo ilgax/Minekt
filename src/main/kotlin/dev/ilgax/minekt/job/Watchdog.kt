@@ -29,7 +29,7 @@ object Watchdog {
     @JvmStatic
     fun check() {
         val thread = Thread.currentThread()
-        if (thread is JobThread && thread.job.isKilled) throw JobKilledException()
+        if (thread is JobThread && thread.job.mustStop) throw JobKilledException()
     }
 
     // ---- bytecode rewriting -------------------------------------------------------------------

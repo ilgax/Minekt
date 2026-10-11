@@ -142,7 +142,18 @@ data class WorldInfo(
 
 /** Things that happen to the player or around them. Use `onEvent { }` or the specific `onDamage { }` etc. */
 sealed interface GameEvent {
-    data class Damage(val amount: Float, val health: Float) : GameEvent
+    /**
+     * The player lost [amount] health, with [health] left. [cause] is the damage type (`minecraft:fall`,
+     * `minecraft:mob_attack`, `minecraft:arrow`, …), [attacker] who's responsible and [projectile] what hit
+     * (an arrow, a fireball), when the server says so; null otherwise.
+     */
+    data class Damage(
+        val amount: Float,
+        val health: Float,
+        val cause: String? = null,
+        val attacker: EntityInfo? = null,
+        val projectile: EntityInfo? = null,
+    ) : GameEvent
     data object Death : GameEvent
     data object Respawn : GameEvent
     data class JoinWorld(val dimension: String) : GameEvent

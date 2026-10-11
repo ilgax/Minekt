@@ -112,7 +112,8 @@ miner.isRunning; miner.await(); miner.kill()
 
 ## Fabric API events (experimental)
 
-Scripts can listen to Fabric API events, and other mods' events, written exactly like in a mod. Opt in with one
+Scripts can listen to Fabric API events, and other mods' events, written exactly like in a mod (see also
+[Coming from Fabric](from-fabric.md)). Opt in with one
 line at the top:
 
 ```kotlin

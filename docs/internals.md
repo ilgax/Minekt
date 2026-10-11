@@ -59,6 +59,8 @@ then open a singleplayer world. Each one reports `OK`/`FAIL` lines in chat and c
 - `\fabric`: Fabric API events from scripts (experimental): ticks, hiding a chat message, removal when a
   script is killed, and the opt-in message.
 - `\examples`: starts every script in `examples/` and checks it runs without errors, then takes a screenshot.
+- `\stopdamage`: `onDamage`'s cause and attacker from real server damage (fall, a zombie, a skeleton's arrow),
+  and `onStop` putting a setting back after `\kill`.
 - `\hudlog`: HUD panels, script errors in chat, `\log` and the log viewer. Needs `xdo-runner.sh`.
 - `\events`: settings (real clicks), autorun sections, HTTP and the newer events. Needs `xdo-runner.sh` and the
   `autorun.txt` shown at the top of the file.

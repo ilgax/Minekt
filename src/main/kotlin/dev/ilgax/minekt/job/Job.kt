@@ -154,8 +154,17 @@ class Job internal constructor(
 
     /** Called from API entry points so tight loops that use the API can still be killed. */
     internal fun checkAlive() {
-        if (killed) throw JobKilledException()
+        if (mustStop) throw JobKilledException()
     }
+
+    /** Until when (System.nanoTime) `onStop` handlers may still run after a kill, or 0. */
+    @Volatile private var stopGraceUntil = 0L
+
+    /** Killed, and not in the short time `onStop` handlers get afterwards. Checked by the API and [Watchdog]. */
+    internal val mustStop: Boolean get() = killed && (stopGraceUntil == 0L || System.nanoTime() > stopGraceUntil)
+
+    /** `onStop` handlers: run once when the script ends, however it ends. */
+    internal val stopHandlers = CopyOnWriteArrayList<(dev.ilgax.minekt.api.StopReason) -> Unit>()
 
     /** Write to this script's log, and with [chat] also to chat as `[name] text`. */
     internal fun log(level: ScriptLogs.Level, text: String, detail: String? = null, chat: MessageKind? = null) {
@@ -358,6 +367,7 @@ class Job internal constructor(
             if (!result.isDone) {
                 result.completeExceptionally(IllegalStateException(if (killed) "$name was killed before it finished" else "$name ended before its body finished"))
             }
+            runStopHandlers()
             state = State.DONE
             cleanup()
             logEnd()
@@ -421,11 +431,46 @@ class Job internal constructor(
             t is JobStopException || root is JobStopException -> stopRequested = true
             else -> {
                 failed = true
-                val report = ErrorReport.fromThrowable(name, t, source)
-                logs.add(name, ScriptLogs.Level.ERROR, report.headline.substringAfter("] "), report.detail, id)
-                host.showError(report)
-                LOGGER.error("Script {} failed", name, t)
+                report(t)
             }
+        }
+    }
+
+    private fun report(t: Throwable) {
+        val report = ErrorReport.fromThrowable(name, t, source)
+        logs.add(name, ScriptLogs.Level.ERROR, report.headline.substringAfter("] "), report.detail, id)
+        host.showError(report)
+        LOGGER.error("Script {} failed", name, t)
+    }
+
+    /**
+     * The script ended: run its `onStop` handlers on its own thread, with the API still working (even
+     * after a kill, for up to [STOP_GRACE_MS]), before its handlers, HUD, keybinds… are taken down.
+     */
+    private fun runStopHandlers() {
+        if (stopHandlers.isEmpty()) return
+        val reason = when {
+            killed -> dev.ilgax.minekt.api.StopReason.KILLED
+            failed -> dev.ilgax.minekt.api.StopReason.FAILED
+            else -> dev.ilgax.minekt.api.StopReason.FINISHED
+        }
+        Thread.interrupted() // \kill interrupts the thread; let the handlers sleep and wait
+        stopGraceUntil = System.nanoTime() + STOP_GRACE_MS * 1_000_000
+        try {
+            for (handler in stopHandlers) {
+                try {
+                    handler(reason)
+                } catch (t: Throwable) {
+                    val root = generateSequence(t) { it.cause }.last()
+                    if (root is JobKilledException) {
+                        log(ScriptLogs.Level.WARN, "onStop took longer than ${STOP_GRACE_MS / 1000} s and was stopped", chat = MessageKind.ERROR)
+                        break
+                    }
+                    if (root !is JobStopException && root !is InterruptedException) report(t)
+                }
+            }
+        } finally {
+            stopGraceUntil = 0L
         }
     }
 
@@ -471,6 +516,8 @@ class Job internal constructor(
 
     companion object {
         const val EVAL_NAME = "eval"
+        /** How long `onStop` handlers may run after a kill. */
+        private const val STOP_GRACE_MS = 3000L
         private val FABRIC_EVENTS_OPT_IN = Regex("""@file\s*:\s*OptIn\s*\([^)]*\bExperimentalFabricEvents\b""")
         private const val CPU_WARN_PERCENT = 90
         private const val MAX_ERRORS_SHOWN = 3

@@ -26,6 +26,7 @@ findBlocks(radius) { it.endsWith("_ore") }
 New to it? [Your first scripts](docs/tutorial.md) walks through six short ones, and [examples/](examples/README.md)
 has more to copy from: tracers, a radar, a custom crosshair, clickable coordinates and others. `\help` lists the
 chat commands, and `\menu` opens the script manager. More in [Getting started](docs/getting-started.md).
+Write Fabric mods? [Coming from Fabric](docs/from-fabric.md) shows the same mod both ways.
 
 ## What scripts can do
 
