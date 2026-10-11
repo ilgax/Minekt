@@ -1,5 +1,7 @@
 package dev.ilgax.minekt.script
 
+import dev.ilgax.minekt.job.Job
+import dev.ilgax.minekt.job.Watchdog
 import java.io.ByteArrayInputStream
 import java.io.InputStream
 import java.net.URL
@@ -8,6 +10,9 @@ import java.net.URLStreamHandler
 
 /** Loads one run of a script from its (instrumented) compiled classes. One loader per run, so each run starts fresh. */
 internal class ScriptClassLoader(private val files: Map<String, ByteArray>, parent: ClassLoader) : ClassLoader(parent) {
+    /** The script run these classes belong to: runs are set up on the job's own thread. */
+    val job: Job? = (Thread.currentThread() as? Watchdog.JobThread)?.job
+
     override fun findClass(name: String): Class<*> {
         val bytes = files[name.replace('.', '/') + ".class"] ?: throw ClassNotFoundException(name)
         return defineClass(name, bytes, 0, bytes.size)

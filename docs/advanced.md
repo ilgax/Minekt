@@ -110,6 +110,30 @@ miner.isRunning; miner.await(); miner.kill()
 - Results cross between scripts as they are, so stick to strings, numbers, collections and Minekt's types:
   a class declared in one script isn't the same class in another.
 
+## Fabric API events (experimental)
+
+Scripts can listen to Fabric API events, and other mods' events, written exactly like in a mod. Opt in with one
+line at the top:
+
+```kotlin
+@file:OptIn(ExperimentalFabricEvents::class)
+
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
+import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents
+
+ClientTickEvents.END_CLIENT_TICK.register { mc -> … }
+ClientReceiveMessageEvents.ALLOW_GAME.register { message, overlay -> "spam" !in message.string }   // false hides it
+```
+
+- When the script ends (or is `\kill`ed), its listeners are taken out of the events. Running it again doesn't
+  stack up copies.
+- Listeners run where Fabric calls them, usually on the game thread, like a mod's: keep them quick.
+- A listener that throws is shown as an error and switched off; the game gets a neutral answer (`true` for
+  "allow" events, `PASS` for interaction results, the value unchanged for "modify" events).
+- Without the opt-in line, `register` stops the script with a message saying how to turn it on.
+- It's experimental because removing a listener uses Fabric's internals (Fabric has no unregister). If a Fabric
+  update changes them, listeners are kept until restart but do nothing once their script has ended.
+
 ## Other mods (Baritone and anything else)
 
 Scripts compile against **every loaded mod's jar**, so any mod's public API can be used directly:

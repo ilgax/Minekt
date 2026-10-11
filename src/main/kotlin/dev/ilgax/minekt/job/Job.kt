@@ -129,6 +129,9 @@ class Job internal constructor(
 
     internal val inputHandlers = CopyOnWriteArrayList<InputHandler>()
 
+    /** Whether the script opted into experimental Fabric events (`@file:OptIn(ExperimentalFabricEvents::class)`). */
+    internal val fabricEventsOptIn: Boolean by lazy { FABRIC_EVENTS_OPT_IN.containsMatchIn(source.text) }
+
     /** Actions behind this script's clickable chat text, by id (see [ChatClicks]). They don't keep it alive. */
     internal val clickActions = ConcurrentHashMap<Long, () -> Unit>()
 
@@ -468,6 +471,7 @@ class Job internal constructor(
 
     companion object {
         const val EVAL_NAME = "eval"
+        private val FABRIC_EVENTS_OPT_IN = Regex("""@file\s*:\s*OptIn\s*\([^)]*\bExperimentalFabricEvents\b""")
         private const val CPU_WARN_PERCENT = 90
         private const val MAX_ERRORS_SHOWN = 3
         private val LOGGER = org.slf4j.LoggerFactory.getLogger("minekt")

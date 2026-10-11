@@ -1,5 +1,6 @@
 package dev.ilgax.minekt.script
 
+import dev.ilgax.minekt.hooks.FabricEvents
 import dev.ilgax.minekt.job.Watchdog
 import java.security.MessageDigest
 import java.util.Collections
@@ -54,14 +55,15 @@ object ScriptCompiler {
     private val instrumented = Collections.synchronizedMap(WeakHashMap<CompiledScript, Map<String, ByteArray>>())
 
     /**
-     * [compiled] with every class rewritten by [Watchdog] so each run can always be stopped. The
+     * [compiled] with every class rewritten by [Watchdog] so each run can always be stopped (and its
+     * Fabric event registrations pointed at [FabricEvents]). The
      * rewrite is done once per compiled script; each run still gets its own class loader.
      */
     fun instrumented(compiled: CompiledScript): CompiledScript {
         val script = compiled as KJvmCompiledScript
         val classes = instrumented.getOrPut(compiled) {
             val module = script.getCompiledModule() as? KJvmCompiledModuleInMemory ?: error("Unexpected compiled script format")
-            Watchdog.instrument(module.compilerOutputFiles)
+            FabricEvents.rewrite(Watchdog.instrument(module.compilerOutputFiles))
         }
         val module = object : KJvmCompiledModule {
             override fun createClassLoader(baseClassLoader: ClassLoader?): ClassLoader =

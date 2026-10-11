@@ -56,6 +56,8 @@ then open a singleplayer world. Each one reports `OK`/`FAIL` lines in chat and c
   `xdo-runner.sh` too.
 - `\draw`: drawing every frame, pressing bindings by name, the player's and other entities' fields, styled and
   clickable chat, and the clipboard.
+- `\fabric`: Fabric API events from scripts (experimental): ticks, hiding a chat message, removal when a
+  script is killed, and the opt-in message.
 - `\hudlog`: HUD panels, script errors in chat, `\log` and the log viewer. Needs `xdo-runner.sh`.
 - `\events`: settings (real clicks), autorun sections, HTTP and the newer events. Needs `xdo-runner.sh` and the
   `autorun.txt` shown at the top of the file.

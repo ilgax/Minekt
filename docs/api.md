@@ -25,6 +25,7 @@ Everything below is in scope in every script, no imports needed.
 | Messages | `publish(topic, value)`, `subscribe<T>(topic) { }`, `awaitMessage<T>(topic)`, `lastMessage<T>(topic)` |
 | Timers | `every(5.seconds) { }`, `after(30.seconds) { }`, `everyTicks(n) { }`, `afterTicks(n) { }`, `atDaytime(13000) { }` |
 | Packets | `onPacket<T> { }`, `onPacketSent<T> { }`, `interceptPacket<T> { it or null }`, `interceptPacketSent<T> { }`, `awaitPacket<T>()`, `sendPacket(p)` |
+| Fabric events | `@file:OptIn(ExperimentalFabricEvents::class)`, then `ClientTickEvents.END_CLIENT_TICK.register { }` like in a mod; removed when the script ends (experimental) |
 | Method hooks | `hook<Class>("method") { call -> }`, `hookAfter<Class>("method") { call -> }` (change `args`, `cancel(value)`, replace `result`) |
 | Code | `eval(code, "name" to value)`, `runScript(name, args)`, `startScript(name, args)` → `await()`, `kill()`, `isRunning` |
 | Class rewriting | `rewriteClass<Class> { node -> }` (ASM tree), `transformClass(name) { bytes -> newBytes }`, `classBytes<Class>()` |
@@ -45,7 +46,7 @@ Details by topic:
 | [Player and world](world.md) | the player, other entities, bindings, inventory, containers, interaction, world info and scans, recording input |
 | [Drawing and screens](display.md) | shapes in the world, drawing every frame, styled chat, HUD panels, script screens |
 | [Data and the web](data.md) | settings, persistent values, HTTP, Maven libraries, sharing code between scripts |
-| [Advanced](advanced.md) | packets, hooking game methods, rewriting classes, code that runs code, other mods and Baritone |
+| [Advanced](advanced.md) | packets, hooking game methods, rewriting classes, code that runs code, Fabric API events (experimental), other mods and Baritone |
 | [Errors and logs](errors-and-logs.md) | what failing scripts show, and where logs go |
 | [Installing and sharing scripts](sharing.md) | `\install`, `\share`, `\update` |
 | [How it works](internals.md) | the engine, limitations, building, self-tests |
