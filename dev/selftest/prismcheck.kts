@@ -22,10 +22,13 @@ fun check(name: String, block: () -> Pair<Boolean, Any?>) {
     result.onSuccess { (ok, detail) -> report(ok, name, detail) }.onFailure { report(false, name, it) }
 }
 
-/** Show [instruction] big on screen and wait (up to [seconds]) until [done]; null if the player skipped it. */
-fun ask(instruction: String, seconds: Int = 30, done: () -> Boolean): Boolean {
-    title(instruction, "or wait ${seconds}s to skip", fadeIn = 0, stay = seconds * 20, fadeOut = 5)
-    echo(chatText("» $instruction", Color.YELLOW, bold = true))
+/**
+ * Show [instruction] on screen and wait (up to [seconds]) until [done]; false if the player skipped it.
+ * The title line is drawn big and never wraps, so it stays short and [detail] goes on the line below.
+ */
+fun ask(instruction: String, detail: String = "", seconds: Int = 30, done: () -> Boolean): Boolean {
+    title(instruction, listOf(detail, "(or wait ${seconds}s to skip)").filter { it.isNotEmpty() }.joinToString(" "), fadeIn = 0, stay = seconds * 20, fadeOut = 5)
+    echo(chatText("» $instruction $detail".trim(), Color.YELLOW, bold = true))
     repeat(seconds * 10) {
         if (done()) {
             title("✔", "", fadeIn = 0, stay = 15, fadeOut = 5)
@@ -103,21 +106,21 @@ launch {
     // Handlers (keybinds, raw input) are delivered once the body is done, so the guided part runs here.
     run {
         val startYaw = player.yaw
-        val ok = ask("Move your mouse around", 20) { moves.get() > 20 && Math.abs(player.yaw - startYaw) > 10 }
+        val ok = ask("Move your mouse", "around a bit", 20) { moves.get() > 20 && Math.abs(player.yaw - startYaw) > 10 }
         report(if (ok) true else null, "real mouse movement turns the camera and reaches onMouseMove", "${moves.get()} moves, yaw ${"%.0f".format(startYaw)} → ${"%.0f".format(player.yaw)}")
     }
     run {
-        val ok = ask("Tap B once", 20) { presses.get() >= 1 && releases.get() >= 1 }
+        val ok = ask("Tap B", "once", 20) { presses.get() >= 1 && releases.get() >= 1 }
         report(if (ok) true else null, "a script keybind sees one press and one release", "presses ${presses.get()}, releases ${releases.get()}")
     }
     run {
         val before = presses.get()
-        val ok = ask("Hold B for 2 seconds, then let go", 25) { releases.get() >= 2 }
+        val ok = ask("Hold B", "for 2 seconds, then let go", 25) { releases.get() >= 2 }
         val heldPresses = presses.get() - before
         report(if (ok) heldPresses == 1 else null, "holding a keybind is one press (no key repeat)", "$heldPresses press(es) while held")
     }
     run {
-        val ok = ask("Open your inventory (E), then close it", 25) {
+        val ok = ask("Press E", "to open your inventory, then close it", 25) {
             rawKeys.any { it.action == InputAction.PRESS && it.key == game { mc -> mc.options.keyInventory.saveString() } } &&
                 game { it.gui.screen() } == null && rawKeys.size >= 2
         }
@@ -125,18 +128,18 @@ launch {
     }
     run {
         val slot = player.selectedSlot
-        val ok = ask("Scroll your mouse wheel", 20) { rawMouse.any { it is RawScroll } }
+        val ok = ask("Scroll", "your mouse wheel", 20) { rawMouse.any { it is RawScroll } }
         report(if (ok) true else null, "onRawMouse sees the real scroll wheel", "slot $slot → ${player.selectedSlot}")
     }
     run {
-        val ok = ask("Left-click once (in the world)", 20) { rawMouse.any { it is RawMouseButton && it.button == 0 } }
+        val ok = ask("Left-click", "once, in the world", 20) { rawMouse.any { it is RawMouseButton && it.button == 0 } }
         report(if (ok) true else null, "onRawMouse sees a real left click", rawMouse.filterIsInstance<RawMouseButton>().take(2).map { "${it.button} ${it.action}" })
     }
     run {
         val clicked = java.util.concurrent.atomic.AtomicBoolean()
         echo(chatText("» Open chat (T) and click ", Color.YELLOW, bold = true) +
             chatText("[here]", Color.GREEN, bold = true, underlined = true, hover = "Runs code in \\prismcheck", click = ChatClick.run { clicked.set(true) }))
-        val ok = ask("Open chat (T) and click [here]", 40) { clicked.get() }
+        val ok = ask("Press T", "to open chat and click [here]", 40) { clicked.get() }
         if (ok) game { mc -> mc.gui.screen()?.onClose() }
         report(if (ok) true else null, "clicking styled chat runs the script's code", if (ok) "clicked" else "not clicked")
     }
@@ -145,7 +148,7 @@ launch {
         onDamage { amount, _, cause, attacker -> hits += "$amount $cause ${attacker?.name}" }
         if (player.gameMode != "survival") report(null, "onDamage cause (needs survival)", "you're not in survival")
         else {
-            val ok = ask("Jump off something 4+ blocks high (fall damage)", 40) { hits.any { "minecraft:fall" in it } }
+            val ok = ask("Fall 4+ blocks", "to take fall damage", 40) { hits.any { "minecraft:fall" in it } }
             report(if (ok) true else null, "onDamage names fall damage", hits.toList())
         }
     }
