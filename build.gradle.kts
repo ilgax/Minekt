@@ -181,3 +181,20 @@ if (providers.gradleProperty("smallRun").isPresent) {
         loom.runs.named("client") { vmArg("-Duser.home=$home") }
     }
 }
+
+// `./gradlew prodClient` (full jar) / `prodClientSmall` (small jar) start the real, production game with the
+// built jar, Fabric API and Fabric Language Kotlin as plain mod jars, like a launcher does, in build/prodrun.
+// Extra game arguments: -PprodArgs="--quickPlaySingleplayer test".
+val prodMods: Configuration by configurations.creating { isTransitive = false }
+dependencies {
+    prodMods("net.fabricmc.fabric-api:fabric-api:${property("fabric_api_version")}")
+    prodMods("net.fabricmc:fabric-language-kotlin:${property("fabric_kotlin_version")}")
+}
+for ((name, jar) in listOf("prodClient" to tasks.jar.flatMap { it.archiveFile }, "prodClientSmall" to smallJar.flatMap { it.archiveFile })) {
+    tasks.register<net.fabricmc.loom.task.prod.ClientProductionRunTask>(name) {
+        mods.from(prodMods, jar)
+        runDir = layout.buildDirectory.dir("prodrun")
+        useXVFB = false
+        providers.gradleProperty("prodArgs").orNull?.let { programArgs.addAll(it.split(' ')) }
+    }
+}
