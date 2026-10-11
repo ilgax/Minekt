@@ -298,6 +298,19 @@ class ScriptEngineTest {
     }
 
     @Test
+    fun `the in-game self-tests compile`() {
+        val tests = Files.list(Path.of("dev/selftest")).use { files -> files.filter { it.toString().endsWith(".kts") }.toList() }
+        val failures = tests.mapNotNull { file ->
+            val result = dev.ilgax.minekt.script.ScriptCompiler.compile(kotlin.script.experimental.host.FileScriptSource(file.toFile()))
+            if (result is kotlin.script.experimental.api.ResultWithDiagnostics.Failure) {
+                "${file.fileName}: " + result.reports.filter { it.severity >= kotlin.script.experimental.api.ScriptDiagnostic.Severity.ERROR }
+                    .joinToString { "${it.location?.start?.line}: ${it.message}" }
+            } else null
+        }
+        assertTrue(failures.isEmpty(), failures.joinToString("\n"))
+    }
+
+    @Test
     fun `the example scripts compile`() {
         val examples = Files.list(Path.of("examples")).use { files -> files.filter { it.toString().endsWith(".kts") }.toList() }
         assertTrue(examples.size >= 10, "examples: $examples")
