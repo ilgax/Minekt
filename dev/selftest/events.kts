@@ -68,9 +68,16 @@ fun waitFor(seconds: Int, condition: () -> Boolean): Boolean {
 }
 
 var waited = 0
-while (getBlock(player.position.blockPos.offset(dy = -1)) == "minecraft:void_air" && waited < 1200) { waitTicks(20); waited += 20 }
+while (blockId(player.position.blockPos.offset(dy = -1)) == "minecraft:void_air" && waited < 1200) { waitTicks(20); waited += 20 }
 waitTicks(40)
 val me = player.name
+if (world.dimension != "minecraft:overworld") {
+    // An earlier run that stopped half way can leave us in the Nether.
+    server("execute in minecraft:overworld run spreadplayers 0 0 0 1 false $me")
+    waited = 0
+    while (world.dimension != "minecraft:overworld" && waited < 600) { waitTicks(20); waited += 20 }
+    waitTicks(60)
+}
 server("gamemode creative $me")
 server("difficulty easy")
 val dir = game { it.gameDirectory.toPath().resolve("minekt") }
@@ -85,11 +92,11 @@ check("autorun: the singleplayer section ran, the server one didn't") {
 // ---- events ---------------------------------------------------------------------------------------
 
 val events = CopyOnWriteArrayList<GameEvent>()
-onBlockChange { pos, old, new -> events += GameEvent.BlockChange(pos, old, new) }
+onBlockChange { (pos, old, new) -> events += GameEvent.BlockChange(pos, old, new) }
 onEntityAppear { events += GameEvent.EntityAppear(it) }
-onEntityGone { e, died -> events += GameEvent.EntityGone(e, died) }
-onSound { id, pos, category -> events += GameEvent.Sound(id, pos, category) }
-onParticle { id, pos, count -> events += GameEvent.Particle(id, pos, count) }
+onEntityGone { (e, died) -> events += GameEvent.EntityGone(e, died) }
+onSound { (id, pos, category) -> events += GameEvent.Sound(id, pos, category) }
+onParticle { (id, pos, count) -> events += GameEvent.Particle(id, pos, count) }
 onScoreboardChange { events += GameEvent.ScoreboardChange(it.title, it.lines) }
 
 // Handlers run once the script body is done, so the rest happens in a coroutine.
@@ -124,16 +131,18 @@ launch {
         waitFor(5) { events.any { it is GameEvent.Particle && it.id == "minecraft:heart" } } then
             events.filterIsInstance<GameEvent.Particle>().first { it.id == "minecraft:heart" }
     }
-    check("sidebar() and onScoreboardChange") {
+    check("sidebar and onScoreboardChange") {
+        server("scoreboard objectives remove kills") // left in the world by an earlier run
+        waitTicks(5)
         server("scoreboard objectives add kills dummy \"Kill count\"")
         server("scoreboard objectives setdisplay sidebar kills")
         server("scoreboard players set Zombies kills 7")
         server("scoreboard players set Spiders kills 3")
         waitFor(5) { events.filterIsInstance<GameEvent.ScoreboardChange>().lastOrNull()?.lines == listOf("Zombies", "Spiders") }
         val changes = events.filterIsInstance<GameEvent.ScoreboardChange>()
-        (sidebar()?.title == "Kill count" && changes.isNotEmpty() && changes.last().lines == listOf("Zombies", "Spiders")) then "${sidebar()} after ${changes.size} changes"
+        (sidebar?.title == "Kill count" && changes.isNotEmpty() && changes.last().lines == listOf("Zombies", "Spiders")) then "${sidebar} after ${changes.size} changes"
     }
-    check("tabList() has the player") { (me in tabList()) then tabList() }
+    check("tabList has the player") { (me in tabList) then tabList }
 
     // ---- http ---------------------------------------------------------------------------------------
 
@@ -161,13 +170,15 @@ launch {
 
     // ---- settings -----------------------------------------------------------------------------------
 
+    // Values saved by an earlier run would replace the defaults.
+    java.nio.file.Files.deleteIfExists(dir.resolve("settings/setdemo.json"))
     dir.resolve("setdemo.kts").writeText(
         """
         var range by setting(16, 1..64)
         var enabled by setting(true)
         var mode by setting("walk", listOf("walk", "sprint", "sneak"))
         echo("SETDEMO start", range, enabled, mode)
-        onSettingChange { key, value -> echo("SETDEMO changed", key, value) }
+        onSettingChange { (key, value) -> echo("SETDEMO changed", key, value) }
         """.trimIndent() + "\n",
     )
     type("\\setdemo")
@@ -206,6 +217,10 @@ launch {
         server("execute in minecraft:the_nether run tp $me 0 120 0")
         waitFor(20) { chatText().any { it == "ARUN nether" } } then chatText().filter { it.startsWith("ARUN") }
     }
+
+    // Back to the overworld, so the next test (or this one again) starts there.
+    server("execute in minecraft:overworld run spreadplayers 0 0 0 1 false $me")
+    waitFor(20) { world.dimension == "minecraft:overworld" }
 
     echo("EV DONE")
     sleep(1000)
