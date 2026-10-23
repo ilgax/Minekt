@@ -207,3 +207,27 @@ for ((name, jar) in listOf("prodClient" to tasks.jar.flatMap { it.archiveFile },
         providers.gradleProperty("prodArgs").orNull?.let { programArgs.addAll(it.split(' ')) }
     }
 }
+
+// ---- The stable script API ------------------------------------------------------------------------
+// api/minekt.api lists every stable declaration scripts can use: `dev.ilgax.minekt.api`, minus what's
+// marked experimental. `check` (and so `build`) fails when it changes; after a deliberate change, run
+// `./gradlew updateKotlinAbi` and commit the new file with it.
+@OptIn(org.jetbrains.kotlin.gradle.dsl.abi.ExperimentalAbiValidation::class)
+kotlin {
+    abiValidation {
+        filters {
+            include { byNames.add("dev.ilgax.minekt.api.**") }
+            exclude {
+                annotatedWith.addAll(
+                    "dev.ilgax.minekt.api.ExperimentalFabricEvents",
+                    "dev.ilgax.minekt.api.ExperimentalPackets",
+                    "dev.ilgax.minekt.api.ExperimentalHooks",
+                    "dev.ilgax.minekt.api.ExperimentalVisuals",
+                    "dev.ilgax.minekt.api.ExperimentalBaritone",
+                )
+            }
+        }
+    }
+}
+@OptIn(org.jetbrains.kotlin.gradle.dsl.abi.ExperimentalAbiValidation::class)
+tasks.check { dependsOn(kotlin.abiValidation.checkTaskProvider) }

@@ -1,4 +1,6 @@
 // In-game test for class rewriting on real game classes. Singleplayer test world.
+@file:OptIn(ExperimentalHooks::class)
+
 import net.minecraft.client.Minecraft
 import net.minecraft.client.multiplayer.ClientLevel
 import org.objectweb.asm.ClassReader

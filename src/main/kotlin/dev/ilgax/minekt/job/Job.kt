@@ -399,23 +399,61 @@ class Job internal constructor(
         try {
             while (keepAlive()) {
                 val event = events.poll(250, TimeUnit.MILLISECONDS) ?: continue
-                when (event) {
-                    Event.Tick -> {
-                        tickQueued.set(false)
-                        tickHandlers.forEach { it() }
-                    }
-                    is Event.Chat -> chatHandlers.forEach { it(event.message) }
-                    is Event.Command -> commandHandlers[event.name]?.invoke(event.args)
-                    is Event.Keybind -> keybindHandlers[event.id]?.forEach { if (it.onPress == event.pressed) it.handler() }
-                    is Event.Click -> clickActions[event.id]?.invoke()
-                    is Event.Game -> gameHandlers.forEach { it(event.event) }
-                    is Event.Message -> messageHandlers[event.topic]?.forEach { it(event.value) }
-                    is Event.Packet -> packetHandlers.forEach { if (it.matches(event.packet, event.incoming)) it.handler(event.packet) }
-                    is Event.Setting -> settingHandlers.forEach { it(dev.ilgax.minekt.api.SettingChange(event.key, event.value)) }
-                }
+                deliver(event)
             }
         } catch (t: Throwable) {
             handleThrowable(t)
+        }
+    }
+
+    /** Throw if this is the game's thread, where waiting would freeze the game (see `Minekt.checkCanWait`). */
+    internal fun checkCanWait(what: String) {
+        checkAlive()
+        check(!host.isGameThread()) {
+            "$what can't be used here: this code runs on the game's own thread (like onHudRender, onWorldRender, " +
+                "onRawKey, onRawMouse, onMouseMove, hooks and Fabric event listeners do), and waiting there freezes " +
+                "the game. Do the slow part in onTick or launch { } and only use its result here."
+        }
+    }
+
+    /** Set while handlers run, so a wait inside a handler doesn't run other handlers in the middle of it. */
+    private var delivering = false
+
+    /** Run [event]'s handlers, on this job's main thread. */
+    private fun deliver(event: Event) {
+        delivering = true
+        try {
+            when (event) {
+                Event.Tick -> {
+                    tickQueued.set(false)
+                    tickHandlers.forEach { it() }
+                }
+                is Event.Chat -> chatHandlers.forEach { it(event.message) }
+                is Event.Command -> commandHandlers[event.name]?.invoke(event.args)
+                is Event.Keybind -> keybindHandlers[event.id]?.forEach { if (it.onPress == event.pressed) it.handler() }
+                is Event.Click -> clickActions[event.id]?.invoke()
+                is Event.Game -> gameHandlers.forEach { it(event.event) }
+                is Event.Message -> messageHandlers[event.topic]?.forEach { it(event.value) }
+                is Event.Packet -> packetHandlers.forEach { if (it.matches(event.packet, event.incoming)) it.handler(event.packet) }
+                is Event.Setting -> settingHandlers.forEach { it(dev.ilgax.minekt.api.SettingChange(event.key, event.value)) }
+            }
+        } finally {
+            delivering = false
+        }
+    }
+
+    /**
+     * Wait until [done], checked again after [checkMs]. When the script's body waits (`sleep`, `waitTicks`),
+     * handlers for events that arrive meanwhile run right here, on the same thread, so a loop in the body
+     * sees what its handlers do. Elsewhere (coroutines, inside a handler) it only waits.
+     * Throws [InterruptedException] when the job is killed.
+     */
+    internal fun waitDelivering(checkMs: () -> Long, done: () -> Boolean) {
+        val pump = Thread.currentThread() === thread && !delivering && state == State.RUNNING
+        while (!done()) {
+            checkAlive()
+            if (pump) events.poll(checkMs(), TimeUnit.MILLISECONDS)?.let(::deliver)
+            else Thread.sleep(checkMs())
         }
     }
 

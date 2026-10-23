@@ -17,6 +17,9 @@ interface Host {
     /** Run [block] on the client thread and wait for its result. */
     fun <T> onGameThread(block: (Minecraft) -> T): T
 
+    /** Whether this is the game's own thread, where scripts must never wait. */
+    fun isGameThread(): Boolean = false
+
     /**
      * Make `/name` a client-side command owned by [owner]; invocations arrive as [Job.Event.Command].
      * Returns an error message if the name is taken, else null.

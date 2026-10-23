@@ -1,3 +1,4 @@
+
 package dev.ilgax.minekt.share
 
 import dev.ilgax.minekt.script.ScriptCompiler

@@ -18,6 +18,7 @@ class PacketsTest {
     fun `filters replace and drop, listeners see the result`() {
         jobs.eval(
             """
+            @file:OptIn(ExperimentalPackets::class)
             import net.minecraft.network.protocol.common.*
             interceptPacket<ClientboundPingPacket> { if (it.id == 0) null else ClientboundPingPacket(it.id + 1) }
             onPacket<ClientboundPingPacket> { echo("got ping " + it.id) }
@@ -45,6 +46,7 @@ class PacketsTest {
     fun `a throwing filter is removed and the packet passes`() {
         jobs.eval(
             """
+            @file:OptIn(ExperimentalPackets::class)
             import net.minecraft.network.protocol.common.*
             interceptPacket<ClientboundPingPacket> { error("broken filter") }
             onPacket<ClientboundPingPacket> { }

@@ -1,5 +1,8 @@
+@file:OptIn(dev.ilgax.minekt.api.ExperimentalBaritone::class)
+
 package dev.ilgax.minekt.api
 
+import kotlin.time.Duration
 import net.minecraft.world.phys.Vec3
 import net.minecraft.core.BlockPos
 import dev.ilgax.minekt.job.Job
@@ -30,6 +33,7 @@ class Minekt internal constructor(internal val job: Job) {
     val jobId: Int get() = job.id
 
     /** Helpers for Baritone, if it is installed. See [Baritone]. */
+    @ExperimentalBaritone
     val baritone: Baritone by lazy { Baritone(this) }
 
     // ---- output -------------------------------------------------------------------------------
@@ -81,24 +85,41 @@ class Minekt internal constructor(internal val job: Job) {
 
     // ---- timing / control ---------------------------------------------------------------------
 
+    /**
+     * Wait [ms] milliseconds. While the script's main code waits, its handlers (`onChat`, `onTick`, keys…)
+     * run for events that arrive, so a loop can react to them. Not allowed on the game's thread.
+     */
     fun sleep(ms: Long) {
-        job.checkAlive()
+        checkCanWait("sleep")
+        val deadline = System.nanoTime() + ms * 1_000_000
+        waiting {
+            job.waitDelivering({ ((deadline - System.nanoTime()) / 1_000_000).coerceIn(1, 20) }) { System.nanoTime() >= deadline }
+        }
+    }
+
+    /** [sleep] for [duration]. */
+    fun sleep(duration: Duration) = sleep(duration.inWholeMilliseconds)
+
+    /** Wait for [ticks] client ticks (20 per second), running handlers like [sleep] does. */
+    fun waitTicks(ticks: Int = 1) {
+        checkCanWait("waitTicks")
+        val target = TickClock.ticks + ticks
+        waiting { job.waitDelivering({ 5 }) { TickClock.ticks >= target } }
+    }
+
+    private inline fun waiting(block: () -> Unit) {
         try {
-            Thread.sleep(ms)
+            block()
         } catch (_: InterruptedException) {
             throw JobKilledException()
         }
     }
 
-    /** Wait for [ticks] client ticks (20 per second). */
-    fun waitTicks(ticks: Int = 1) {
-        job.checkAlive()
-        try {
-            TickClock.await(ticks)
-        } catch (_: InterruptedException) {
-            throw JobKilledException()
-        }
-    }
+    /**
+     * Refuse to wait on the game's thread, where `onHudRender`, `onWorldRender`, the raw input handlers,
+     * hooks and Fabric listeners run: the game would freeze until the wait ended (for good, for a tick).
+     */
+    internal fun checkCanWait(what: String) = job.checkCanWait(what)
 
     /** End the script now. Works from inside event handlers too. */
     fun stop(): Nothing = throw JobStopException()

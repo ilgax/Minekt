@@ -17,7 +17,7 @@ val icons = mapOf(
 val longest = java.util.concurrent.ConcurrentHashMap<String, Int>()
 onTick {
     effects = player.effects.sortedBy { it.id }
-    for (e in effects) if (e.duration > (longest[e.id] ?: 0)) longest[e.id] = e.duration
+    for (e in effects) if (e.durationTicks > (longest[e.id] ?: 0)) longest[e.id] = e.durationTicks
     longest.keys.retainAll(effects.map { it.id }.toSet())
 }
 
@@ -29,13 +29,13 @@ onHudRender { g ->
     var y = 4
     for (e in effects) {
         val name = e.id.substringAfter(':').replace('_', ' ').replaceFirstChar { it.uppercase() } + " " + roman(e.amplifier)
-        val line = "$name  ${time(e.duration)}"
+        val line = "$name  ${time(e.durationTicks)}"
         val x = g.width - g.textWidth(line) - 24
         g.rect(x - 2, y - 2, g.textWidth(line) + 24, 20, 0x90000000.toInt())
         icons[e.id]?.let { g.item(it, x, y) }
-        g.text(line, x + 18, y + 4, if (e.duration in 0..200) Color.RED else Color.WHITE)
-        val full = longest[e.id] ?: e.duration
-        if (e.duration >= 0 && full > 0) g.rect(x + 18, y + 14, (g.textWidth(line) * e.duration / full), 1, Color.CYAN)
+        g.text(line, x + 18, y + 4, if (e.durationTicks in 0..200) Color.RED else Color.WHITE)
+        val full = longest[e.id] ?: e.durationTicks
+        if (e.durationTicks >= 0 && full > 0) g.rect(x + 18, y + 14, (g.textWidth(line) * e.durationTicks / full), 1, Color.CYAN)
         y += 22
     }
 }

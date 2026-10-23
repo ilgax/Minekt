@@ -74,8 +74,8 @@ data class PlayerInfo(
     val lookDirection: Vec3 = Vec3(0.0, 0.0, 1.0),
 )
 
-/** A potion effect: [id] like `minecraft:speed`, [amplifier] 0 for level I, [duration] in ticks (-1 for infinite). */
-data class EffectInfo(val id: String, val amplifier: Int, val duration: Int)
+/** A potion effect: [id] like `minecraft:speed`, [amplifier] 0 for level I, [durationTicks] left (-1 for infinite). */
+data class EffectInfo(val id: String, val amplifier: Int, val durationTicks: Int)
 
 /**
  * An entity, as of the moment it was read. [health], [maxHealth] and [isBaby] are for living

@@ -1,3 +1,5 @@
+@file:OptIn(dev.ilgax.minekt.api.ExperimentalHooks::class)
+
 package dev.ilgax.minekt.hooks
 
 import dev.ilgax.minekt.api.HookCall

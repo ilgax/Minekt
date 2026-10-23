@@ -26,11 +26,13 @@ clearShapes()                                                   // or drop them 
 - Shapes use Minecraft's built-in gizmo renderer. They're redrawn every tick from data the script sets; for
   drawing that changes every frame, see below.
 
-## Glow outlines
+## Glow outlines (experimental)
 
 The Glowing effect's outline on any entity, in any color, seen through walls, only on your screen:
 
 ```kotlin
+@file:OptIn(ExperimentalVisuals::class)
+
 for (e in entities(32.0)) if (e.type == "minecraft:zombie") glow(e, Color.RED)
 val g = glow(targetedEntity ?: return, Color.YELLOW)
 g.color = Color.GREEN                                     // change it while it shows
@@ -72,11 +74,13 @@ onWorldRender { w ->
 - Colors are `0xRRGGBB` (opaque) or `0xAARRGGBB`, like `Color.RED` or `Color.rgb(r, g, b, a)`.
 - The handlers keep the script alive. One that throws is removed and its error shown in chat.
 
-### Pixels
+### Pixels (experimental)
 
 A grid of pixels you set one by one, drawn on the HUD: images, minimaps, graphs, an emulator's screen.
 
 ```kotlin
+@file:OptIn(ExperimentalVisuals::class)
+
 val screen = pixels(160, 144)                     // all transparent at first
 screen.fill(0x202020)
 screen[10, 20] = Color.RED

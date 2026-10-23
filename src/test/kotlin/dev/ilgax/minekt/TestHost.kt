@@ -17,6 +17,7 @@ internal class TestHost : Host {
     val messages = LinkedBlockingQueue<String>()
     val clientThread = Executors.newSingleThreadExecutor { Thread(it, "fake-client").apply { isDaemon = true } }
     override fun echo(message: String, kind: MessageKind) { messages.put(message) }
+    override fun isGameThread() = Thread.currentThread().name == "fake-client"
 
     /** A blank instance, never initialised: the scripts under test don't touch it. */
     private val mc: Minecraft by lazy {

@@ -23,6 +23,7 @@ class ClassRewritesTest {
     }
 
     private val imports = """
+@file:OptIn(ExperimentalHooks::class)
         import dev.ilgax.minekt.RewriteTarget
         import org.objectweb.asm.Opcodes
         import org.objectweb.asm.tree.*

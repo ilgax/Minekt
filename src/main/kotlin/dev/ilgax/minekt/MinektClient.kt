@@ -421,6 +421,8 @@ object MinektClient : ClientModInitializer, Host {
         }
     }
 
+    override fun isGameThread() = Minecraft.getInstance().isSameThread
+
     override fun <T> onGameThread(block: (Minecraft) -> T): T {
         val mc = Minecraft.getInstance()
         if (mc.isSameThread) return block(mc)

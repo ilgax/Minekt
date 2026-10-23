@@ -1,5 +1,8 @@
+@file:OptIn(dev.ilgax.minekt.api.ExperimentalBaritone::class)
+
 package dev.ilgax.minekt.api
 
+import kotlin.time.Duration
 import java.lang.reflect.Method
 
 /**
@@ -7,6 +10,7 @@ import java.lang.reflect.Method
  * works whether or not Baritone is installed. For anything not covered here, scripts can import
  * `baritone.api.BaritoneAPI` directly — every installed mod is on the script classpath.
  */
+@ExperimentalBaritone
 class Baritone internal constructor(private val api: Minekt) {
     private val apiClass: Class<*>? by lazy { load("baritone.api.BaritoneAPI") }
 
@@ -36,9 +40,9 @@ class Baritone internal constructor(private val api: Minekt) {
             isPathing || inControl.isPresent
         }
 
-    /** Block until Baritone finishes (or [timeoutMs] passes). Returns false on timeout. */
-    fun await(timeoutMs: Long = Long.MAX_VALUE): Boolean {
-        val deadline = System.currentTimeMillis() + timeoutMs
+    /** Wait until Baritone finishes (or [timeout] passes). Returns false on timeout. */
+    fun await(timeout: Duration = Duration.INFINITE): Boolean {
+        val deadline = if (timeout == Duration.INFINITE) Long.MAX_VALUE else System.currentTimeMillis() + timeout.inWholeMilliseconds
         api.waitTicks(5) // give a freshly issued command a moment to take control
         while (isActive) {
             if (System.currentTimeMillis() >= deadline) return false

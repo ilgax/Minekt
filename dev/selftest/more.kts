@@ -1,5 +1,7 @@
 // In-game test for timers, packet hooks, method hooks, recording input and the script manager.
 // Run with dev/selftest/xdo-runner.sh: it presses real keys and clicks for the `XDO …` lines.
+@file:OptIn(ExperimentalPackets::class, ExperimentalHooks::class)
+
 import dev.ilgax.minekt.MinektClient
 import net.minecraft.client.gui.Hud
 import net.minecraft.client.gui.components.AbstractWidget

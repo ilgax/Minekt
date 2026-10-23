@@ -27,11 +27,11 @@ fun check(name: String, block: () -> Pair<Boolean, Any?>) {
  * The title line is drawn big and never wraps, so it stays short and [detail] goes on the line below.
  */
 fun ask(instruction: String, detail: String = "", seconds: Int = 30, done: () -> Boolean): Boolean {
-    title(instruction, listOf(detail, "(or wait ${seconds}s to skip)").filter { it.isNotEmpty() }.joinToString(" "), fadeIn = 0, stay = seconds * 20, fadeOut = 5)
+    title(instruction, listOf(detail, "(or wait ${seconds}s to skip)").filter { it.isNotEmpty() }.joinToString(" "), fadeInTicks = 0, stayTicks = seconds * 20, fadeOutTicks = 5)
     echo(chatText("» $instruction $detail".trim(), Color.YELLOW, bold = true))
     repeat(seconds * 10) {
         if (done()) {
-            title("✔", "", fadeIn = 0, stay = 15, fadeOut = 5)
+            title("✔", "", fadeInTicks = 0, stayTicks = 15, fadeOutTicks = 5)
             playSound("minecraft:entity.experience_orb.pickup")
             sleep(800)
             return true
@@ -103,7 +103,7 @@ key.onPress { presses.incrementAndGet() }
 key.onRelease { releases.incrementAndGet() }
 
 launch {
-    // Handlers (keybinds, raw input) are delivered once the body is done, so the guided part runs here.
+    // The guided part runs in a coroutine; keybind and input handlers run alongside it on the script thread.
     run {
         val startYaw = player.yaw
         val ok = ask("Move your mouse", "around a bit", 20) { moves.get() > 20 && Math.abs(player.yaw - startYaw) > 10 }
@@ -158,7 +158,7 @@ launch {
     java.nio.file.Files.writeString(file, results.joinToString("\n") + "\n")
     val failed = results.count { " FAIL " in it }
     val skipped = results.count { " SKIP " in it }
-    title(if (failed == 0) "All done ✔" else "$failed failed", "$skipped skipped", fadeIn = 0, stay = 80, fadeOut = 10)
+    title(if (failed == 0) "All done ✔" else "$failed failed", "$skipped skipped", fadeInTicks = 0, stayTicks = 80, fadeOutTicks = 10)
     echo(
         chatText("Done: ${results.size - failed - skipped} OK, $failed failed, $skipped skipped. ", Color.CYAN, bold = true),
         chatText("[copy results]", Color.GREEN, hover = "Copy all the result lines", click = ChatClick.copy(results.joinToString("\n"))),

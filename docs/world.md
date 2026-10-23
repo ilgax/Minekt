@@ -132,11 +132,13 @@ unbreakable), `lightEmission`, and `signFront` / `signBack` (a sign's four lines
 spreads the work over several frames. In testing, a 96 × 384 × 96 region took about 2 s while the game kept
 running.
 
-## Fake blocks
+## Fake blocks (experimental)
 
 Blocks only you can see, for build previews, markers or trying out a design:
 
 ```kotlin
+@file:OptIn(ExperimentalVisuals::class)
+
 val marker = fakeBlock(10, 64, 10, "minecraft:glowstone")
 fakeBlock(player.position.blockPos.below(), "minecraft:oak_stairs[facing=east,half=top]")
 marker.remove()                                            // the real block comes back

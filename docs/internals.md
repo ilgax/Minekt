@@ -36,7 +36,11 @@ Requires JDK 25.
 ./gradlew runClient -PsmallRun                         # dev client without the compiler, like the small jar
 ./gradlew runClient -PsmallRun -PsmallRunHome=/tmp/x   # …and with Gradle/Maven caches hidden: forces a download
 ./gradlew runClient      # dev client
+./gradlew updateKotlinAbi   # after a deliberate change to the stable script API (then commit api/minekt.api)
 ```
+
+`api/minekt.api` lists the stable script API: `dev.ilgax.minekt.api` minus what's marked experimental. `build`
+fails if it differs from the code, so the API can only change on purpose.
 
 `dev/selftest/` holds in-game self-tests. Copy them into `run/minekt/` and list them in `run/minekt/autorun.txt`,
 then open a singleplayer world. Each one reports `OK`/`FAIL` lines in chat and closes the game.

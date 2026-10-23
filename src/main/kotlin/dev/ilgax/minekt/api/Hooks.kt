@@ -1,3 +1,5 @@
+@file:OptIn(dev.ilgax.minekt.api.ExperimentalHooks::class)
+
 package dev.ilgax.minekt.api
 
 import dev.ilgax.minekt.hooks.MethodHooks
@@ -21,6 +23,7 @@ import java.lang.reflect.Method
 // Under the hood a Java agent is attached at runtime; this needs a Java runtime that allows it.
 
 /** One call of a hooked method. */
+@ExperimentalHooks
 class HookCall internal constructor(
     /** The object the method was called on, or null for a static method. */
     val self: Any?,
@@ -44,27 +47,34 @@ class HookCall internal constructor(
 }
 
 /** Returned by `hook`; [remove] takes the hook off again. */
+@ExperimentalHooks
 class MethodHook internal constructor(private val remove: () -> Unit) {
     fun remove() = remove.invoke()
 }
 
 /** Run [handler] before every call of [owner]'s method [name] (pass [parameterTypes] if it's overloaded). */
+@ExperimentalHooks
 fun Minekt.hook(owner: Class<*>, name: String, vararg parameterTypes: Class<*>, handler: (HookCall) -> Unit): MethodHook =
     addHook(findMethod(owner, name, parameterTypes), after = false, handler)
 
+@ExperimentalHooks
 fun Minekt.hook(className: String, name: String, vararg parameterTypes: Class<*>, handler: (HookCall) -> Unit): MethodHook =
     hook(loadClass(className), name, *parameterTypes, handler = handler)
 
+@ExperimentalHooks
 inline fun <reified T> Minekt.hook(name: String, vararg parameterTypes: Class<*>, noinline handler: (HookCall) -> Unit): MethodHook =
     hook(T::class.java, name, *parameterTypes, handler = handler)
 
 /** Run [handler] after every call of [owner]'s method [name], with `result` set to what it returned. */
+@ExperimentalHooks
 fun Minekt.hookAfter(owner: Class<*>, name: String, vararg parameterTypes: Class<*>, handler: (HookCall) -> Unit): MethodHook =
     addHook(findMethod(owner, name, parameterTypes), after = true, handler)
 
+@ExperimentalHooks
 fun Minekt.hookAfter(className: String, name: String, vararg parameterTypes: Class<*>, handler: (HookCall) -> Unit): MethodHook =
     hookAfter(loadClass(className), name, *parameterTypes, handler = handler)
 
+@ExperimentalHooks
 inline fun <reified T> Minekt.hookAfter(name: String, vararg parameterTypes: Class<*>, noinline handler: (HookCall) -> Unit): MethodHook =
     hookAfter(T::class.java, name, *parameterTypes, handler = handler)
 

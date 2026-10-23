@@ -1,6 +1,7 @@
 package dev.ilgax.minekt.api
 
 import dev.ilgax.minekt.job.Job
+import dev.ilgax.minekt.job.JobKilledException
 import dev.ilgax.minekt.script.ScriptCompiler
 import kotlinx.coroutines.runBlocking
 import java.util.concurrent.ExecutionException
@@ -89,18 +90,19 @@ class ScriptRun internal constructor(private val caller: Job, private val starte
      * expression). Throws if it didn't compile, failed, or was killed first, or after [timeout].
      */
     fun await(timeout: Duration = Duration.INFINITE): Any? {
+        caller.checkCanWait("await")
         val deadline = if (timeout == Duration.INFINITE) Long.MAX_VALUE else System.currentTimeMillis() + timeout.inWholeMilliseconds
-        while (true) {
-            caller.checkAlive()
-            val waitMs = minOf(100L, deadline - System.currentTimeMillis())
-            if (waitMs <= 0) throw TimeoutException("$name didn't finish within $timeout")
-            try {
-                return started.result.get(waitMs, TimeUnit.MILLISECONDS)
-            } catch (e: TimeoutException) {
-                continue
-            } catch (e: ExecutionException) {
-                throw e.cause ?: e
-            }
+        try {
+            // Like sleep: the caller's handlers keep running while its body waits here.
+            caller.waitDelivering({ 20 }) { started.result.isDone || System.currentTimeMillis() >= deadline }
+        } catch (_: InterruptedException) {
+            throw JobKilledException()
+        }
+        if (!started.result.isDone) throw TimeoutException("$name didn't finish within $timeout")
+        try {
+            return started.result.get()
+        } catch (e: ExecutionException) {
+            throw e.cause ?: e
         }
     }
 

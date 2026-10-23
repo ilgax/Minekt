@@ -1,10 +1,13 @@
 # Advanced
 
-## Packets
+## Packets (experimental)
 
-Raw network packets, both directions. The classes are Minecraft's own (`net.minecraft.network.protocol.game.*`):
+Raw network packets, both directions. The classes are Minecraft's own (`net.minecraft.network.protocol.game.*`),
+which change with every game version, so this is [experimental](api.md#stable-and-experimental):
 
 ```kotlin
+@file:OptIn(ExperimentalPackets::class)
+
 import net.minecraft.network.protocol.game.*
 
 onPacket<ClientboundSetHealthPacket> { echo("health now ${it.health}") }
@@ -15,17 +18,21 @@ sendPacket(ServerboundClientCommandPacket(ServerboundClientCommandPacket.Action.
 val stats = runBlocking { withTimeoutOrNull(5_000) { awaitPacket<ClientboundAwardStatsPacket>() } }
 ```
 
-- `onPacket…` listeners run on the script thread after the body, like other events. `onPacket<Packet<*>>` sees
+- `onPacket…` listeners run on the script's thread, like other events. `onPacket<Packet<*>>` sees
   everything.
 - `intercept…` filters run right away on the network thread, before the game sees the packet: return it, a
   replacement, or `null` to drop it. Keep them quick. A filter that throws is removed and the packet goes through.
 - Bundled packets are taken apart, so filters and listeners see each packet inside a bundle.
 
-## Hooking game methods
+## Hooking game methods (experimental)
 
-Run code before or after any method of Minecraft or another mod, even though the game is already running:
+Run code before or after any method of Minecraft or another mod, even though the game is already running.
+Hooks name the game's methods, which change between versions, so they need
+`@file:OptIn(ExperimentalHooks::class)` (as does rewriting classes, below):
 
 ```kotlin
+@file:OptIn(ExperimentalHooks::class)
+
 hook<LivingEntity>("jumpFromGround") { call -> if (call.self is LocalPlayer) echo("jump!") }
 hook<LivingEntity>("jumpFromGround") { it.cancel() }                         // skip the method
 hookAfter<LivingEntity>("getSpeed") { it.result = (it.result as Float) * 2 }  // change what it returns
@@ -46,7 +53,7 @@ hook<Hud>("setOverlayMessage", Component::class.java, Boolean::class.java) {   /
 - How: Minekt attaches a Java agent at runtime and rewrites the method. That needs a Java runtime that allows
   attaching agents (a full JDK does; some minimal runtimes don't, and then `hook` says so).
 
-## Rewriting classes
+## Rewriting classes (experimental)
 
 Replace the bytecode of any class, while the game runs. You get the bytes and return new ones; Minekt
 doesn't check or fix anything in between.
@@ -145,8 +152,8 @@ import baritone.api.BaritoneAPI
 game { BaritoneAPI.getProvider().primaryBaritone.commandManager.execute("mine diamond_ore") }
 ```
 
-For Baritone there is also a built-in helper. It uses reflection, so it works with whatever Baritone version
-is installed, and Minekt runs fine without it:
+For Baritone there is also a built-in helper (experimental: `@file:OptIn(ExperimentalBaritone::class)`). It uses
+reflection, so it works with whatever Baritone version is installed, and Minekt runs fine without it:
 
 ```kotlin
 if (!baritone.isAvailable) stop()

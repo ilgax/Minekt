@@ -1,6 +1,8 @@
 // \damagelog — says what hurt you, and who: fall damage, lava, the mob or player that hit you, the
 // arrow and who shot it. Stays running until you \kill it.
 // Shows: a vanilla packet read directly (onPacket), game { } for the details, styled chat.
+@file:OptIn(ExperimentalPackets::class)
+
 import net.minecraft.network.protocol.game.ClientboundDamageEventPacket
 
 onPacket<ClientboundDamageEventPacket> { packet ->

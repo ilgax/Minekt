@@ -11,6 +11,24 @@ onChat { msg -> if (msg.text.endsWith("ping")) echo("pong!") }
 keybind("Stop chatbot", default = "k").onPress { stop() }
 ```
 
+Handlers run on the script's own thread, one at a time. They also run while the body waits in `sleep`,
+`waitTicks` or `await()`, so a loop in the body sees what its handlers change:
+
+```kotlin
+var running = true
+onChat { (text) -> if ("stop" in text) running = false }
+while (running) { press("forward"); sleep(1000) }   // ends when someone says "stop"
+release("forward")
+```
+
+A few kinds of code run on the game's own thread instead, because the game calls them while it draws or reads
+input. They must be quick and can't wait: `sleep`, `waitTicks`, `await()`, `http…` and `screenshot` throw there
+with a message saying so.
+
+| Runs on the script's thread (may wait) | Runs on the game's thread (must be quick) |
+|---|---|
+| the body, `onTick`, `onChat`, `onDamage` and other events, keybinds, commands, timers, `subscribe`, `onPacket`, `launch { }` | `onHudRender`, `onWorldRender`, `onRawKey`, `onRawMouse`, `onMouseMove`, `hook`/`hookAfter`, `interceptPacket` (network thread), Fabric event listeners, `game { }` |
+
 `onStop { }` runs once when the script ends, however it ends: finished, `stop()`, an error or `\kill`. Use it
 to put back what the script changed. The API still works in it, even after a kill, for up to 3 seconds:
 
@@ -189,7 +207,7 @@ data class Stats(val health: Float, val dimension: String)
 subscribe<Stats>("stats", latest = true) { actionBar("HP: ${it.health} in ${it.dimension}") }
 ```
 
-- Topics are any name you like. `subscribe` handlers run after the script body; the script stays alive while
+- Topics are any name you like. `subscribe` handlers run like other events; the script stays alive while
   subscribed. `subscribe` returns a `Handler`: `remove()` stops listening.
 - `latest = true` also delivers the topic's current value right away. `lastMessage<T>(topic)` reads it at any
   time, even if it was published before this script started.

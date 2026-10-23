@@ -1,3 +1,5 @@
+@file:OptIn(dev.ilgax.minekt.api.ExperimentalVisuals::class)
+
 package dev.ilgax.minekt.api
 
 import dev.ilgax.minekt.hooks.Glows
@@ -14,6 +16,7 @@ import dev.ilgax.minekt.job.Job
 // ends; like shapes, they don't keep it running.
 
 /** A glow outline from [glow]. */
+@ExperimentalVisuals
 class Glow internal constructor(
     internal val job: Job,
     /** The glowing entity's id. */
@@ -29,9 +32,11 @@ class Glow internal constructor(
 }
 
 /** Outline entity [entity] (an id, from `entities()` or `targetedEntity()`) in [color]. */
+@ExperimentalVisuals
 fun Minekt.glow(entity: Int, color: Int = Color.WHITE): Glow = addGlow(Glow(job, entity, color))
 
 /** Outline [entity] in [color]. */
+@ExperimentalVisuals
 fun Minekt.glow(entity: EntityInfo, color: Int = Color.WHITE): Glow = glow(entity.id, color)
 
 private fun Minekt.addGlow(glow: Glow): Glow {

@@ -1,5 +1,7 @@
 package dev.ilgax.minekt.api
 
+import kotlin.time.Duration.Companion.seconds
+import kotlin.time.Duration
 import net.minecraft.client.Screenshot
 import net.minecraft.client.gui.components.toasts.SystemToast
 import net.minecraft.client.resources.sounds.SimpleSoundInstance
@@ -23,9 +25,9 @@ fun Minekt.playSound(id: String = "minecraft:block.note_block.pling", volume: Fl
     Unit
 }
 
-/** Show a pop-up in the top-right corner for a few seconds. */
-fun Minekt.toast(title: String, message: String = "", seconds: Int = 5) = game { mc ->
-    SystemToast.add(mc.gui.toastManager(), SystemToast.SystemToastId(seconds * 1000L), Component.literal(title), Component.literal(message))
+/** Show a pop-up in the top-right corner for [duration]. */
+fun Minekt.toast(title: String, message: String = "", duration: Duration = 5.seconds) = game { mc ->
+    SystemToast.add(mc.gui.toastManager(), SystemToast.SystemToastId(duration.inWholeMilliseconds), Component.literal(title), Component.literal(message))
 }
 
 /** Show text above the hotbar (where "Now playing" and bed messages appear). */
@@ -33,10 +35,10 @@ fun Minekt.actionBar(text: String) = game { mc ->
     mc.gui.hud.setOverlayMessage(Component.literal(text), false)
 }
 
-/** Show a big title (and optional subtitle) in the middle of the screen. Times are in ticks. */
-fun Minekt.title(title: String, subtitle: String = "", fadeIn: Int = 10, stay: Int = 60, fadeOut: Int = 10) = game { mc ->
+/** Show a big title (and optional subtitle) in the middle of the screen, timed in game ticks (20 a second). */
+fun Minekt.title(title: String, subtitle: String = "", fadeInTicks: Int = 10, stayTicks: Int = 60, fadeOutTicks: Int = 10) = game { mc ->
     val hud = mc.gui.hud
-    hud.setTimes(fadeIn, stay, fadeOut)
+    hud.setTimes(fadeInTicks, stayTicks, fadeOutTicks)
     hud.setSubtitle(Component.literal(subtitle))
     hud.setTitle(Component.literal(title))
 }
@@ -46,6 +48,7 @@ fun Minekt.title(title: String, subtitle: String = "", fadeIn: Int = 10, stay: I
  * game's usual date-stamped name. Waits until the file is written.
  */
 fun Minekt.screenshot(name: String? = null): Path {
+    checkCanWait("screenshot") // it waits for the game to save the picture
     val fileName = name?.let { (if (it.endsWith(".png")) it else "$it.png").replace(Regex("[^A-Za-z0-9_.-]"), "_") }
     val done = CompletableFuture<Component>()
     val dir = game { mc ->

@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalBaritone::class)
+
 @file:Import("lib/fmt.kts")
 
 fun check(name: String, block: () -> Any?) {

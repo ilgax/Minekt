@@ -5,8 +5,8 @@ Everything below is in scope in every script, no imports needed.
 | Area | API |
 |---|---|
 | Output | `echo(vararg parts)` (plain, or styled with `chatText(text, color, bold, hover, click = ChatClick.run { })`), `chat(msg)` (a leading `/` makes it a command), `execute(cmd)`, `hudPanel { … }`, `writeLog(vararg parts)`, `clipboard`, `clipboard = text` |
-| Feedback | `playSound(id)`, `toast(title, message)`, `actionBar(text)`, `title(title, subtitle)`, `screenshot(name)` |
-| Control | `args`, `jobId`, `sleep(ms)`, `waitTicks(n)`, `stop()` |
+| Feedback | `playSound(id)`, `toast(title, message, duration)`, `actionBar(text)`, `title(title, subtitle, fadeInTicks, stayTicks, fadeOutTicks)`, `screenshot(name)` |
+| Control | `args`, `jobId`, `sleep(ms)` or `sleep(2.seconds)`, `waitTicks(n)`, `stop()` |
 | Player | `player` (name, position, eyePosition, lookDirection, yaw/pitch, health, food, xp, air, armor, effects, velocity, onGround, inWater, sneaking, sprinting, flying, gameMode, vehicle, …), `position`, `setOrientation(yaw, pitch)`, `lookAt(x, y, z)` |
 | Keybinds | `keybind(name, default)` → `onPress { }`, `onRelease { }`, `isDown`, `key`, `awaitPress()`, `awaitRelease()`, `remove()` |
 | Raw input | `onRawKey { }`, `onRawMouse { }`, `onMouseMove { }` (`cancel()`), `tapKey`, `keyDown`, `keyUp`, `typeText`, `clickMouse`, `mouseDown`, `mouseUp`, `scrollMouse`, `moveMouse`; `\record` writes these for you |
@@ -24,18 +24,18 @@ Everything below is in scope in every script, no imports needed.
 | Screens | `showScreen(title) { text(…); toggle(…); slider(…); textField(…); choice(…); button(…) { }; row { } }` |
 | Messages | `publish(topic, value)`, `subscribe<T>(topic) { }`, `awaitMessage<T>(topic)`, `lastMessage<T>(topic)` |
 | Timers | `every(5.seconds) { }`, `after(30.seconds) { }`, `everyTicks(n) { }`, `afterTicks(n) { }`, `atDaytime(13000) { }` |
-| Packets | `onPacket<T> { }`, `onPacketSent<T> { }`, `interceptPacket<T> { it or null }`, `interceptPacketSent<T> { }`, `awaitPacket<T>()`, `sendPacket(p)` |
-| Fabric events | `@file:OptIn(ExperimentalFabricEvents::class)`, then `ClientTickEvents.END_CLIENT_TICK.register { }` like in a mod; removed when the script ends (experimental) |
-| Method hooks | `hook<Class>("method") { call -> }`, `hookAfter<Class>("method") { call -> }` (change `args`, `cancel(value)`, replace `result`) |
+| Packets (experimental) | `onPacket<T> { }`, `onPacketSent<T> { }`, `interceptPacket<T> { it or null }`, `interceptPacketSent<T> { }`, `awaitPacket<T>()`, `sendPacket(p)` |
+| Fabric events (experimental) | `@file:OptIn(ExperimentalFabricEvents::class)`, then `ClientTickEvents.END_CLIENT_TICK.register { }` like in a mod; removed when the script ends (experimental) |
+| Method hooks (experimental) | `hook<Class>("method") { call -> }`, `hookAfter<Class>("method") { call -> }` (change `args`, `cancel(value)`, replace `result`) |
 | Code | `eval(code, "name" to value)`, `runScript(name, args)`, `startScript(name, args)` → `await()`, `kill()`, `isRunning` |
-| Class rewriting | `rewriteClass<Class> { node -> }` (ASM tree), `transformClass(name) { bytes -> newBytes }`, `classBytes<Class>()` |
+| Class rewriting (experimental) | `rewriteClass<Class> { node -> }` (ASM tree), `transformClass(name) { bytes -> newBytes }`, `classBytes<Class>()` |
 | Libraries | `@file:DependsOn("group:artifact:version")`, `@file:Repository("https://…")` |
 | World shapes | `highlight(pos)` (the block's own shape), `box(min, max)`, `line(a, b)`, `arrow(a, b)`, `text(pos, "…")` → `color`, `remove()`; `clearShapes()` |
-| Glow outlines | `glow(entity, color)` → `color`, `remove()`; blocks: `highlight(pos)` |
-| Fake blocks | `fakeBlock(pos, "minecraft:glass")`, `fakeBlocks(map)`, `clearFakeBlocks()` → `remove()` |
-| Pixels | `pixels(w, h)` → `[x, y] = color`, `fill`, `clear`, `data` + `changed()`; drawn with `g.pixels(p, x, y, w, h)` |
+| Glow outlines (experimental) | `glow(entity, color)` → `color`, `remove()`; blocks: `highlight(pos)` |
+| Fake blocks (experimental) | `fakeBlock(pos, "minecraft:glass")`, `fakeBlocks(map)`, `clearFakeBlocks()` → `remove()` |
+| Pixels (experimental) | `pixels(w, h)` → `[x, y] = color`, `fill`, `clear`, `data` + `changed()`; drawn with `g.pixels(p, x, y, w, h)` |
 | Drawing every frame | `onHudRender { g -> g.rect(…); g.text(…); g.item(…); g.image(…) }`, `onWorldRender { w -> w.line(…); w.box(…); w.text(…); w.point(…); w.entityPosition(id) }` |
-| Mods | `isModLoaded(id)`, `modVersion(id)`, `baritone.*` |
+| Mods | `isModLoaded(id)`, `modVersion(id)`, `baritone.*` (experimental) |
 | Raw access | `game { mc -> … }` runs on the client thread with the live `Minecraft` instance |
 
 Game state comes back as plain data (`PlayerInfo`, `EntityInfo`, `BlockInfo`, …). Those are copies, so
@@ -49,6 +49,29 @@ adds `+`, `-`, `*`, unpacking (`val (x, y, z) = pos`), `vec.blockPos` and `vec.t
 methods (`pos.below()`, `pos.above(2)`, `pos.offset(1, 0, -1)`, `pos.center`, `a.distanceTo(b)`, `v.length()`, …)
 work as in a mod. `echo` shows both as `(x, y, z)`; inside a string, use `toShortString()` (`"$pos"` alone
 gives Minecraft's long form).
+
+### Stable and experimental
+
+Everything on this page is stable: a script that only uses it keeps working in later Minekt versions (the build
+checks this against `api/minekt.api`). A few parts aren't settled yet and need a line at the top of the script:
+
+| Line | For |
+|---|---|
+| `@file:OptIn(ExperimentalPackets::class)` | `onPacket`, `interceptPacket`, `sendPacket`, `awaitPacket`: Minecraft's packet classes change every version |
+| `@file:OptIn(ExperimentalHooks::class)` | `hook`, `hookAfter`, `rewriteClass`, `transformClass`, `classBytes`: they name the game's methods |
+| `@file:OptIn(ExperimentalVisuals::class)` | `glow`, `fakeBlock`, `fakeBlocks`, `pixels`: new, may still change |
+| `@file:OptIn(ExperimentalBaritone::class)` | `baritone.*`: follows Baritone's own API |
+| `@file:OptIn(ExperimentalFabricEvents::class)` | Fabric API events |
+
+Several at once: `@file:OptIn(ExperimentalPackets::class, ExperimentalHooks::class)`. Without the line, the
+script doesn't compile and the error says which line to add. `game { }` is stable itself, but what you do with
+the game inside it follows Minecraft's own changes.
+
+### Time
+
+Real time is a Kotlin `Duration`: `every(5.seconds)`, `toast("Hi", duration = 3.seconds)`, `httpGet(url, timeout = 10.seconds)`,
+`sleep(2.seconds)` (and `sleep(500)` in milliseconds, as everyone expects). Game time is in ticks (20 a second) and
+says so: `waitTicks(20)`, `everyTicks(5)`, `title(…, stayTicks = 60)`, `effect.durationTicks`.
 
 Details by topic:
 

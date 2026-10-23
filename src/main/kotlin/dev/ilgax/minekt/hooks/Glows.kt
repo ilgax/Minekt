@@ -1,3 +1,5 @@
+@file:OptIn(dev.ilgax.minekt.api.ExperimentalVisuals::class)
+
 package dev.ilgax.minekt.hooks
 
 import dev.ilgax.minekt.api.Glow

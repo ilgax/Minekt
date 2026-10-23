@@ -52,7 +52,7 @@ fun Minekt.httpPost(url: String, body: Any? = null, headers: Map<String, String>
 
 /** Any request: [method] is GET, POST, PUT, PATCH, DELETE, … [body] as for [httpPost]. */
 fun Minekt.http(method: String, url: String, body: Any? = null, headers: Map<String, String> = emptyMap(), timeout: Duration = 30.seconds): HttpResult {
-    job.checkAlive()
+    checkCanWait("http")
     val uri = runCatching { URI(url) }.getOrNull()?.takeIf { it.scheme == "http" || it.scheme == "https" }
         ?: throw IllegalArgumentException("Not a web address: $url")
     val (content, type) = when (body) {

@@ -85,7 +85,7 @@ check("player: food, xp, effects, game mode, ground") {
     server("xp set $me 7 levels")
     waitTicks(10)
     val p = player
-    (p.food in 0..20 && p.xpLevel == 7 && p.effects.any { it.id == "minecraft:speed" && it.amplifier == 1 && it.duration > 0 } &&
+    (p.food in 0..20 && p.xpLevel == 7 && p.effects.any { it.id == "minecraft:speed" && it.amplifier == 1 && it.durationTicks > 0 } &&
         p.gameMode == "survival" && p.onGround && !p.inWater && p.air == p.maxAir && p.vehicle == null) then
         "food=${p.food} xp=${p.xpLevel} effects=${p.effects} mode=${p.gameMode} air=${p.air}/${p.maxAir} armor=${p.armor}"
 }
@@ -246,7 +246,7 @@ check("entities: custom name, baby, equipment, glowing, max health") {
         "${bob.customName}: baby=${bob.isBaby} equipment=${bob.equipment} glowing=${bob.glowing} health=${bob.health}/${bob.maxHealth}, then gone"
 }
 
-// Clicks are handled like other events, once the script body is done: click, then check from a coroutine.
+// Clicks are handled like other events (while the body waits, or after it): click, then check from a coroutine.
 launch {
     check("clicking a ChatClick.run text runs the script's code") {
         execute(clickCommand ?: return@check "FALSE no click command") // what the game does when the text is clicked

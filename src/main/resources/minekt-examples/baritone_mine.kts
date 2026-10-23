@@ -1,4 +1,6 @@
 // \baritone_mine [block] [count] — mine with Baritone, then report back. Needs Baritone installed.
+@file:OptIn(ExperimentalBaritone::class)
+
 if (!baritone.isAvailable) {
     echo("Baritone isn't installed")
     stop()

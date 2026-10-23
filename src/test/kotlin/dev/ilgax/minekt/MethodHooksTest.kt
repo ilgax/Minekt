@@ -25,7 +25,7 @@ class MethodHooksTest {
     }
 
     private fun script(code: String): Job {
-        val job = jobs.eval("import dev.ilgax.minekt.HookTarget\n$code\necho(\"hooked\")")
+        val job = jobs.eval("@file:OptIn(ExperimentalHooks::class)\nimport dev.ilgax.minekt.HookTarget\n$code\necho(\"hooked\")")
         assertEquals("hooked", host.next())
         return job
     }
@@ -76,7 +76,8 @@ class MethodHooksTest {
 
     @Test
     fun `overloads must be named`() {
-        jobs.eval("""import dev.ilgax.minekt.HookTarget; hook<HookTarget>("overloaded") { }""")
+        jobs.eval("""@file:OptIn(ExperimentalHooks::class)
+import dev.ilgax.minekt.HookTarget; hook<HookTarget>("overloaded") { }""")
         assertTrue("is overloaded" in host.next())
         val job = script("""hook<HookTarget>("overloaded", String::class.java) { it.cancel("picked") }""")
         assertEquals("picked", target.overloaded("x"))

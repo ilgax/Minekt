@@ -1,6 +1,7 @@
 // \glowmobs — outlines mobs around you through walls: hostile ones red, others green, players white,
 // plus chests and barrels yellow. Updated every second. Stops with \kill.
 // Shows: glow on entities, highlight on blocks, changing a glow's color, findBlocks.
+@file:OptIn(ExperimentalVisuals::class)
 
 val range by setting(32, 8..64, label = "Range (blocks)")
 val hostile = setOf(

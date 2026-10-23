@@ -1,5 +1,7 @@
 // In-game test for glow outlines, fake blocks, pixels and Minekt's settings (incl. Mod Menu's entry).
 // Singleplayer test world.
+@file:OptIn(ExperimentalVisuals::class)
+
 import java.util.concurrent.atomic.AtomicInteger
 import javax.imageio.ImageIO
 
@@ -151,7 +153,7 @@ check("fakeBlocks: 2000 at once is quick") {
 }
 check("fake blocks come off when their script ends") {
     val file = game { it.gameDirectory.toPath().resolve("minekt/vzchild.kts") }
-    java.nio.file.Files.writeString(file, "fakeBlock(2, 200, 6, \"minecraft:emerald_block\")\nsleep(1500)\nstop()\n")
+    java.nio.file.Files.writeString(file, "@file:OptIn(ExperimentalVisuals::class)\nfakeBlock(2, 200, 6, \"minecraft:emerald_block\")\nsleep(1500)\nstop()\n")
     val run = startScript("vzchild")
     val during = waitFor(5) { blockId(BlockPos(2, 200, 6)) == "minecraft:emerald_block" }
     run.await()
@@ -246,7 +248,7 @@ check("the prefix can be changed, is saved, and bad ones are refused") {
     (refused.size == 4 && set && "\"prefix\": \"!\"" in saved) then "refused ${refused.size}, saved: ${saved.replace("\n", " ")}"
 }
 
-// Events reach handlers once the body is done, so the last checks run in a coroutine.
+// The last checks run in a coroutine, while handlers run on the script thread.
 launch {
     check("fakes don't show up as block changes") {
         val changes = AtomicInteger()

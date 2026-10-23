@@ -1,6 +1,6 @@
 // \quicktools — B toggles full bright, the action bar warns once below 3 hearts, and you can't jump while
 // sneaking. The same small mod written as a Fabric mod and as this script: docs/from-fabric.md.
-@file:OptIn(ExperimentalFabricEvents::class)
+@file:OptIn(ExperimentalFabricEvents::class, ExperimentalHooks::class)
 
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.minecraft.client.player.LocalPlayer

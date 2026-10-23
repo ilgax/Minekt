@@ -72,4 +72,36 @@ class HandlersTest {
         assertEquals("damage 2.0 minecraft:fall", host.next())
         awaitState(job, Job.State.DONE)
     }
+
+    @Test
+    fun `handlers run while the body sleeps, so a loop sees what they change`() {
+        val job = run(
+            "looping",
+            """
+            var running = true
+            onChat { (text) -> if (text == "stop") running = false else echo("heard " + text) }
+            echo("started")
+            var rounds = 0
+            while (running) { sleep(20); rounds++ }
+            echo("loop ended")
+            stop()
+            """.trimIndent(),
+        )
+        assertEquals("started", host.next())
+        awaitState(job, Job.State.RUNNING)
+        Thread.sleep(200)
+        jobs.dispatch(Job.Event.Chat(ChatMessage("hi")))
+        assertEquals("heard hi", host.next()) // delivered while the body is still in its loop
+        jobs.dispatch(Job.Event.Chat(ChatMessage("stop")))
+        assertEquals("loop ended", host.next())
+        awaitState(job, Job.State.DONE)
+    }
+
+    @Test
+    fun `waiting on the game thread is refused with an explanation`() {
+        val job = run("gamewait", """echo(runCatching { game { sleep(10) } }.exceptionOrNull()?.message)""")
+        val message = host.next()
+        kotlin.test.assertTrue(message.startsWith("sleep can't be used here: this code runs on the game's own thread"), message)
+        awaitState(job, Job.State.DONE)
+    }
 }

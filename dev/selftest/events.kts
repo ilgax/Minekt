@@ -99,16 +99,19 @@ onSound { (id, pos, category) -> events += MinektEvent.Sound(id, pos, category) 
 onParticle { (id, pos, count) -> events += MinektEvent.Particle(id, pos, count) }
 onScoreboardChange { events += MinektEvent.ScoreboardChange(it.title, it.lines) }
 
-// Handlers run once the script body is done, so the rest happens in a coroutine.
+// The rest happens in a coroutine, while the handlers above run on the script thread.
 launch {
     val p = player.position.blockPos
     fun at(dx: Int, dy: Int, dz: Int) = "${p.x + dx} ${p.y + dy} ${p.z + dz}"
 
     check("onBlockChange sees a block placed and removed") {
+        server("setblock ${at(2, 0, 0)} minecraft:air") // an earlier test may have left something here
+        waitTicks(10)
+        val target = BlockPos(p.x + 2, p.y, p.z)
+        events.removeIf { it is MinektEvent.BlockChange && it.pos == target }
         server("setblock ${at(2, 0, 0)} minecraft:gold_block")
         waitTicks(10)
         server("setblock ${at(2, 0, 0)} minecraft:air")
-        val target = BlockPos(p.x + 2, p.y, p.z)
         waitFor(5) { events.count { it is MinektEvent.BlockChange && it.pos == target } >= 2 }
         val seen = events.filterIsInstance<MinektEvent.BlockChange>().filter { it.pos == target }.map { "${it.old} -> ${it.new}" }
         (seen == listOf("minecraft:air -> minecraft:gold_block", "minecraft:gold_block -> minecraft:air")) then seen
