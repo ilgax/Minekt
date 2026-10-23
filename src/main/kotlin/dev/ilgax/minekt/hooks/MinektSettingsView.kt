@@ -34,6 +34,8 @@ internal class MinektSettingsView(
         row {
             button("Script manager") { openManager(Minecraft.getInstance()) }
             button("Scripts folder") { Files.createDirectories(scriptDir); Blaze3D.openPath(scriptDir) }
+        }
+        row {
             button("autorun.txt", tooltip = "Commands that run on their own: on joining a world or server, or at startup") {
                 val autorun = scriptDir.resolve("autorun.txt")
                 if (!Files.exists(autorun)) Files.writeString(autorun, AUTORUN_TEMPLATE)

@@ -24,11 +24,11 @@ fun check(name: String, block: () -> Pair<Boolean, Any?>) {
 
 /**
  * Show [instruction] on screen and wait (up to [seconds]) until [done]; false if the player skipped it.
- * The title line is drawn big and never wraps, so it stays short and [detail] goes on the line below.
+ * Titles and subtitles never wrap, so both stay short: [detail] goes below and the skip hint only in chat.
  */
 fun ask(instruction: String, detail: String = "", seconds: Int = 30, done: () -> Boolean): Boolean {
-    title(instruction, listOf(detail, "(or wait ${seconds}s to skip)").filter { it.isNotEmpty() }.joinToString(" "), fadeInTicks = 0, stayTicks = seconds * 20, fadeOutTicks = 5)
-    echo(chatText("» $instruction $detail".trim(), Color.YELLOW, bold = true))
+    title(instruction, detail, fadeInTicks = 0, stayTicks = seconds * 20, fadeOutTicks = 5)
+    echo(chatText("» $instruction $detail".trim(), Color.YELLOW, bold = true) + chatText(" (or wait ${seconds}s to skip)", 0xAAAAAA))
     repeat(seconds * 10) {
         if (done()) {
             title("✔", "", fadeInTicks = 0, stayTicks = 15, fadeOutTicks = 5)

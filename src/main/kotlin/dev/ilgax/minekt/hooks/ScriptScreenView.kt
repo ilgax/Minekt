@@ -166,7 +166,7 @@ internal class ScriptScreenView(
 
     /** Text lines of [item]; live text runs script code here, on the game thread. */
     private fun textOf(item: ScreenItem.Text): List<String> = try {
-        item.text().split('\n').let { lines -> if (item.left) lines.flatMap { wrap(it, columnWidth) } else lines }
+        item.text().split('\n').flatMap { wrap(it, columnWidth) }
     } catch (t: Throwable) {
         listOf("⚠ ${t.message ?: t.javaClass.simpleName}")
     }

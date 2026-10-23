@@ -251,8 +251,10 @@ check("the prefix can be changed, is saved, and bad ones are refused") {
 // The last checks run in a coroutine, while handlers run on the script thread.
 launch {
     check("fakes don't show up as block changes") {
+        // Only this block: the rest of the world changes too (leaves decaying, crops growing).
         val changes = AtomicInteger()
-        onBlockChange { (_, _, _) -> changes.incrementAndGet() }
+        val at = BlockPos(-1, 200, 5)
+        onBlockChange { (pos, _, _) -> if (pos == at) changes.incrementAndGet() }
         val f = fakeBlock(-1, 200, 5, "minecraft:glass")
         f.remove()
         server("setblock -1 200 5 minecraft:stone")

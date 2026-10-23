@@ -322,7 +322,7 @@ class ScriptEngineTest {
 
     @Test
     fun `the tutorial's scripts compile`() {
-        val blocks = Regex("```kotlin\\n(.*?)```", RegexOption.DOT_MATCHES_ALL).findAll(Files.readString(Path.of("docs/tutorial.md"))).map { it.groupValues[1] }.toList()
+        val blocks = Regex("```kotlin\\r?\\n(.*?)```", RegexOption.DOT_MATCHES_ALL).findAll(Files.readString(Path.of("docs/tutorial.md"))).map { it.groupValues[1] }.toList()
         assertTrue(blocks.size >= 6, "found ${blocks.size} blocks")
         val failures = blocks.mapIndexedNotNull { i, code ->
             val result = dev.ilgax.minekt.script.ScriptCompiler.compile(code.toScriptSource("tutorial$i.kts"))

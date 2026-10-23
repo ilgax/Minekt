@@ -7,9 +7,12 @@ import java.util.Collections
 import java.util.WeakHashMap
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.script.experimental.api.*
+import kotlin.script.experimental.host.ScriptingHostConfiguration
 import kotlin.script.experimental.host.createCompilationConfigurationFromTemplate
 import kotlin.script.experimental.host.toScriptSource
+import kotlin.script.experimental.jvm.baseClassLoader
 import kotlin.script.experimental.jvm.defaultJvmScriptingHostConfiguration
+import kotlin.script.experimental.jvm.jvm
 import kotlin.script.experimental.jvm.impl.KJvmCompiledModule
 import kotlin.script.experimental.jvm.impl.KJvmCompiledModuleInMemory
 import kotlin.script.experimental.jvm.impl.KJvmCompiledScript
@@ -18,14 +21,23 @@ import kotlinx.coroutines.runBlocking
 
 /** Compiles scripts against [MinektScript], caching results by source content. */
 object ScriptCompiler {
+    /**
+     * The default host takes its class loader from whichever thread first touched it, which under Fabric
+     * can be none. The compiler then can't load `@file:Import`/`@DependsOn` and silently ignores them.
+     */
+    private val host by lazy {
+        ScriptingHostConfiguration(defaultJvmScriptingHostConfiguration) {
+            jvm { baseClassLoader(MinektScript::class.java.classLoader) }
+        }
+    }
     private val configuration by lazy {
         createCompilationConfigurationFromTemplate(
             KotlinType(MinektScript::class),
-            defaultJvmScriptingHostConfiguration,
+            host,
             MinektScript::class,
         )
     }
-    private val compiler by lazy { JvmScriptCompiler(defaultJvmScriptingHostConfiguration) }
+    private val compiler by lazy { JvmScriptCompiler(host) }
     private val cache = ConcurrentHashMap<String, CompiledScript>()
     private val lock = Any()
 
