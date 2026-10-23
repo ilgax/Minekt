@@ -105,7 +105,7 @@ where the lines below them run:
 Create `minekt/hello.kts`:
 
 ```kotlin
-echo("Hello, ${player.name}! You're at ${player.position}")
+echo("Hello, ${player.name}! You're at", player.position)
 ```
 
 and type `\hello` in chat. Edit the file and run it again: changes are picked up without restarting. Next:

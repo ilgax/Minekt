@@ -1,6 +1,6 @@
 package dev.ilgax.minekt.job
 
-import dev.ilgax.minekt.api.GameEvent
+import dev.ilgax.minekt.api.MinektEvent
 import dev.ilgax.minekt.api.Minekt
 import dev.ilgax.minekt.hooks.ClassRewrites
 import dev.ilgax.minekt.hooks.MethodHooks
@@ -59,7 +59,7 @@ class Job internal constructor(
         data class Command(val name: String, val args: List<String>) : Event
         /** A script keybind went down ([pressed]) or up. */
         data class Keybind(val id: String, val pressed: Boolean = true) : Event
-        data class Game(val event: GameEvent) : Event
+        data class Game(val event: MinektEvent) : Event
         data class Message(val topic: String, val value: Any?, val from: String) : Event
         data class Packet(val packet: net.minecraft.network.protocol.Packet<*>, val incoming: Boolean) : Event
         data class Setting(val key: String, val value: Any) : Event
@@ -101,8 +101,8 @@ class Job internal constructor(
     internal val keybindHandlers = ConcurrentHashMap<String, CopyOnWriteArrayList<KeybindHandler>>()
 
     class KeybindHandler(val onPress: Boolean, val handler: () -> Unit)
-    internal val gameHandlers = CopyOnWriteArrayList<(GameEvent) -> Unit>()
-    /** Event types the handlers above are for (`GameEvent` itself: all), so unwanted events cost nothing. */
+    internal val gameHandlers = CopyOnWriteArrayList<(MinektEvent) -> Unit>()
+    /** Event types the handlers above are for (`MinektEvent` itself: all), so unwanted events cost nothing. */
     internal val gameEventTypes: MutableSet<Class<*>> = ConcurrentHashMap.newKeySet()
     /** `awaitEvent` calls in progress: they may want any event. */
     internal val gameAwaiters = java.util.concurrent.atomic.AtomicInteger()

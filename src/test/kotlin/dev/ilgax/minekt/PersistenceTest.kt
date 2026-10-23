@@ -70,7 +70,7 @@ class PersistenceTest {
     fun `script-defined data classes round-trip`() {
         val code = """data class Waypoint(val name: String, val pos: BlockPos, val tags: List<String>)
             |val points by persistent { mutableListOf<Waypoint>() }
-            |echo(points.joinToString { it.name + it.pos + it.tags })
+            |echo(points.joinToString { it.name + "(" + it.pos.toShortString() + ")" + it.tags })
             |points += Waypoint("mine", BlockPos(1, -40, 2), listOf("diamonds"))""".trimMargin()
         assertEquals(listOf(""), run("points", code))
         assertEquals(listOf("mine(1, -40, 2)[diamonds]"), run("points", code, JobManager(host)))

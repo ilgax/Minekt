@@ -1,8 +1,8 @@
 package dev.ilgax.minekt
 
 import com.sun.net.httpserver.HttpServer
-import dev.ilgax.minekt.api.BlockPos
-import dev.ilgax.minekt.api.GameEvent
+import net.minecraft.core.BlockPos
+import dev.ilgax.minekt.api.MinektEvent
 import dev.ilgax.minekt.job.Autorun
 import dev.ilgax.minekt.job.Job
 import dev.ilgax.minekt.job.JobManager
@@ -207,17 +207,17 @@ class NewFeaturesTest {
             """.trimIndent(),
         )
         awaitListening(job)
-        assertTrue(jobs.wantsGame(GameEvent.BlockChange::class.java))
-        assertTrue(jobs.wantsGame(GameEvent.PlayerJoin::class.java))
-        assertFalse(jobs.wantsGame(GameEvent.Sound::class.java))
-        assertFalse(jobs.wantsGame(GameEvent.EntityAppear::class.java))
-        jobs.dispatch(Job.Event.Game(GameEvent.Sound("minecraft:ui.button.click", dev.ilgax.minekt.api.Vec3(0.0, 0.0, 0.0), "ui")))
-        jobs.dispatch(Job.Event.Game(GameEvent.BlockChange(BlockPos(1, 2, 3), "minecraft:stone", "minecraft:air")))
+        assertTrue(jobs.wantsGame(MinektEvent.BlockChange::class.java))
+        assertTrue(jobs.wantsGame(MinektEvent.PlayerJoin::class.java))
+        assertFalse(jobs.wantsGame(MinektEvent.Sound::class.java))
+        assertFalse(jobs.wantsGame(MinektEvent.EntityAppear::class.java))
+        jobs.dispatch(Job.Event.Game(MinektEvent.Sound("minecraft:ui.button.click", net.minecraft.world.phys.Vec3(0.0, 0.0, 0.0), "ui")))
+        jobs.dispatch(Job.Event.Game(MinektEvent.BlockChange(BlockPos(1, 2, 3), "minecraft:stone", "minecraft:air")))
         assertEquals("block (1, 2, 3) minecraft:stone minecraft:air", host.next())
-        jobs.dispatch(Job.Event.Game(GameEvent.PlayerJoin("Alex")))
+        jobs.dispatch(Job.Event.Game(MinektEvent.PlayerJoin("Alex")))
         assertEquals("join Alex", host.next())
         awaitDone(job)
         while (job in jobs.jobs) Thread.sleep(10) // removed right after it's marked done
-        assertFalse(jobs.wantsGame(GameEvent.BlockChange::class.java))
+        assertFalse(jobs.wantsGame(MinektEvent.BlockChange::class.java))
     }
 }

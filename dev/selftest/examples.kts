@@ -17,7 +17,7 @@ fun server(command: String) = game { mc ->
 }
 
 var waited = 0
-while (blockId(player.position.blockPos.offset(dy = -1)) == "minecraft:void_air" && waited < 1200) { waitTicks(20); waited += 20 }
+while (blockId(player.position.blockPos.below()) == "minecraft:void_air" && waited < 1200) { waitTicks(20); waited += 20 }
 waitTicks(40)
 val me = player.name
 server("gamemode survival $me")
@@ -61,6 +61,7 @@ running.values.forEach { runCatching { it.kill() } }
 server("kill @e[tag=extest]")
 server("difficulty peaceful")
 server("time set 6000")
+server("gamemode creative $me") // leave the world safe for the next test
 echo("EX DONE")
 sleep(1000)
 game { it.stop() }

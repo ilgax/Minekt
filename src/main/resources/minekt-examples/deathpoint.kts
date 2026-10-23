@@ -5,8 +5,8 @@ var marker: List<ShapeHandle> = emptyList()
 
 onDeath {
     lastDeath = position
-    echo("Died at ${position.blockPos} in ${world.dimension}")
-    toast("You died", "at ${position.blockPos}")
+    echo("Died at ${position.blockPos.toShortString()} in ${world.dimension}")
+    toast("You died", "at ${position.blockPos.toShortString()}")
 }
 onRespawn {
     val spot = lastDeath ?: return@onRespawn

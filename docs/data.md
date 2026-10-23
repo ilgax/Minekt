@@ -36,7 +36,7 @@ var motd by persistent(store = "shared") { "" }                         // share
 - The value is restored when the script starts, or created by the `{ default }` the first time.
 - Saved to `.minecraft/minekt/data/<script>.json` (readable JSON). That happens when you assign a `var`, every
   few seconds for in-place changes, when the script ends, and when the game closes. Call `save()` to force it.
-- Lists, sets, maps, strings, numbers, booleans, Minekt's types (`Vec3`, `BlockPos`, ...) and your own data
+- Lists, sets, maps, strings, numbers, booleans, positions (`Vec3`, `BlockPos`), Minekt's types and your own data
   classes all work, and come back as their declared types.
 - `perWorld` keys singleplayer worlds by save folder and servers by address.
 - If a saved value no longer fits the declared type (you changed it), the script warns and starts from the
@@ -45,7 +45,7 @@ var motd by persistent(store = "shared") { "" }                         // share
 ## Web requests
 
 ```kotlin
-httpPost(webhookUrl, mapOf("content" to "Found diamonds at ${player.position}"))   // a Discord webhook
+httpPost(webhookUrl, mapOf("content" to "Found diamonds at ${player.position.toShortString()}"))   // a Discord webhook
 data class Weather(val temperature: Double, val description: String)
 val weather = httpGet("https://api.example.com/weather?city=Oslo").json<Weather>()
 val page = httpGet("https://example.com", headers = mapOf("Accept" to "text/html"))

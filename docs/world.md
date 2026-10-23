@@ -106,7 +106,7 @@ val sees = raycast(mobEyes, p.eyePosition, entities = false, solidOnly = true) =
   `solidOnly = true` only counts blocks you'd bump into.
 - You never stop your own raycasts unless `includeSelf = true`. Unloaded chunks count as empty.
 - `player.eyePosition` and `player.lookDirection` (one block long) give the crosshair's line; `Vec3` has `+`,
-  `-`, `*` and `length` for the math.
+  `-`, `*` and `length()` for the math (see [positions](api.md#positions)).
 
 ## World info and large scans
 
@@ -138,7 +138,7 @@ Blocks only you can see, for build previews, markers or trying out a design:
 
 ```kotlin
 val marker = fakeBlock(10, 64, 10, "minecraft:glowstone")
-fakeBlock(player.position.blockPos.offset(dy = -1), "minecraft:oak_stairs[facing=east,half=top]")
+fakeBlock(player.position.blockPos.below(), "minecraft:oak_stairs[facing=east,half=top]")
 marker.remove()                                            // the real block comes back
 fakeBlocks(plan.associate { it.pos to it.block })          // many at once: one trip to the game thread
 clearFakeBlocks()

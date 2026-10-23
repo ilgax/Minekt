@@ -272,15 +272,15 @@ class ScriptEngineTest {
             """
             onDamage { (amount, health) -> echo("hurt", amount, health) }
             onItemGained { (id, n) -> echo("gained", id, n) }
-            launch { awaitEventOf<GameEvent.Death>(); echo("died"); stop() }
+            launch { awaitEventOf<MinektEvent.Death>(); echo("died"); stop() }
             """.trimIndent()
         )
         awaitListening(job)
-        jobs.dispatch(Job.Event.Game(dev.ilgax.minekt.api.GameEvent.Damage(3f, 17f)))
+        jobs.dispatch(Job.Event.Game(dev.ilgax.minekt.api.MinektEvent.Damage(3f, 17f)))
         assertEquals(MessageKind.SCRIPT to "hurt 3.0 17.0", host.next())
-        jobs.dispatch(Job.Event.Game(dev.ilgax.minekt.api.GameEvent.ItemGained("minecraft:dirt", 4)))
+        jobs.dispatch(Job.Event.Game(dev.ilgax.minekt.api.MinektEvent.ItemGained("minecraft:dirt", 4)))
         assertEquals(MessageKind.SCRIPT to "gained minecraft:dirt 4", host.next())
-        jobs.dispatch(Job.Event.Game(dev.ilgax.minekt.api.GameEvent.Death))
+        jobs.dispatch(Job.Event.Game(dev.ilgax.minekt.api.MinektEvent.Death))
         assertEquals(MessageKind.SCRIPT to "died", host.next())
         awaitDone(job)
     }

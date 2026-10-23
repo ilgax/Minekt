@@ -1,5 +1,6 @@
 package dev.ilgax.minekt.api
 
+import net.minecraft.world.phys.Vec3
 import dev.ilgax.minekt.job.Job
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
@@ -13,7 +14,6 @@ import net.minecraft.resources.Identifier
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.phys.AABB
 import java.nio.file.Path
-import net.minecraft.world.phys.Vec3 as McVec3
 
 // Drawing every frame:
 //
@@ -113,25 +113,25 @@ class WorldCanvas internal constructor(
 ) {
     /** A line; [throughWalls] draws it on top of everything. */
     fun line(from: Vec3, to: Vec3, color: Int, width: Float = 2f, throughWalls: Boolean = false) =
-        Gizmos.line(from.mc(), to.mc(), opaque(color), width).onTop(throughWalls)
+        Gizmos.line(from, to, opaque(color), width).onTop(throughWalls)
 
     fun arrow(from: Vec3, to: Vec3, color: Int, width: Float = 2f, throughWalls: Boolean = false) =
-        Gizmos.arrow(from.mc(), to.mc(), opaque(color), width).onTop(throughWalls)
+        Gizmos.arrow(from, to, opaque(color), width).onTop(throughWalls)
 
     /** A box from corner [min] to corner [max]: an outline, or [fill]ed see-through. */
     fun box(min: Vec3, max: Vec3, color: Int, fill: Boolean = false, width: Float = 2f, throughWalls: Boolean = false) =
         Gizmos.cuboid(
-            AABB(min.mc(), max.mc()),
+            AABB(min, max),
             if (fill) GizmoStyle.strokeAndFill(opaque(color), width, Color.withAlpha(color, 0x40)) else GizmoStyle.stroke(opaque(color), width),
         ).onTop(throughWalls)
 
     /** A dot [size] pixels across. */
     fun point(pos: Vec3, color: Int, size: Float = 4f, throughWalls: Boolean = false) =
-        Gizmos.point(pos.mc(), opaque(color), size).onTop(throughWalls)
+        Gizmos.point(pos, opaque(color), size).onTop(throughWalls)
 
     /** Text that always faces the camera. */
     fun text(pos: Vec3, text: String, color: Int = Color.WHITE, scale: Float = 1f, throughWalls: Boolean = false) =
-        Gizmos.billboardText(text, pos.mc(), TextGizmo.Style.forColorAndCentered(opaque(color)).withScale(TextGizmo.Style.DEFAULT_SCALE * scale))
+        Gizmos.billboardText(text, pos, TextGizmo.Style.forColorAndCentered(opaque(color)).withScale(TextGizmo.Style.DEFAULT_SCALE * scale))
             .onTop(throughWalls)
 
     /**
@@ -144,7 +144,5 @@ class WorldCanvas internal constructor(
     private fun GizmoProperties.onTop(throughWalls: Boolean) {
         if (throughWalls) setAlwaysOnTop()
     }
-
-    private fun Vec3.mc() = McVec3(x, y, z)
 }
 

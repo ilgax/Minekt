@@ -1,5 +1,7 @@
 package dev.ilgax.minekt.api
 
+import net.minecraft.world.phys.Vec3
+import net.minecraft.core.BlockPos
 import net.minecraft.client.Minecraft
 import net.minecraft.client.player.LocalPlayer
 import net.minecraft.world.item.component.SwingAnimation
@@ -8,7 +10,6 @@ import net.minecraft.world.entity.Entity
 import net.minecraft.world.phys.BlockHitResult
 import net.minecraft.world.phys.EntityHitResult
 import net.minecraft.world.phys.HitResult
-import net.minecraft.world.phys.Vec3 as McVec3
 
 // What the player is looking at, and acting on blocks and entities like a player would (the server
 // still applies its usual reach and permission checks).
@@ -17,7 +18,7 @@ import net.minecraft.world.phys.Vec3 as McVec3
 val Minekt.targetedBlock: TargetedBlock? get() = game { mc ->
     val hit = mc.hitResult as? BlockHitResult ?: return@game null
     if (hit.type != HitResult.Type.BLOCK) return@game null
-    TargetedBlock(hit.blockPos.toApi(), mc.level!!.blockId(hit.blockPos), hit.direction.toApi(), hit.location.toApi())
+    TargetedBlock(hit.blockPos.immutable(), mc.level!!.blockId(hit.blockPos), hit.direction.toApi(), hit.location)
 }
 
 /** The entity under the crosshair, or null. */
@@ -35,8 +36,8 @@ fun Minekt.useItem() = game { mc ->
 fun Minekt.useOn(pos: BlockPos, face: Face = Face.UP): Boolean = game { mc ->
     val player = mc.player ?: error("Not in a world")
     val side = face.toMc()
-    val center = McVec3(pos.x + 0.5 + side.stepX * 0.5, pos.y + 0.5 + side.stepY * 0.5, pos.z + 0.5 + side.stepZ * 0.5)
-    val result = mc.gameMode!!.useItemOn(player, InteractionHand.MAIN_HAND, BlockHitResult(center, side, pos.toMc(), false))
+    val center = Vec3(pos.x + 0.5 + side.stepX * 0.5, pos.y + 0.5 + side.stepY * 0.5, pos.z + 0.5 + side.stepZ * 0.5)
+    val result = mc.gameMode!!.useItemOn(player, InteractionHand.MAIN_HAND, BlockHitResult(center, side, pos, false))
     if (result.consumesAction()) player.swingMainHand()
     result.consumesAction()
 }

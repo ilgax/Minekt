@@ -52,7 +52,7 @@ fun widgetCenter(text: String): Pair<Int, Int>? = game { mc ->
 
 /** Click a widget, first scrolling the wheel down until it's on screen. */
 fun clickWidget(text: String): Boolean {
-    repeat(10) {
+    repeat(40) { // enough for a long script list
         if (widgetCenter(text) != null) return@repeat
         val (x, y) = game { mc -> (mc.window.width / 2) to (mc.window.height / 2) }
         xdo("mousemove --window WIN $x $y click 5 click 5")
@@ -63,7 +63,7 @@ fun clickWidget(text: String): Boolean {
 }
 
 var waited = 0
-while (blockId(player.position.blockPos.offset(dy = -1)) == "minecraft:void_air" && waited < 1200) { waitTicks(20); waited += 20 }
+while (blockId(player.position.blockPos.below()) == "minecraft:void_air" && waited < 1200) { waitTicks(20); waited += 20 }
 waitTicks(20)
 val me = player.name
 server("gamemode survival $me")

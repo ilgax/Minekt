@@ -33,6 +33,8 @@ class MinektCompilationConfiguration : ScriptCompilationConfiguration({
     implicitReceivers(Minekt::class)
     defaultImports(
         "dev.ilgax.minekt.api.*",
+        "net.minecraft.world.phys.Vec3",
+        "net.minecraft.core.BlockPos",
         "kotlin.math.*",
         "kotlinx.coroutines.*",
         "kotlin.time.Duration",

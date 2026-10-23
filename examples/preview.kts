@@ -13,7 +13,7 @@ fun show() {
     shown.forEach { it.remove() }
     val half = size / 2
     val plan = buildMap {
-        for (dx in -half until size - half) for (dz in -half until size - half) put(at.offset(dx = dx, dz = dz), block)
+        for (dx in -half until size - half) for (dz in -half until size - half) put(at.offset(dx, 0, dz), block)
     }
     shown = fakeBlocks(plan)
     actionBar("Preview: $size × $size of ${block.removePrefix("minecraft:")}")
@@ -21,7 +21,7 @@ fun show() {
 
 fun moveHere() {
     val target = targetedBlock ?: return actionBar("Look at a block first")
-    center = target.pos.offset(dy = 1)
+    center = target.pos.above()
     show()
 }
 

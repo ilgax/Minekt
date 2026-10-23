@@ -16,14 +16,14 @@ fun server(command: String) = game { mc ->
 
 // Wait for terrain.
 var waited = 0
-while (blockId(player.position.blockPos.offset(dy = -1)) == "minecraft:void_air" && waited < 1200) { waitTicks(20); waited += 20 }
+while (blockId(player.position.blockPos.below()) == "minecraft:void_air" && waited < 1200) { waitTicks(20); waited += 20 }
 waitTicks(20)
 
 // Record every game event from the start, concurrently with the test body (coroutines).
-val seen = java.util.concurrent.CopyOnWriteArrayList<GameEvent>()
+val seen = java.util.concurrent.CopyOnWriteArrayList<MinektEvent>()
 val recorder = launch { while (true) seen += awaitEvent() }
 waitTicks(2)
-fun saw(predicate: (GameEvent) -> Boolean) = seen.any(predicate)
+fun saw(predicate: (MinektEvent) -> Boolean) = seen.any(predicate)
 
 val me = player.name
 server("gamemode creative $me")
@@ -47,15 +47,15 @@ check("scanRegion 96x(full height)x96 for ores") {
 
 // ---- inventory ----
 check("inventory has the given items") { inventory.map { it.id }.containsAll(listOf("minecraft:stone", "minecraft:chest")) }
-check("ItemGained event") { seen.filterIsInstance<GameEvent.ItemGained>().joinToString { "${it.id} x${it.count}" }.ifEmpty { false } }
+check("ItemGained event") { seen.filterIsInstance<MinektEvent.ItemGained>().joinToString { "${it.id} x${it.count}" }.ifEmpty { false } }
 check("heldItem") { selectSlot(inventory.first { it.id == "minecraft:stone" }.slot); heldItem }
 
 // ---- interaction: place, target, break ----
 val base = position.blockPos
-val spot = base.offset(dx = 2)
+val spot = base.offset(2, 0, 0)
 server("fill ${spot.x} ${spot.y} ${spot.z - 1} ${spot.x + 2} ${spot.y + 2} ${spot.z + 1} minecraft:air")
 waitTicks(5)
-check("useOn places a block") { useOn(spot.offset(dy = -1), Face.UP) && run { waitTicks(5); blockId(spot) == "minecraft:stone" } }
+check("useOn places a block") { useOn(spot.below(), Face.UP) && run { waitTicks(5); blockId(spot) == "minecraft:stone" } }
 check("lookAt + targetedBlock") {
     lookAt(spot.x + 0.5, spot.y + 0.5, spot.z + 0.5)
     waitTicks(2)
@@ -68,7 +68,7 @@ waitTicks(5)
 val chestPos = spot
 check("place chest") {
     selectSlot(inventory.first { it.id == "minecraft:chest" }.slot)
-    useOn(chestPos.offset(dy = -1), Face.UP) && run { waitTicks(5); blockId(chestPos) == "minecraft:chest" }
+    useOn(chestPos.below(), Face.UP) && run { waitTicks(5); blockId(chestPos) == "minecraft:chest" }
 }
 check("open chest + awaitScreen") {
     runBlocking {
@@ -91,7 +91,7 @@ check("container / shiftClick stone into chest") {
 check("closeScreen + events") {
     closeScreen()
     waitTicks(5)
-    screen == null && saw { it is GameEvent.ScreenOpen } && saw { it is GameEvent.ScreenClose }
+    screen == null && saw { it is MinektEvent.ScreenOpen } && saw { it is MinektEvent.ScreenClose }
 }
 
 // ---- entities ----
@@ -117,19 +117,19 @@ server("gamemode survival $me")
 waitTicks(10)
 check("Damage event") {
     server("damage $me 4")
-    runBlocking { withTimeoutOrNull(3000) { awaitEventOf<GameEvent.Damage>() } } ?: false
+    runBlocking { withTimeoutOrNull(3000) { awaitEventOf<MinektEvent.Damage>() } } ?: false
 }
 check("Death + Respawn events") {
     server("kill $me")
-    runBlocking { withTimeoutOrNull(3000) { awaitEventOf<GameEvent.Death>() } } ?: return@check false
+    runBlocking { withTimeoutOrNull(3000) { awaitEventOf<MinektEvent.Death>() } } ?: return@check false
     game { it.player!!.respawn() }
-    runBlocking { withTimeoutOrNull(5000) { awaitEventOf<GameEvent.Respawn>() } } ?: false
+    runBlocking { withTimeoutOrNull(5000) { awaitEventOf<MinektEvent.Respawn>() } } ?: false
 }
 check("DimensionChange + ChunkLoad events") {
     server("execute in minecraft:the_nether run tp $me 0 100 0")
-    val change = runBlocking { withTimeoutOrNull(15000) { awaitEventOf<GameEvent.DimensionChange>() } }
+    val change = runBlocking { withTimeoutOrNull(15000) { awaitEventOf<MinektEvent.DimensionChange>() } }
     waitTicks(40)
-    "$change, ${seen.count { it is GameEvent.ChunkLoad }} chunk loads".takeIf { change != null } ?: false
+    "$change, ${seen.count { it is MinektEvent.ChunkLoad }} chunk loads".takeIf { change != null } ?: false
 }
 check("world info in the nether") { world.dimension }
 // Back to the overworld, so the next test starts there.

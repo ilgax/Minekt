@@ -1,8 +1,8 @@
 package dev.ilgax.minekt
 
 import dev.ilgax.minekt.api.EntityInfo
-import dev.ilgax.minekt.api.GameEvent
-import dev.ilgax.minekt.api.Vec3
+import dev.ilgax.minekt.api.MinektEvent
+import net.minecraft.world.phys.Vec3
 import dev.ilgax.minekt.job.Job
 import dev.ilgax.minekt.job.JobManager
 import kotlin.io.path.writeText
@@ -79,8 +79,8 @@ class StopAndDamageTest {
         )
         awaitState(job, Job.State.LISTENING)
         val zombie = EntityInfo(7, "u", "Zombie", "minecraft:zombie", Vec3(0.0, 0.0, 0.0), 20f, 2.0)
-        jobs.dispatch(Job.Event.Game(GameEvent.Damage(3f, 17f, "minecraft:mob_attack", zombie)))
-        jobs.dispatch(Job.Event.Game(GameEvent.Damage(2f, 15f)))
+        jobs.dispatch(Job.Event.Game(MinektEvent.Damage(3f, 17f, "minecraft:mob_attack", zombie)))
+        jobs.dispatch(Job.Event.Game(MinektEvent.Damage(2f, 15f)))
         val messages = List(4) { host.next() }.toSet()
         assertEquals(setOf("short 3.0 17.0", "long 3.0 minecraft:mob_attack Zombie", "short 2.0 15.0", "long 2.0 null null"), messages)
         jobs.dispatch(Job.Event.Chat(dev.ilgax.minekt.api.ChatMessage("x")))

@@ -152,7 +152,7 @@ is installed, and Minekt runs fine without it:
 if (!baritone.isAvailable) stop()
 baritone.goto(100, 64, -20)        // also: mine(…), follow(player), explore(), cancel(), command("…")
 baritone.await()                   // block until Baritone is done
-echo("arrived at ${player.position}")
+echo("arrived at", player.position)
 ```
 
 Notes:

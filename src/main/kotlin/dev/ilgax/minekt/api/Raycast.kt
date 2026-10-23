@@ -1,5 +1,7 @@
 package dev.ilgax.minekt.api
 
+import net.minecraft.world.phys.Vec3
+import net.minecraft.core.BlockPos
 import net.minecraft.world.level.ClipContext
 import net.minecraft.world.phys.AABB
 import net.minecraft.world.phys.HitResult
@@ -46,8 +48,8 @@ fun Minekt.raycast(
     includeSelf: Boolean = false,
 ): RayHit? = game { mc ->
     val level = mc.level ?: error("Not in a world")
-    val start = from.toMc()
-    val end = to.toMc()
+    val start = from
+    val end = to
     var best: RayHit? = null
 
     if (blocks) {
@@ -55,7 +57,7 @@ fun Minekt.raycast(
         val fluid = if (fluids) ClipContext.Fluid.ANY else ClipContext.Fluid.NONE
         val hit = level.clip(ClipContext(start, end, shape, fluid, CollisionContext.empty()))
         if (hit.type == HitResult.Type.BLOCK) {
-            best = RayHit.Block(hit.blockPos.toApi(), level.blockId(hit.blockPos), hit.direction.toApi(), hit.location.toApi(), start.distanceTo(hit.location))
+            best = RayHit.Block(hit.blockPos.immutable(), level.blockId(hit.blockPos), hit.direction.toApi(), hit.location, start.distanceTo(hit.location))
         }
     }
 
@@ -68,7 +70,7 @@ fun Minekt.raycast(
             val point = if (box.contains(start)) start else box.clip(start, end).orElse(null) ?: continue
             val distance = start.distanceTo(point)
             if (distance < limit && (best == null || distance < best.distance)) {
-                best = RayHit.Entity(entity.toInfo(self), point.toApi(), distance)
+                best = RayHit.Entity(entity.toInfo(self), point, distance)
             }
         }
     }

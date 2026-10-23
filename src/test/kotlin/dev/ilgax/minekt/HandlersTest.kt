@@ -1,8 +1,8 @@
 package dev.ilgax.minekt
 
 import dev.ilgax.minekt.api.ChatMessage
-import dev.ilgax.minekt.api.GameEvent
-import dev.ilgax.minekt.api.BlockPos
+import dev.ilgax.minekt.api.MinektEvent
+import net.minecraft.core.BlockPos
 import dev.ilgax.minekt.job.Job
 import dev.ilgax.minekt.job.JobManager
 import kotlin.io.path.writeText
@@ -59,16 +59,16 @@ class HandlersTest {
             "unpack",
             """
             onChat { (text, sender) -> echo("chat " + text + " from " + sender) }
-            onBlockChange { (pos, old, new) -> echo("block " + pos + " " + old + " -> " + new) }
+            onBlockChange { (pos, old, new) -> echo("block", pos, old, "->", new) } // echo shows positions as (x, y, z)
             onDamage { e -> echo("damage " + e.amount + " " + e.cause); stop() }
             """.trimIndent(),
         )
         awaitState(job, Job.State.LISTENING)
         jobs.dispatch(Job.Event.Chat(ChatMessage("hi", "Alex")))
         assertEquals("chat hi from Alex", host.next())
-        jobs.dispatch(Job.Event.Game(GameEvent.BlockChange(BlockPos(1, 2, 3), "minecraft:air", "minecraft:stone")))
+        jobs.dispatch(Job.Event.Game(MinektEvent.BlockChange(BlockPos(1, 2, 3), "minecraft:air", "minecraft:stone")))
         assertEquals("block (1, 2, 3) minecraft:air -> minecraft:stone", host.next())
-        jobs.dispatch(Job.Event.Game(GameEvent.Damage(2f, 18f, "minecraft:fall", null, null)))
+        jobs.dispatch(Job.Event.Game(MinektEvent.Damage(2f, 18f, "minecraft:fall", null, null)))
         assertEquals("damage 2.0 minecraft:fall", host.next())
         awaitState(job, Job.State.DONE)
     }

@@ -27,13 +27,13 @@ onDamage { (amount, health) -> if (health < 6) echo("Low health!") }
 onDamage { (amount, health, cause, attacker) -> echo("$cause by ${attacker?.name}") }   // "minecraft:arrow by Skeleton"
 onItemGained { (id, count) -> if ("diamond" in id) echo("+$count diamond") }
 onScreenOpen { screen -> if (screen.isContainer) echo("Opened ${screen.title}") }
-onEvent { event -> if (event is GameEvent.DimensionChange) echo("Now in ${event.to}") }
+onEvent { event -> if (event is MinektEvent.DimensionChange) echo("Now in ${event.to}") }
 ```
 
 Damage, death, respawn, world and dimension changes, screens and item gains are detected by comparing the
 player's state each tick. Damage also gets what caused it from the server's damage event: `cause` is the damage
 type (`minecraft:fall`, `minecraft:mob_attack`, `minecraft:arrow`, …), `attacker` who's responsible (the
-skeleton, not its arrow; `GameEvent.Damage.projectile` has the arrow). Both are null when the server didn't say. `onItemGained` fires whenever the count of an item in your inventory goes up, from
+skeleton, not its arrow; `MinektEvent.Damage.projectile` has the arrow). Both are null when the server didn't say. `onItemGained` fires whenever the count of an item in your inventory goes up, from
 pickups, crafting or taking items out of chests.
 
 Handlers with more than one value (`onChat`, `onDamage`, `onBlockChange`, `onSound`, …) get one event object.
@@ -54,7 +54,7 @@ keybind("Quiet", default = "q").onPress { watch.remove() }
 ## More events
 
 ```kotlin
-onBlockChange { (pos, old, new) -> if (new == "minecraft:air" && "ore" in old) echo("$old mined at $pos") }
+onBlockChange { (pos, old, new) -> if (new == "minecraft:air" && "ore" in old) echo("$old mined at", pos) }
 onEntityAppear { e -> if (e.type == "minecraft:creeper") toast("Creeper!", "${e.distance.toInt()} blocks away") }
 onEntityGone { (e, died) -> if (died) echo("${e.name} died") }
 onSound { (id, pos, category) -> if (id == "minecraft:entity.creeper.primed") title("RUN") }
@@ -154,7 +154,7 @@ moveMouse(200.0, 0.0)              // turns the camera in game, moves the cursor
 
 ```kotlin
 command("mark", completions = listOf("home", "mine")) { args ->
-    echo("marked ${args.firstOrNull() ?: "home"} at ${player.position}")
+    echo("marked ${args.firstOrNull() ?: "home"} at", player.position)
 }
 ```
 

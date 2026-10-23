@@ -68,7 +68,7 @@ fun waitFor(seconds: Int, condition: () -> Boolean): Boolean {
 }
 
 var waited = 0
-while (blockId(player.position.blockPos.offset(dy = -1)) == "minecraft:void_air" && waited < 1200) { waitTicks(20); waited += 20 }
+while (blockId(player.position.blockPos.below()) == "minecraft:void_air" && waited < 1200) { waitTicks(20); waited += 20 }
 waitTicks(40)
 val me = player.name
 if (world.dimension != "minecraft:overworld") {
@@ -91,13 +91,13 @@ check("autorun: the singleplayer section ran, the server one didn't") {
 
 // ---- events ---------------------------------------------------------------------------------------
 
-val events = CopyOnWriteArrayList<GameEvent>()
-onBlockChange { (pos, old, new) -> events += GameEvent.BlockChange(pos, old, new) }
-onEntityAppear { events += GameEvent.EntityAppear(it) }
-onEntityGone { (e, died) -> events += GameEvent.EntityGone(e, died) }
-onSound { (id, pos, category) -> events += GameEvent.Sound(id, pos, category) }
-onParticle { (id, pos, count) -> events += GameEvent.Particle(id, pos, count) }
-onScoreboardChange { events += GameEvent.ScoreboardChange(it.title, it.lines) }
+val events = CopyOnWriteArrayList<MinektEvent>()
+onBlockChange { (pos, old, new) -> events += MinektEvent.BlockChange(pos, old, new) }
+onEntityAppear { events += MinektEvent.EntityAppear(it) }
+onEntityGone { (e, died) -> events += MinektEvent.EntityGone(e, died) }
+onSound { (id, pos, category) -> events += MinektEvent.Sound(id, pos, category) }
+onParticle { (id, pos, count) -> events += MinektEvent.Particle(id, pos, count) }
+onScoreboardChange { events += MinektEvent.ScoreboardChange(it.title, it.lines) }
 
 // Handlers run once the script body is done, so the rest happens in a coroutine.
 launch {
@@ -109,27 +109,27 @@ launch {
         waitTicks(10)
         server("setblock ${at(2, 0, 0)} minecraft:air")
         val target = BlockPos(p.x + 2, p.y, p.z)
-        waitFor(5) { events.count { it is GameEvent.BlockChange && it.pos == target } >= 2 }
-        val seen = events.filterIsInstance<GameEvent.BlockChange>().filter { it.pos == target }.map { "${it.old} -> ${it.new}" }
+        waitFor(5) { events.count { it is MinektEvent.BlockChange && it.pos == target } >= 2 }
+        val seen = events.filterIsInstance<MinektEvent.BlockChange>().filter { it.pos == target }.map { "${it.old} -> ${it.new}" }
         (seen == listOf("minecraft:air -> minecraft:gold_block", "minecraft:gold_block -> minecraft:air")) then seen
     }
     check("onEntityAppear and onEntityGone (died)") {
         server("summon minecraft:pig ${at(3, 0, 3)} {CustomName:\"Testpig\",NoAI:1b}")
-        val appeared = waitFor(5) { events.any { it is GameEvent.EntityAppear && it.entity.name == "Testpig" } }
+        val appeared = waitFor(5) { events.any { it is MinektEvent.EntityAppear && it.entity.name == "Testpig" } }
         server("kill @e[type=minecraft:pig,name=Testpig]")
-        val gone = waitFor(8) { events.any { it is GameEvent.EntityGone && it.entity.name == "Testpig" } }
-        val event = events.filterIsInstance<GameEvent.EntityGone>().firstOrNull { it.entity.name == "Testpig" }
+        val gone = waitFor(8) { events.any { it is MinektEvent.EntityGone && it.entity.name == "Testpig" } }
+        val event = events.filterIsInstance<MinektEvent.EntityGone>().firstOrNull { it.entity.name == "Testpig" }
         (appeared && gone && event?.died == true) then event
     }
     check("onSound hears a played sound") {
         server("playsound minecraft:entity.experience_orb.pickup master $me ${at(0, 0, 0)}")
-        waitFor(5) { events.any { it is GameEvent.Sound && it.id == "minecraft:entity.experience_orb.pickup" } } then
-            events.filterIsInstance<GameEvent.Sound>().map { "${it.id} (${it.category})" }.distinct().take(5)
+        waitFor(5) { events.any { it is MinektEvent.Sound && it.id == "minecraft:entity.experience_orb.pickup" } } then
+            events.filterIsInstance<MinektEvent.Sound>().map { "${it.id} (${it.category})" }.distinct().take(5)
     }
     check("onParticle sees particles from the server") {
         server("particle minecraft:heart ${at(1, 1, 1)} 0 0 0 0 5 force")
-        waitFor(5) { events.any { it is GameEvent.Particle && it.id == "minecraft:heart" } } then
-            events.filterIsInstance<GameEvent.Particle>().first { it.id == "minecraft:heart" }
+        waitFor(5) { events.any { it is MinektEvent.Particle && it.id == "minecraft:heart" } } then
+            events.filterIsInstance<MinektEvent.Particle>().first { it.id == "minecraft:heart" }
     }
     check("sidebar and onScoreboardChange") {
         server("scoreboard objectives remove kills") // left in the world by an earlier run
@@ -138,9 +138,11 @@ launch {
         server("scoreboard objectives setdisplay sidebar kills")
         server("scoreboard players set Zombies kills 7")
         server("scoreboard players set Spiders kills 3")
-        waitFor(5) { events.filterIsInstance<GameEvent.ScoreboardChange>().lastOrNull()?.lines == listOf("Zombies", "Spiders") }
-        val changes = events.filterIsInstance<GameEvent.ScoreboardChange>()
-        (sidebar?.title == "Kill count" && changes.isNotEmpty() && changes.last().lines == listOf("Zombies", "Spiders")) then "${sidebar} after ${changes.size} changes"
+        waitFor(5) { events.filterIsInstance<MinektEvent.ScoreboardChange>().lastOrNull()?.lines == listOf("Zombies", "Spiders") }
+        val changes = events.filterIsInstance<MinektEvent.ScoreboardChange>()
+        val result = (sidebar?.title == "Kill count" && changes.isNotEmpty() && changes.last().lines == listOf("Zombies", "Spiders")) then "${sidebar} after ${changes.size} changes"
+        server("scoreboard objectives remove kills") // don't leave it on screen for later tests
+        result
     }
     check("tabList has the player") { (me in tabList) then tabList }
 

@@ -1,5 +1,6 @@
 package dev.ilgax.minekt.api
 
+import net.minecraft.core.BlockPos
 import net.minecraft.client.multiplayer.ClientLevel
 import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.world.level.chunk.EmptyLevelChunk
@@ -47,14 +48,14 @@ fun Minekt.scanRegion(
     limit: Int = Int.MAX_VALUE,
     blocksPerFrame: Int = 262_144,
     predicate: (String) -> Boolean,
-): List<Block> {
+): List<FoundBlock> {
     val minX = min(from.x, to.x); val maxX = max(from.x, to.x)
     val minZ = min(from.z, to.z); val maxZ = max(from.z, to.z)
     val (minY, maxY) = game { mc ->
         val level = mc.level ?: error("Not in a world")
         max(min(from.y, to.y), level.minY) to min(max(from.y, to.y), level.maxY)
     }
-    val found = mutableListOf<Block>()
+    val found = mutableListOf<FoundBlock>()
     // Cache id lookups per block state: the predicate runs once per distinct state, not per block.
     val matches = HashMap<BlockState, String?>()
     val chunks = ((minX shr 4)..(maxX shr 4)).flatMap { cx -> ((minZ shr 4)..(maxZ shr 4)).map { cz -> cx to cz } }
@@ -78,7 +79,7 @@ fun Minekt.scanRegion(
                             val id = matches.getOrPut(state) {
                                 BuiltInRegistries.BLOCK.getKey(state.block).toString().takeIf(predicate)
                             }
-                            if (id != null && found.size < limit) found += Block(BlockPos(x, y, z), id)
+                            if (id != null && found.size < limit) found += FoundBlock(BlockPos(x, y, z), id)
                         }
                     }
                     budget -= (x1 - x0 + 1) * (z1 - z0 + 1) * 16

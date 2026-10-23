@@ -1,5 +1,7 @@
 package dev.ilgax.minekt.api
 
+import net.minecraft.world.phys.Vec3
+import net.minecraft.core.BlockPos
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
 

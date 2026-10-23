@@ -38,8 +38,17 @@ Everything below is in scope in every script, no imports needed.
 | Mods | `isModLoaded(id)`, `modVersion(id)`, `baritone.*` |
 | Raw access | `game { mc -> … }` runs on the client thread with the live `Minecraft` instance |
 
-Game state comes back as plain data (`Vec3`, `BlockPos`, `PlayerInfo`, `EntityInfo`, …). Those are copies, so
+Game state comes back as plain data (`PlayerInfo`, `EntityInfo`, `BlockInfo`, …). Those are copies, so
 they're safe to keep and read from the script's thread.
+
+### Positions
+
+Positions are Minecraft's own `Vec3` (exact) and `BlockPos` (a block), already imported in every script, so
+code from mods and the game works as it is. Both never change once made, so they're safe to keep too. Minekt
+adds `+`, `-`, `*`, unpacking (`val (x, y, z) = pos`), `vec.blockPos` and `vec.toShortString()`; Minecraft's own
+methods (`pos.below()`, `pos.above(2)`, `pos.offset(1, 0, -1)`, `pos.center`, `a.distanceTo(b)`, `v.length()`, …)
+work as in a mod. `echo` shows both as `(x, y, z)`; inside a string, use `toShortString()` (`"$pos"` alone
+gives Minecraft's long form).
 
 Details by topic:
 

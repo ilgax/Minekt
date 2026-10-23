@@ -1,11 +1,11 @@
 package dev.ilgax.minekt.api
 
+import net.minecraft.core.BlockPos
 import dev.ilgax.minekt.hooks.FakeBlocks
 import dev.ilgax.minekt.job.Job
 import net.minecraft.commands.arguments.blocks.BlockStateParser
 import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.world.level.block.state.BlockState
-import net.minecraft.core.BlockPos as McBlockPos
 
 // Blocks only you can see:
 //
@@ -26,7 +26,7 @@ class FakeBlock internal constructor(
     val block: String,
     internal val state: BlockState,
 ) {
-    internal val mcPos = McBlockPos(pos.x, pos.y, pos.z)
+    internal val mcPos: BlockPos = pos.immutable()
 
     /** Show the real block again. */
     fun remove() = job.host.onGameThread { FakeBlocks.remove(this) }

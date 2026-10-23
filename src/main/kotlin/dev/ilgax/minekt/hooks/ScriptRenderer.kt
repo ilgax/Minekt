@@ -1,5 +1,7 @@
 package dev.ilgax.minekt.hooks
 
+import net.minecraft.world.phys.Vec3
+import net.minecraft.core.BlockPos
 import dev.ilgax.minekt.api.Color
 import dev.ilgax.minekt.api.Shape
 import dev.ilgax.minekt.api.ShapeRegistry
@@ -9,9 +11,6 @@ import net.minecraft.gizmos.GizmoStyle
 import net.minecraft.gizmos.Gizmos
 import net.minecraft.gizmos.TextGizmo
 import net.minecraft.world.phys.AABB
-import dev.ilgax.minekt.api.Vec3 as ScriptVec3
-import net.minecraft.world.phys.Vec3 as McVec3
-import net.minecraft.core.BlockPos as McBlockPos
 
 /**
  * Draws script shapes with Minecraft's gizmo system. Must be called from the end of the client
@@ -26,16 +25,16 @@ internal object ScriptRenderer {
         for (shape in registry.all()) {
             val props: GizmoProperties = when (shape) {
                 is Shape.Box -> Gizmos.cuboid(
-                    AABB(shape.min.mc(), shape.max.mc()),
+                    AABB(shape.min, shape.max),
                     if (shape.fill) GizmoStyle.strokeAndFill(shape.color, BOX_STROKE_WIDTH, Color.withAlpha(shape.color, FILL_ALPHA))
                     else GizmoStyle.stroke(shape.color, BOX_STROKE_WIDTH),
                 )
                 is Shape.Line ->
-                    if (shape.arrow) Gizmos.arrow(shape.from.mc(), shape.to.mc(), shape.color, shape.width)
-                    else Gizmos.line(shape.from.mc(), shape.to.mc(), shape.color, shape.width)
+                    if (shape.arrow) Gizmos.arrow(shape.from, shape.to, shape.color, shape.width)
+                    else Gizmos.line(shape.from, shape.to, shape.color, shape.width)
                 is Shape.BlockOutline -> {
                     val level = Minecraft.getInstance().level ?: continue
-                    val at = McBlockPos(shape.pos.x, shape.pos.y, shape.pos.z)
+                    val at = shape.pos
                     val blockShape = level.getBlockState(at).getShape(level, at)
                     val boxes = if (blockShape.isEmpty) listOf(AABB(at)) else blockShape.toAabbs().map { it.move(at) }
                     val style = if (shape.fill) GizmoStyle.strokeAndFill(shape.color, BOX_STROKE_WIDTH, Color.withAlpha(shape.color, FILL_ALPHA))
@@ -46,13 +45,11 @@ internal object ScriptRenderer {
                 }
                 is Shape.Text -> Gizmos.billboardText(
                     shape.text,
-                    shape.pos.mc(),
+                    shape.pos,
                     TextGizmo.Style.forColorAndCentered(shape.color).withScale(TextGizmo.Style.DEFAULT_SCALE * shape.scale),
                 )
             }
             if (shape.throughWalls) props.setAlwaysOnTop()
         }
     }
-
-    private fun ScriptVec3.mc() = McVec3(x, y, z)
 }

@@ -1,8 +1,8 @@
 package dev.ilgax.minekt
 
+import net.minecraft.world.phys.Vec3
 import dev.ilgax.minekt.api.HudCanvas
 import dev.ilgax.minekt.api.ScriptHud
-import dev.ilgax.minekt.api.Vec3
 import dev.ilgax.minekt.api.WorldCanvas
 import dev.ilgax.minekt.hooks.GameEventSource
 import dev.ilgax.minekt.hooks.ErrorChat

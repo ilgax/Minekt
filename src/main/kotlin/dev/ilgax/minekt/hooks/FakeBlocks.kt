@@ -1,12 +1,12 @@
 package dev.ilgax.minekt.hooks
 
+import net.minecraft.core.BlockPos
 import dev.ilgax.minekt.api.FakeBlock
 import dev.ilgax.minekt.job.Job
 import net.minecraft.client.Minecraft
 import net.minecraft.client.multiplayer.ClientLevel
 import net.minecraft.world.level.block.Block
 import net.minecraft.world.level.block.state.BlockState
-import net.minecraft.core.BlockPos as McBlockPos
 
 /**
  * Blocks that scripts show only on this client (`fakeBlock`). Game thread only.
@@ -18,7 +18,7 @@ import net.minecraft.core.BlockPos as McBlockPos
  * prediction). With several fakes on one block, the newest shows.
  */
 object FakeBlocks {
-    private data class Key(val dimension: String, val pos: McBlockPos)
+    private data class Key(val dimension: String, val pos: BlockPos)
 
     /** Fakes per block, newest last. */
     private val fakes = LinkedHashMap<Key, ArrayDeque<FakeBlock>>()
@@ -79,7 +79,7 @@ object FakeBlocks {
      * and keep showing the fake. Returns whether the update was kept from the world.
      */
     @JvmStatic
-    fun serverUpdate(level: ClientLevel, pos: McBlockPos, state: BlockState): Boolean {
+    fun serverUpdate(level: ClientLevel, pos: BlockPos, state: BlockState): Boolean {
         if (!active) return false
         val key = Key(dimension(level), pos)
         if (key !in fakes) return false
@@ -103,9 +103,9 @@ object FakeBlocks {
     }
 
     /** The real state at [pos], ignoring fakes (null if not faked). */
-    internal fun realState(level: ClientLevel, pos: McBlockPos): BlockState? = real[Key(dimension(level), pos)]
+    internal fun realState(level: ClientLevel, pos: BlockPos): BlockState? = real[Key(dimension(level), pos)]
 
-    private fun set(level: ClientLevel, pos: McBlockPos, state: BlockState) {
+    private fun set(level: ClientLevel, pos: BlockPos, state: BlockState) {
         applying = true
         try {
             level.setBlock(pos, state, FLAGS)

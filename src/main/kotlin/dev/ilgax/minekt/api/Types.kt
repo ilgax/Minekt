@@ -1,35 +1,14 @@
 package dev.ilgax.minekt.api
 
-import kotlin.math.sqrt
+import net.minecraft.world.phys.Vec3
+import net.minecraft.core.BlockPos
 
 /**
  * Plain snapshots of game state. Scripts get copies, never live game objects, so they are safe to
  * keep around and read from the script thread. (Use `game { mc -> ... }` for live objects.)
  */
-data class Vec3(val x: Double, val y: Double, val z: Double) {
-    fun distanceTo(other: Vec3): Double {
-        val dx = x - other.x; val dy = y - other.y; val dz = z - other.z
-        return sqrt(dx * dx + dy * dy + dz * dz)
-    }
-
-    val blockPos: BlockPos get() = BlockPos(Math.floor(x).toInt(), Math.floor(y).toInt(), Math.floor(z).toInt())
-
-    operator fun plus(other: Vec3) = Vec3(x + other.x, y + other.y, z + other.z)
-    operator fun minus(other: Vec3) = Vec3(x - other.x, y - other.y, z - other.z)
-    operator fun times(factor: Double) = Vec3(x * factor, y * factor, z * factor)
-
-    /** How long this is, as a direction or offset. */
-    val length: Double get() = sqrt(x * x + y * y + z * z)
-
-    override fun toString() = "(%.2f, %.2f, %.2f)".format(x, y, z)
-}
-
-data class BlockPos(val x: Int, val y: Int, val z: Int) {
-    fun offset(dx: Int = 0, dy: Int = 0, dz: Int = 0) = BlockPos(x + dx, y + dy, z + dz)
-    override fun toString() = "($x, $y, $z)"
-}
-
-data class Block(val pos: BlockPos, val id: String)
+/** A block found by `findBlocks` or `scanRegion`: where it is and its id. */
+data class FoundBlock(val pos: BlockPos, val id: String)
 
 /**
  * Everything about one block, from `blockAt`. [properties] are its state, like a crop's `age` or a door's
@@ -203,7 +182,7 @@ data class WorldInfo(
 )
 
 /** Things that happen to the player or around them. Use `onEvent { }` or the specific `onDamage { }` etc. */
-sealed interface GameEvent {
+sealed interface MinektEvent {
     /**
      * The player lost [amount] health, with [health] left. [cause] is the damage type (`minecraft:fall`,
      * `minecraft:mob_attack`, `minecraft:arrow`, …), [attacker] who's responsible and [projectile] what hit
@@ -215,33 +194,33 @@ sealed interface GameEvent {
         val cause: String? = null,
         val attacker: EntityInfo? = null,
         val projectile: EntityInfo? = null,
-    ) : GameEvent
-    data object Death : GameEvent
-    data object Respawn : GameEvent
-    data class JoinWorld(val dimension: String) : GameEvent
-    data object LeaveWorld : GameEvent
-    data class DimensionChange(val from: String, val to: String) : GameEvent
-    data class ScreenOpen(val screen: ScreenInfo) : GameEvent
-    data object ScreenClose : GameEvent
-    data class ChunkLoad(val x: Int, val z: Int) : GameEvent
+    ) : MinektEvent
+    data object Death : MinektEvent
+    data object Respawn : MinektEvent
+    data class JoinWorld(val dimension: String) : MinektEvent
+    data object LeaveWorld : MinektEvent
+    data class DimensionChange(val from: String, val to: String) : MinektEvent
+    data class ScreenOpen(val screen: ScreenInfo) : MinektEvent
+    data object ScreenClose : MinektEvent
+    data class ChunkLoad(val x: Int, val z: Int) : MinektEvent
     /** The count of an item in the player's inventory went up (pickups, crafting, taking from chests). */
-    data class ItemGained(val id: String, val count: Int) : GameEvent
+    data class ItemGained(val id: String, val count: Int) : MinektEvent
     /** A block changed into another block: placed, broken, grown, … ([old] and [new] are block ids). Not reported for chunks loading. */
-    data class BlockChange(val pos: BlockPos, val old: String, val new: String) : GameEvent
+    data class BlockChange(val pos: BlockPos, val old: String, val new: String) : MinektEvent
     /** An entity came into view (spawned, or walked into loaded range). */
-    data class EntityAppear(val entity: EntityInfo) : GameEvent
+    data class EntityAppear(val entity: EntityInfo) : MinektEvent
     /** An entity went away: [died], or despawned / out of range. */
-    data class EntityGone(val entity: EntityInfo, val died: Boolean) : GameEvent
+    data class EntityGone(val entity: EntityInfo, val died: Boolean) : MinektEvent
     /** A sound started playing for you. [category] is e.g. `hostile`, `blocks`, `players`, `ui`. */
-    data class Sound(val id: String, val pos: Vec3, val category: String) : GameEvent
+    data class Sound(val id: String, val pos: Vec3, val category: String) : MinektEvent
     /** The server sent particles (not ones the client makes up itself, like footsteps). */
-    data class Particle(val id: String, val pos: Vec3, val count: Int) : GameEvent
+    data class Particle(val id: String, val pos: Vec3, val count: Int) : MinektEvent
     /** A player appeared in the tab list. */
-    data class PlayerJoin(val name: String) : GameEvent
+    data class PlayerJoin(val name: String) : MinektEvent
     /** A player left the tab list. */
-    data class PlayerLeave(val name: String) : GameEvent
+    data class PlayerLeave(val name: String) : MinektEvent
     /** The sidebar scoreboard changed (or appeared / went away: then [title] is empty). Lines top to bottom. */
-    data class ScoreboardChange(val title: String, val lines: List<String>) : GameEvent
+    data class ScoreboardChange(val title: String, val lines: List<String>) : MinektEvent
 }
 
 /** The sidebar scoreboard: its title and lines, top to bottom. */

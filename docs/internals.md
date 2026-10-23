@@ -64,6 +64,8 @@ then open a singleplayer world. Each one reports `OK`/`FAIL` lines in chat and c
 - `\raycast`: raycasts against blocks, see-through blocks, entities and yourself, and line of sight.
 - `\details`: item details (durability, enchantments, names, lore, food) and block details (state, light,
   sign text, hardness, biome).
+- `\fixworld`: not a test. Puts the test world back (respawns, creative, peaceful, day, overworld) when a test
+  left it dead, in the Nether or at night, which makes the next test fail for no reason of its own.
 - `\visuals`: glow outlines on entities and blocks (counted in screenshots, through a wall), fake blocks
   (states, server updates underneath, several on one block, many at once, removal when the script ends), pixels
   on the HUD, and Minekt's settings screen through Mod Menu's entry point.

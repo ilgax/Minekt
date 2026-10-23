@@ -71,7 +71,7 @@ class JobManager(private val host: Host) {
     fun dispatch(event: Job.Event) = running.values.forEach { it.post(event) }
 
     /** Whether any script listens for game events of [type]: check before doing work to make one. */
-    fun wantsGame(type: Class<out dev.ilgax.minekt.api.GameEvent>) = running.values.any { it.wantsGame(type) }
+    fun wantsGame(type: Class<out dev.ilgax.minekt.api.MinektEvent>) = running.values.any { it.wantsGame(type) }
 
 
     /**

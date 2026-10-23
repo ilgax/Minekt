@@ -1,5 +1,6 @@
 package dev.ilgax.minekt.api
 
+import net.minecraft.world.phys.Vec3
 import com.google.gson.reflect.TypeToken
 import dev.ilgax.minekt.job.MessageKind
 import dev.ilgax.minekt.job.ScriptLogs

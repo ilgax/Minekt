@@ -1,5 +1,7 @@
 package dev.ilgax.minekt.api
 
+import net.minecraft.world.phys.Vec3
+import net.minecraft.core.BlockPos
 import dev.ilgax.minekt.job.Job
 import dev.ilgax.minekt.job.ScriptLogs
 import dev.ilgax.minekt.job.JobKilledException
@@ -14,7 +16,6 @@ import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.LivingEntity
 import kotlin.math.atan2
 import kotlin.math.sqrt
-import net.minecraft.core.BlockPos as McBlockPos
 
 /**
  * The implicit receiver of every script: everything here is callable unqualified from a `.kts`.
@@ -36,14 +37,23 @@ class Minekt internal constructor(internal val job: Job) {
     /** Print to the local chat (only you see it). */
     fun echo(vararg parts: Any?) {
         job.checkAlive()
-        if (parts.none { it is ChatText }) return job.output(parts.joinToString(" "))
+        if (parts.none { it is ChatText }) return job.output(parts.joinToString(" ", transform = ::display))
         // Styled: plain parts become unstyled text, joined with spaces like the rest.
         val text = net.minecraft.network.chat.Component.empty()
         parts.forEachIndexed { i, part ->
             if (i > 0) text.append(" ")
-            if (part is ChatText) text.append(part.toComponent(job)) else text.append(part.toString())
+            if (part is ChatText) text.append(part.toComponent(job)) else text.append(display(part))
         }
-        job.output(text, parts.joinToString(" "))
+        job.output(text, parts.joinToString(" ", transform = ::display))
+    }
+
+    /** How [echo] and [writeLog] show a value: positions as `(x, y, z)`, also inside lists and maps. */
+    private fun display(value: Any?): String = when (value) {
+        is Vec3 -> value.short()
+        is BlockPos -> value.short()
+        is Map<*, *> -> value.entries.joinToString(", ", "{", "}") { (k, v) -> display(k) + "=" + display(v) }
+        is Iterable<*> -> value.joinToString(", ", "[", "]", transform = ::display)
+        else -> value.toString()
     }
 
     /**
@@ -52,7 +62,7 @@ class Minekt internal constructor(internal val job: Job) {
      */
     fun writeLog(vararg parts: Any?) {
         job.checkAlive()
-        job.logs.add(job.name, ScriptLogs.Level.LOG, parts.joinToString(" "), run = job.id)
+        job.logs.add(job.name, ScriptLogs.Level.LOG, parts.joinToString(" ", transform = ::display), run = job.id)
     }
 
     /** Send a chat message to the server. Messages starting with `/` are sent as commands. */
@@ -220,7 +230,7 @@ class Minekt internal constructor(internal val job: Job) {
      */
     fun blockId(x: Int, y: Int, z: Int): String = game { mc ->
         val level = mc.level ?: error("Not in a world")
-        BuiltInRegistries.BLOCK.getKey(level.getBlockState(McBlockPos(x, y, z)).block).toString()
+        BuiltInRegistries.BLOCK.getKey(level.getBlockState(BlockPos(x, y, z)).block).toString()
     }
 
     fun blockId(pos: BlockPos) = blockId(pos.x, pos.y, pos.z)
@@ -228,7 +238,7 @@ class Minekt internal constructor(internal val job: Job) {
     /** Everything about the block at [pos]: its state, light, biome, and a sign's text. */
     fun blockAt(pos: BlockPos): BlockInfo = game { mc ->
         val level = mc.level ?: error("Not in a world")
-        val at = pos.toMc()
+        val at = pos
         val state = level.getBlockState(at)
         val sign = level.getBlockEntity(at) as? net.minecraft.world.level.block.entity.SignBlockEntity
         fun lines(slot: net.minecraft.world.level.block.entity.SignTextSlot) = sign?.getText(slot)?.getMessages(false)?.map { it.string }
@@ -252,15 +262,15 @@ class Minekt internal constructor(internal val job: Job) {
     fun blockAt(x: Int, y: Int, z: Int) = blockAt(BlockPos(x, y, z))
 
     /** Every block within [radius] of the player whose id matches [predicate]. One game-thread hop. */
-    fun findBlocks(radius: Int, predicate: (String) -> Boolean): List<Block> = game { mc ->
+    fun findBlocks(radius: Int, predicate: (String) -> Boolean): List<FoundBlock> = game { mc ->
         val level = mc.level ?: error("Not in a world")
         val origin = mc.player!!.blockPosition()
-        val found = mutableListOf<Block>()
-        val cursor = McBlockPos.MutableBlockPos()
+        val found = mutableListOf<FoundBlock>()
+        val cursor = BlockPos.MutableBlockPos()
         for (dx in -radius..radius) for (dy in -radius..radius) for (dz in -radius..radius) {
             cursor.set(origin.x + dx, origin.y + dy, origin.z + dz)
             val id = BuiltInRegistries.BLOCK.getKey(level.getBlockState(cursor).block).toString()
-            if (predicate(id)) found += Block(BlockPos(cursor.x, cursor.y, cursor.z), id)
+            if (predicate(id)) found += FoundBlock(BlockPos(cursor.x, cursor.y, cursor.z), id)
         }
         found.sortedBy { (it.pos.x - origin.x).sq() + (it.pos.y - origin.y).sq() + (it.pos.z - origin.z).sq() }
     }
@@ -296,7 +306,7 @@ class Minekt internal constructor(internal val job: Job) {
      * post. Set `color` on the result to recolor it.
      */
     fun highlight(pos: BlockPos, color: Int = Color.GREEN, fill: Boolean = true, throughWalls: Boolean = true): ShapeHandle =
-        draw(Shape.BlockOutline(pos, color, fill, throughWalls))
+        draw(Shape.BlockOutline(pos.immutable(), color, fill, throughWalls))
 
     fun highlight(x: Int, y: Int, z: Int, color: Int = Color.GREEN, fill: Boolean = true, throughWalls: Boolean = true) =
         highlight(BlockPos(x, y, z), color, fill, throughWalls)

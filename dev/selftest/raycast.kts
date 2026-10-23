@@ -14,7 +14,7 @@ fun server(command: String) = game { mc ->
 }
 
 var waited = 0
-while (blockId(player.position.blockPos.offset(dy = -1)) == "minecraft:void_air" && waited < 1200) { waitTicks(20); waited += 20 }
+while (blockId(player.position.blockPos.below()) == "minecraft:void_air" && waited < 1200) { waitTicks(20); waited += 20 }
 waitTicks(40)
 val me = player.name
 server("gamemode survival $me")
@@ -31,7 +31,7 @@ val eyes = p.eyePosition
 val ahead = eyes + p.lookDirection * 20.0
 
 check("player.eyePosition and lookDirection") {
-    (Math.abs(eyes.y - 201.62) < 0.01 && p.lookDirection.z > 0.99 && Math.abs(p.lookDirection.length - 1) < 1e-6) then "eyes $eyes, looking ${p.lookDirection}"
+    (Math.abs(eyes.y - 201.62) < 0.01 && p.lookDirection.z > 0.99 && Math.abs(p.lookDirection.length() - 1) < 1e-6) then "eyes $eyes, looking ${p.lookDirection}"
 }
 check("the nearest thing is the armor stand") {
     val hit = raycast(eyes, ahead)

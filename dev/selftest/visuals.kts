@@ -52,13 +52,14 @@ val greenish = { r: Int, g: Int, b: Int -> g > 180 && r < 90 && b < 90 }
 val yellowish = { r: Int, g: Int, b: Int -> r > 180 && g > 180 && b < 70 }
 
 var waited = 0
-while (blockId(player.position.blockPos.offset(dy = -1)) == "minecraft:void_air" && waited < 1200) { waitTicks(20); waited += 20 }
+while (blockId(player.position.blockPos.below()) == "minecraft:void_air" && waited < 1200) { waitTicks(20); waited += 20 }
 waitTicks(40)
 val me = player.name
 server("gamemode creative $me")
 server("time set 6000")
 server("difficulty peaceful")
 server("kill @e[type=!player]")
+server("scoreboard objectives setdisplay sidebar") // an earlier test's sidebar has red numbers
 server("fill -4 199 -3 4 199 12 minecraft:stone")
 server("fill -4 200 -3 4 204 12 minecraft:air")
 server("tp $me 0.5 200 0.5 0 0")

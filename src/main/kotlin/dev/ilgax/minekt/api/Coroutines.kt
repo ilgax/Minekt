@@ -37,8 +37,8 @@ suspend fun Minekt.awaitTicks(ticks: Int = 1) {
 suspend fun Minekt.awaitChat(predicate: (ChatMessage) -> Boolean = { true }): ChatMessage =
     (job.awaitEvent { it is Job.Event.Chat && predicate(it.message) } as Job.Event.Chat).message
 
-/** Suspend until a [GameEvent] matching [predicate] happens. */
-suspend fun Minekt.awaitEvent(predicate: (GameEvent) -> Boolean = { true }): GameEvent {
+/** Suspend until a [MinektEvent] matching [predicate] happens. */
+suspend fun Minekt.awaitEvent(predicate: (MinektEvent) -> Boolean = { true }): MinektEvent {
     job.gameAwaiters.incrementAndGet()
     try {
         return (job.awaitEvent { it is Job.Event.Game && predicate(it.event) } as Job.Event.Game).event
@@ -47,9 +47,9 @@ suspend fun Minekt.awaitEvent(predicate: (GameEvent) -> Boolean = { true }): Gam
     }
 }
 
-/** Suspend until a game event of type [T] happens, e.g. `awaitEventOf<GameEvent.Death>()`. */
-suspend inline fun <reified T : GameEvent> Minekt.awaitEventOf(): T = awaitEvent { it is T } as T
+/** Suspend until a game event of type [T] happens, e.g. `awaitEventOf<MinektEvent.Death>()`. */
+suspend inline fun <reified T : MinektEvent> Minekt.awaitEventOf(): T = awaitEvent { it is T } as T
 
 /** Suspend until a screen matching [predicate] opens, e.g. `awaitScreen { it.isContainer }`. */
 suspend fun Minekt.awaitScreen(predicate: (ScreenInfo) -> Boolean = { true }): ScreenInfo =
-    (awaitEvent { it is GameEvent.ScreenOpen && predicate(it.screen) } as GameEvent.ScreenOpen).screen
+    (awaitEvent { it is MinektEvent.ScreenOpen && predicate(it.screen) } as MinektEvent.ScreenOpen).screen

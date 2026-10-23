@@ -29,7 +29,7 @@ fun chatLines(): List<String> = game { mc ->
 fun job(name: String) = MinektClient.jobs.jobs.firstOrNull { it.name == name }
 
 var waited = 0
-while (blockId(player.position.blockPos.offset(dy = -1)) == "minecraft:void_air" && waited < 1200) { waitTicks(20); waited += 20 }
+while (blockId(player.position.blockPos.below()) == "minecraft:void_air" && waited < 1200) { waitTicks(20); waited += 20 }
 waitTicks(20)
 
 // ---- watchdog ------------------------------------------------------------------------------

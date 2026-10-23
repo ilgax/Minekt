@@ -1,5 +1,7 @@
 package dev.ilgax.minekt.api
 
+import net.minecraft.world.phys.Vec3
+import net.minecraft.core.BlockPos
 import net.minecraft.client.KeyMapping
 import net.minecraft.core.Direction
 import net.minecraft.core.component.DataComponents
@@ -9,8 +11,6 @@ import net.minecraft.world.entity.EquipmentSlot
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.Level
-import net.minecraft.core.BlockPos as McBlockPos
-import net.minecraft.world.phys.Vec3 as McVec3
 
 // Conversions from live game objects to the plain snapshot types scripts see. Client thread only.
 
@@ -31,7 +31,7 @@ internal fun Entity.toInfo(self: Entity?) = EntityInfo(
         }.toMap()
     }.orEmpty(),
     effects = (this as? LivingEntity)?.activeEffects?.map { EffectInfo(it.effect.registeredName, it.amplifier, it.duration) }.orEmpty(),
-    velocity = deltaMovement.toApi(),
+    velocity = deltaMovement,
     yaw = yRot,
     pitch = xRot,
     sneaking = isShiftKeyDown,
@@ -60,12 +60,8 @@ internal fun ItemStack.toInfo(slot: Int): ItemStackInfo {
     )
 }
 
-internal fun Level.blockId(pos: McBlockPos): String = BuiltInRegistries.BLOCK.getKey(getBlockState(pos).block).toString()
+internal fun Level.blockId(pos: BlockPos): String = BuiltInRegistries.BLOCK.getKey(getBlockState(pos).block).toString()
 
-internal fun McBlockPos.toApi() = BlockPos(x, y, z)
-internal fun BlockPos.toMc() = McBlockPos(x, y, z)
-internal fun Vec3.toMc() = McVec3(x, y, z)
-internal fun McVec3.toApi() = Vec3(x, y, z)
 
 internal fun Face.toMc(): Direction = Direction.valueOf(name)
 internal fun Direction.toApi(): Face = Face.valueOf(name)
