@@ -31,11 +31,11 @@ import dev.ilgax.minekt.job.Job
 import dev.ilgax.minekt.job.JobManager
 import dev.ilgax.minekt.job.MessageKind
 import dev.ilgax.minekt.job.TickClock
+import dev.ilgax.minekt.api.ChatMessage
 import dev.ilgax.minekt.hooks.FakeBlocks
 import dev.ilgax.minekt.hooks.MinektConfig
 import dev.ilgax.minekt.hooks.MinektSettingsView
 import net.minecraft.client.gui.screens.Screen
-import dev.ilgax.minekt.hooks.Glows
 import dev.ilgax.minekt.script.ScriptClasspath
 import dev.ilgax.minekt.script.CompilerSetup
 import dev.ilgax.minekt.script.ScriptCompiler
@@ -109,10 +109,10 @@ object MinektClient : ClientModInitializer, Host {
 
         registerChatHooks()
         ClientReceiveMessageEvents.GAME.register { message, overlay ->
-            if (!overlay) jobs.dispatch(Job.Event.Chat(message.string))
+            if (!overlay) jobs.dispatch(Job.Event.Chat(ChatMessage(message.string)))
         }
-        ClientReceiveMessageEvents.CHAT.register { message, _, _, _, _ ->
-            jobs.dispatch(Job.Event.Chat(message.string))
+        ClientReceiveMessageEvents.CHAT.register { message, _, sender, _, _ ->
+            jobs.dispatch(Job.Event.Chat(ChatMessage(message.string, sender?.name)))
         }
         val gameEvents = GameEventSource(jobs, onJoin = { runAutorun(it, joined = true) }, onDimensionChange = { runAutorun(it, joined = false) }).apply { register() }
         InputHooks.filter = jobs::filterInput
@@ -414,11 +414,9 @@ object MinektClient : ClientModInitializer, Host {
         }
         // After the world's state for this frame is gathered, before it's drawn: gizmos added now show this frame.
         LevelExtractionEvents.END_EXTRACTION.register { context ->
-            val glows = Glows.hasBlocks
-            if (jobs.wantsWorldRender() || glows) context.levelRenderer().collectPerFrameRenderThreadGizmos().use {
-                if (glows) Minecraft.getInstance().level?.let(Glows::renderBlocks)
+            if (jobs.wantsWorldRender()) context.levelRenderer().collectPerFrameRenderThreadGizmos().use {
                 val camera = context.camera().position()
-                if (jobs.wantsWorldRender()) jobs.renderWorld(WorldCanvas(context.deltaTracker().getGameTimeDeltaPartialTick(true), Vec3(camera.x, camera.y, camera.z)))
+                jobs.renderWorld(WorldCanvas(context.deltaTracker().getGameTimeDeltaPartialTick(true), Vec3(camera.x, camera.y, camera.z)))
             }
         }
     }

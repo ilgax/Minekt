@@ -25,7 +25,7 @@ fun waitFor(seconds: Int, condition: () -> Boolean): Boolean {
 fun screenName() = game { it.gui.screen()?.javaClass?.simpleName }
 
 var waited = 0
-while (getBlock(player.position.blockPos.offset(dy = -1)) == "minecraft:void_air" && waited < 1200) { waitTicks(20); waited += 20 }
+while (blockId(player.position.blockPos.offset(dy = -1)) == "minecraft:void_air" && waited < 1200) { waitTicks(20); waited += 20 }
 waitTicks(40)
 
 val keys = CopyOnWriteArrayList<RawKey>()

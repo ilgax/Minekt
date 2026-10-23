@@ -145,7 +145,7 @@ launch {
     }
     run {
         val hits = CopyOnWriteArrayList<String>()
-        onDamage { amount, _, cause, attacker -> hits += "$amount $cause ${attacker?.name}" }
+        onDamage { (amount, _, cause, attacker) -> hits += "$amount $cause ${attacker?.name}" }
         if (player.gameMode != "survival") report(null, "onDamage cause (needs survival)", "you're not in survival")
         else {
             val ok = ask("Fall 4+ blocks", "to take fall damage", 40) { hits.any { "minecraft:fall" in it } }

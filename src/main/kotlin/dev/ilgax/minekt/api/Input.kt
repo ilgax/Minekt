@@ -72,22 +72,24 @@ class RawMouseMove internal constructor(val x: Double, val y: Double, val dx: Do
 }
 
 /** See every key press, release and repeat before the game does; [RawKey.cancel] hides it from the game. */
-fun Minekt.onRawKey(handler: (RawKey) -> Unit) = addInput(RawKey::class.java, handler)
+fun Minekt.onRawKey(handler: (RawKey) -> Unit): Handler = addInput(RawKey::class.java, handler)
 
 /** See mouse buttons and the scroll wheel before the game does. */
-fun Minekt.onRawMouse(handler: (InputEvent) -> Unit) {
-    addInput(RawMouseButton::class.java, handler)
-    addInput(RawScroll::class.java, handler)
+fun Minekt.onRawMouse(handler: (InputEvent) -> Unit): Handler {
+    val buttons = addInput(RawMouseButton::class.java, handler)
+    val scroll = addInput(RawScroll::class.java, handler)
+    return Handler { buttons.remove(); scroll.remove() }
 }
 
 /** See mouse movement before the game does: many events per frame, so keep it very quick. */
-fun Minekt.onMouseMove(handler: (RawMouseMove) -> Unit) = addInput(RawMouseMove::class.java, handler)
+fun Minekt.onMouseMove(handler: (RawMouseMove) -> Unit): Handler = addInput(RawMouseMove::class.java, handler)
 
 @Suppress("UNCHECKED_CAST")
-private fun <T : InputEvent> Minekt.addInput(type: Class<T>, handler: (T) -> Unit) {
+private fun <T : InputEvent> Minekt.addInput(type: Class<T>, handler: (T) -> Unit): Handler {
     job.checkAlive()
-    job.inputHandlers += Job.InputHandler(type) { handler(it as T) }
+    val added = addHandler(job.inputHandlers, Job.InputHandler(type) { handler(it as T) })
     if (type == RawMouseMove::class.java) InputHooks.listeningToMoves = true else InputHooks.listening = true
+    return added
 }
 
 /** Press [key] (`"e"`, `"f3"`, `"left.shift"`, `"key.keyboard.e"`) as if the player did, until [keyUp]. */

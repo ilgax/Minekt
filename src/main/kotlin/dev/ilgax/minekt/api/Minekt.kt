@@ -64,11 +64,10 @@ class Minekt internal constructor(internal val job: Job) {
     /** Run a command (leading `/` optional). */
     fun execute(command: String) = chat(if (command.startsWith("/")) command else "/$command")
 
-    /** The text on the system clipboard ("" if there's none). */
-    fun clipboard(): String = game { mc -> mc.keyboardHandler.clipboard }
-
-    /** Put [text] on the system clipboard. */
-    fun setClipboard(text: String) = game { mc -> mc.keyboardHandler.clipboard = text }
+    /** The text on the system clipboard ("" if there's none); set it to copy text. */
+    var clipboard: String
+        get() = game { mc -> mc.keyboardHandler.clipboard }
+        set(text) = game { mc -> mc.keyboardHandler.clipboard = text }
 
     // ---- timing / control ---------------------------------------------------------------------
 
@@ -175,28 +174,22 @@ class Minekt internal constructor(internal val job: Job) {
     fun lookAt(pos: Vec3) = lookAt(pos.x, pos.y, pos.z)
 
     /**
-     * Hold ([down]) or let go of one of the game's bindings, whatever key it's bound to. Going down
-     * also counts as a click, like a real key press (so `"inventory"` opens the inventory and
-     * `"attack"` swings). Held bindings are released when the script ends.
+     * Hold down one of the game's bindings, whatever key it's on, until [release]. By the binding's name,
+     * as in `options.txt` with or without `key.`: `"forward"`, `"jump"`, `"inventory"`, `"hotbar.3"`,
+     * `"key.pickItem"`, or a binding another mod adds ([bindings] lists them). It also counts as a click,
+     * like a real key press (so `"inventory"` opens the inventory and `"attack"` swings). Held bindings
+     * are released when the script ends.
      */
-    fun press(key: Key, down: Boolean = true) = game { mc -> press(mc.options.mapping(key), down) }
+    fun press(binding: String) = game { mc -> press(mapping(binding), true) }
 
-    /**
-     * [press] by the binding's name, as in `options.txt` with or without `key.`: `"forward"`, `"inventory"`,
-     * `"hotbar.3"`, `"togglePerspective"`, `"key.pickItem"`, or a binding another mod adds. [bindings] lists them.
-     */
-    fun press(binding: String, down: Boolean = true) = game { mc ->
-        val mapping = KeyMapping.get(binding) ?: KeyMapping.get("key.$binding")
-            ?: throw IllegalArgumentException("No binding named '$binding' (bindings() lists them)")
-        press(mapping, down)
-    }
-
-    fun release(key: Key) = press(key, false)
-
-    fun release(binding: String) = press(binding, false)
+    /** Let go of a binding held with [press]. */
+    fun release(binding: String) = game { mc -> press(mapping(binding), false) }
 
     /** The names of all the game's bindings, for [press]: `key.forward`, `key.inventory`, … */
-    fun bindings(): List<String> = game { mc -> mc.options.keyMappings.map { it.name } }
+    val bindings: List<String> get() = game { mc -> mc.options.keyMappings.map { it.name } }
+
+    private fun mapping(binding: String): KeyMapping = KeyMapping.get(binding) ?: KeyMapping.get("key.$binding")
+        ?: throw IllegalArgumentException("No binding named '$binding' (bindings lists them)")
 
     private fun press(mapping: KeyMapping, down: Boolean) {
         if (down && !mapping.isDown) (mapping as KeyMappingAccessor).run { `minekt$setClickCount`(`minekt$getClickCount`() + 1) }
@@ -210,7 +203,7 @@ class Minekt internal constructor(internal val job: Job) {
     }
 
     /** All non-empty inventory slots. */
-    fun inventory(): List<ItemStackInfo> = game { mc ->
+    val inventory: List<ItemStackInfo> get() = game { mc ->
         val inv = mc.player?.inventory ?: error("Not in a world")
         (0 until inv.containerSize).mapNotNull { slot ->
             val stack = inv.getItem(slot)
@@ -221,13 +214,16 @@ class Minekt internal constructor(internal val job: Job) {
 
     // ---- world --------------------------------------------------------------------------------
 
-    /** Block id at a position, e.g. `minecraft:stone`. Unloaded chunks read as `minecraft:air`. */
-    fun getBlock(x: Int, y: Int, z: Int): String = game { mc ->
+    /**
+     * Just the id of the block at a position, e.g. `minecraft:stone` (unloaded chunks read as
+     * `minecraft:void_air`). Cheaper than [blockAt], for loops over many blocks.
+     */
+    fun blockId(x: Int, y: Int, z: Int): String = game { mc ->
         val level = mc.level ?: error("Not in a world")
         BuiltInRegistries.BLOCK.getKey(level.getBlockState(McBlockPos(x, y, z)).block).toString()
     }
 
-    fun getBlock(pos: BlockPos) = getBlock(pos.x, pos.y, pos.z)
+    fun blockId(pos: BlockPos) = blockId(pos.x, pos.y, pos.z)
 
     /** Everything about the block at [pos]: its state, light, biome, and a sign's text. */
     fun blockAt(pos: BlockPos): BlockInfo = game { mc ->
@@ -284,7 +280,8 @@ class Minekt internal constructor(internal val job: Job) {
 
     fun entities(radius: Int): List<EntityInfo> = entities(radius.toDouble())
 
-    fun players(): List<EntityInfo> = game { mc ->
+    /** Every other player in the world, nearest first. */
+    val players: List<EntityInfo> get() = game { mc ->
         val level = mc.level ?: error("Not in a world")
         val self = mc.player
         level.players().filter { it !== self }.map { it.toInfo(self) }.sortedBy { it.distance }
@@ -294,9 +291,12 @@ class Minekt internal constructor(internal val job: Job) {
     // Shapes stay until removed (handle.remove() / clearShapes()) or the script ends. throughWalls
     // draws them on top of terrain (handy for finding things, and also what an ESP does).
 
-    /** Outline (and by default fill) one block. */
-    fun highlight(pos: BlockPos, color: Int = Color.GREEN, fill: Boolean = true, throughWalls: Boolean = true) =
-        box(Vec3(pos.x.toDouble(), pos.y.toDouble(), pos.z.toDouble()), Vec3(pos.x + 1.0, pos.y + 1.0, pos.z + 1.0), color, fill, throughWalls)
+    /**
+     * Outline (and by default tint) one block, in its own shape: a slab is outlined as a slab, a fence as a
+     * post. Set `color` on the result to recolor it.
+     */
+    fun highlight(pos: BlockPos, color: Int = Color.GREEN, fill: Boolean = true, throughWalls: Boolean = true): ShapeHandle =
+        draw(Shape.BlockOutline(pos, color, fill, throughWalls))
 
     fun highlight(x: Int, y: Int, z: Int, color: Int = Color.GREEN, fill: Boolean = true, throughWalls: Boolean = true) =
         highlight(BlockPos(x, y, z), color, fill, throughWalls)
@@ -321,7 +321,7 @@ class Minekt internal constructor(internal val job: Job) {
     private fun draw(shape: Shape): ShapeHandle {
         job.checkAlive()
         job.cleanups.addIfAbsent(shapeCleanup)
-        return ShapeRegistry.global.add(job.id, shape)
+        return ShapeRegistry.global.add(job.id, shape.withColor(opaque(shape.color)))
     }
 
     private val shapeCleanup: () -> Unit = { ShapeRegistry.global.clear(job.id) }
@@ -329,16 +329,19 @@ class Minekt internal constructor(internal val job: Job) {
     // ---- events -------------------------------------------------------------------------------
 
     /**
-     * Call [handler] with the text of every chat/system message received. Handlers run on the
-     * script thread after the script body finishes; the script stays alive until `stop()`/`\kill`.
+     * Call [handler] with every chat and system message received: its text, and who sent it for a player's
+     * message (`onChat { (text, sender) -> }`). Handlers run on the script thread after the script body
+     * finishes; the script stays alive until `stop()`/`\kill`.
      */
-    fun onChat(handler: (String) -> Unit) {
-        job.chatHandlers += handler
+    fun onChat(handler: (ChatMessage) -> Unit): Handler {
+        job.checkAlive()
+        return addHandler(job.chatHandlers, handler)
     }
 
     /** Call [handler] every client tick (see [onChat] for lifecycle). */
-    fun onTick(handler: () -> Unit) {
-        job.tickHandlers += handler
+    fun onTick(handler: () -> Unit): Handler {
+        job.checkAlive()
+        return addHandler(job.tickHandlers, handler)
     }
 
 
@@ -347,12 +350,15 @@ class Minekt internal constructor(internal val job: Job) {
      * typed after the name (`"quoted words"` are grouped). [completions] are offered on Tab.
      * Script commands take priority over a server command of the same name until the script ends.
      */
-    fun command(name: String, completions: List<String> = emptyList(), handler: (args: List<String>) -> Unit) {
+    fun command(name: String, completions: List<String> = emptyList(), handler: (args: List<String>) -> Unit): Handler {
         job.checkAlive()
         job.commandHandlers[name] = handler
         job.host.registerCommand(name, completions, job)?.let { error ->
             job.commandHandlers.remove(name)
             throw IllegalStateException(error)
+        }
+        return Handler {
+            if (job.commandHandlers.remove(name, handler)) job.host.unregisterCommand(name, job)
         }
     }
 

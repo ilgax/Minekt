@@ -4,19 +4,19 @@ Everything below is in scope in every script, no imports needed.
 
 | Area | API |
 |---|---|
-| Output | `echo(vararg parts)` (plain, or styled with `chatText(text, color, bold, hover, click = ChatClick.run { })`), `chat(msg)` (a leading `/` makes it a command), `execute(cmd)`, `hudPanel { … }`, `writeLog(vararg parts)`, `clipboard()`, `setClipboard(text)` |
+| Output | `echo(vararg parts)` (plain, or styled with `chatText(text, color, bold, hover, click = ChatClick.run { })`), `chat(msg)` (a leading `/` makes it a command), `execute(cmd)`, `hudPanel { … }`, `writeLog(vararg parts)`, `clipboard`, `clipboard = text` |
 | Feedback | `playSound(id)`, `toast(title, message)`, `actionBar(text)`, `title(title, subtitle)`, `screenshot(name)` |
 | Control | `args`, `jobId`, `sleep(ms)`, `waitTicks(n)`, `stop()` |
 | Player | `player` (name, position, eyePosition, lookDirection, yaw/pitch, health, food, xp, air, armor, effects, velocity, onGround, inWater, sneaking, sprinting, flying, gameMode, vehicle, …), `position`, `setOrientation(yaw, pitch)`, `lookAt(x, y, z)` |
 | Keybinds | `keybind(name, default)` → `onPress { }`, `onRelease { }`, `isDown`, `key`, `awaitPress()`, `awaitRelease()`, `remove()` |
 | Raw input | `onRawKey { }`, `onRawMouse { }`, `onMouseMove { }` (`cancel()`), `tapKey`, `keyDown`, `keyUp`, `typeText`, `clickMouse`, `mouseDown`, `mouseUp`, `scrollMouse`, `moveMouse`; `\record` writes these for you |
-| Bindings | `press("inventory")`, `press(Key.FORWARD)`, `release(…)`, `bindings()`: any of the game's bindings, whatever key it's on; released when the script ends |
-| Inventory & screens | `inventory()` (items with name, durability, enchantments, lore, nutrition…), `heldItem()`, `offhandItem()`, `selectSlot(n)`, `screen`, `container()`, `clickSlot(i)`, `shiftClick(i)`, `swapWithHotbar(i, n)`, `dropSlot(i)`, `openInventory()`, `closeScreen()` |
-| Targeting & interaction | `raycast(from, to)` → `RayHit.Block` / `RayHit.Entity` / null, `targetedBlock()`, `targetedEntity()`, `useItem()`, `useOn(pos, face)`, `attack(entityId)`, `interact(entityId)` |
-| World | `world` (dimension, timeOfDay, gameTime, isDay, rain, thunder), `getBlock(x, y, z)`, `blockAt(pos)` (properties, light, biome, hardness, sign text), `findBlocks(radius) { id -> … }`, `scanRegion(from, to) { id -> … }`, `isLoaded(x, z)`, `entities(radius)` (type, name, health, equipment, isBaby, customName, velocity, …), `entity(id)`, `players()` |
-| Events | `onChat`, `onTick`, `onStop { reason -> }`, `onDamage { amount, health[, cause, attacker] -> }`, `onDeath`, `onRespawn`, `onJoinWorld`, `onLeaveWorld`, `onDimensionChange`, `onScreenOpen`, `onScreenClose`, `onChunkLoad`, `onItemGained`, `onBlockChange`, `onEntityAppear`, `onEntityGone`, `onSound`, `onParticle`, `onPlayerJoin`, `onPlayerLeave`, `onScoreboardChange`, `onEvent` |
-| Server info | `tabList()`, `sidebar()` |
-| Settings | `var x by setting(default, …)`, `onSettingChange { key, value -> }` |
+| Bindings | `press("forward")`, `release("forward")`, `bindings`: any of the game's bindings, whatever key it's on; released when the script ends |
+| Inventory & screens | `inventory` (items with name, durability, enchantments, lore, nutrition…), `heldItem`, `offhandItem`, `selectSlot(n)`, `screen`, `container`, `clickSlot(i)`, `shiftClick(i)`, `swapWithHotbar(i, n)`, `dropSlot(i)`, `openInventory()`, `closeScreen()` |
+| Targeting & interaction | `raycast(from, to)` → `RayHit.Block` / `RayHit.Entity` / null, `targetedBlock`, `targetedEntity`, `useItem()`, `useOn(pos, face)`, `attack(entityId)`, `interact(entityId)` |
+| World | `world` (dimension, timeOfDay, gameTime, isDay, rain, thunder), `blockId(x, y, z)`, `blockAt(pos)` (properties, light, biome, hardness, sign text), `findBlocks(radius) { id -> … }`, `scanRegion(from, to) { id -> … }`, `isLoaded(x, z)`, `entities(radius)` (type, name, health, equipment, isBaby, customName, velocity, …), `entity(id)`, `players` |
+| Events | `onChat { (text, sender) -> }`, `onTick`, `onStop { reason -> }`, `onDamage { (amount, health, cause, attacker) -> }`, `onDeath`, `onRespawn`, `onJoinWorld`, `onLeaveWorld`, `onDimensionChange`, `onScreenOpen`, `onScreenClose`, `onChunkLoad`, `onItemGained`, `onBlockChange`, `onEntityAppear`, `onEntityGone`, `onSound`, `onParticle`, `onPlayerJoin`, `onPlayerLeave`, `onScoreboardChange`, `onEvent` |
+| Server info | `tabList`, `sidebar` |
+| Settings | `var x by setting(default, …)`, `onSettingChange { (key, value) -> }` |
 | Persistence | `val x by persistent { default }` (options `perWorld`, `store`, `key`), `save()` |
 | Web | `httpGet(url)`, `httpPost(url, body)`, `http(method, url, body)` → `status`, `body`, `ok`, `json<T>()` |
 | Coroutines | `launch { }`, `async { }`, `awaitTicks(n)`, `awaitChat { }`, `awaitEvent { }`, `awaitEventOf<T>()`, `awaitScreen { }` (+ all of `kotlinx.coroutines`) |
@@ -30,8 +30,8 @@ Everything below is in scope in every script, no imports needed.
 | Code | `eval(code, "name" to value)`, `runScript(name, args)`, `startScript(name, args)` → `await()`, `kill()`, `isRunning` |
 | Class rewriting | `rewriteClass<Class> { node -> }` (ASM tree), `transformClass(name) { bytes -> newBytes }`, `classBytes<Class>()` |
 | Libraries | `@file:DependsOn("group:artifact:version")`, `@file:Repository("https://…")` |
-| World shapes | `highlight(pos)`, `box(min, max)`, `line(a, b)`, `arrow(a, b)`, `text(pos, "…")`, `clearShapes()` |
-| Glow outlines | `glow(entity, color)`, `glowBlock(pos, color, fill)` → `color`, `remove()` |
+| World shapes | `highlight(pos)` (the block's own shape), `box(min, max)`, `line(a, b)`, `arrow(a, b)`, `text(pos, "…")` → `color`, `remove()`; `clearShapes()` |
+| Glow outlines | `glow(entity, color)` → `color`, `remove()`; blocks: `highlight(pos)` |
 | Fake blocks | `fakeBlock(pos, "minecraft:glass")`, `fakeBlocks(map)`, `clearFakeBlocks()` → `remove()` |
 | Pixels | `pixels(w, h)` → `[x, y] = color`, `fill`, `clear`, `data` + `changed()`; drawn with `g.pixels(p, x, y, w, h)` |
 | Drawing every frame | `onHudRender { g -> g.rect(…); g.text(…); g.item(…); g.image(…) }`, `onWorldRender { w -> w.line(…); w.box(…); w.text(…); w.point(…); w.entityPosition(id) }` |

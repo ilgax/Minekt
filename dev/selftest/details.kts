@@ -15,7 +15,7 @@ fun server(command: String) = game { mc ->
 }
 
 var waited = 0
-while (getBlock(player.position.blockPos.offset(dy = -1)) == "minecraft:void_air" && waited < 1200) { waitTicks(20); waited += 20 }
+while (blockId(player.position.blockPos.offset(dy = -1)) == "minecraft:void_air" && waited < 1200) { waitTicks(20); waited += 20 }
 waitTicks(40)
 val me = player.name
 server("gamemode survival $me")
@@ -37,7 +37,7 @@ server("setblock 3 200 5 minecraft:obsidian")
 server("setblock 4 200 5 minecraft:bedrock")
 waitTicks(40)
 
-val items = inventory()
+val items = inventory
 check("item details: durability, enchantments, custom name and lore") {
     val sword = items.firstOrNull { it.id == "minecraft:diamond_sword" } ?: return@check "FALSE no sword in $items"
     (sword.name == "Blade" && sword.customName == "Blade" && sword.damage == 100 && sword.maxDamage == 1561 && sword.durability == 1461 &&
@@ -52,8 +52,8 @@ check("item details: food, stack size, and a book's stored enchantments") {
         book.enchantments == mapOf("minecraft:mending" to 1) && pearl.maxStackSize == 16 && !pearl.isFood) then
         "bread ${bread.nutrition} food, book ${book.enchantments}, pearls stack to ${pearl.maxStackSize}"
 }
-check("container() slots carry the same details") {
-    val slot = container().slots.firstOrNull { it.id == "minecraft:diamond_sword" }
+check("container slots carry the same details") {
+    val slot = container.slots.firstOrNull { it.id == "minecraft:diamond_sword" }
     (slot?.item?.durability == 1461 && slot.item?.enchantments?.get("minecraft:sharpness") == 3) then slot?.item
 }
 

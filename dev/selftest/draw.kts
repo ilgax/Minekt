@@ -34,7 +34,7 @@ fun red(color: Int) = color shr 16 and 0xFF
 fun green(color: Int) = color shr 8 and 0xFF
 
 var waited = 0
-while (getBlock(player.position.blockPos.offset(dy = -1)) == "minecraft:void_air" && waited < 1200) { waitTicks(20); waited += 20 }
+while (blockId(player.position.blockPos.offset(dy = -1)) == "minecraft:void_air" && waited < 1200) { waitTicks(20); waited += 20 }
 waitTicks(40)
 val me = player.name
 server("gamemode survival $me")
@@ -47,8 +47,8 @@ waitTicks(20)
 
 // ---- pressing bindings by name ---------------------------------------------------------------
 
-check("bindings() lists the game's bindings") {
-    val all = bindings()
+check("bindings lists the game's bindings") {
+    val all = bindings
     ("key.forward" in all && "key.inventory" in all && "key.hotbar.3" in all) then "${all.size} bindings"
 }
 check("press(\"inventory\") opens the inventory, like the key") {
@@ -115,8 +115,8 @@ check("player: velocity and sprinting while moving, flying in creative") {
 
 check("setClipboard / clipboard") {
     val text = "minekt clipboard ${System.nanoTime()}"
-    setClipboard(text)
-    (clipboard() == text) then clipboard()
+    clipboard = text
+    (clipboard == text) then clipboard
 }
 
 // ---- drawing every frame -------------------------------------------------------------------

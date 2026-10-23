@@ -17,7 +17,7 @@ val Minekt.screen: ScreenInfo?
 internal fun Screen.toInfo() = ScreenInfo(title.string, javaClass.simpleName, this is AbstractContainerScreen<*>)
 
 /** Slots of the open container menu (chest, furnace, ...), or of the player's inventory if none is open. */
-fun Minekt.container(): ContainerInfo = game { mc ->
+val Minekt.container: ContainerInfo get() = game { mc ->
     val player = mc.player ?: error("Not in a world")
     val menu = player.containerMenu
     val title = mc.gui.screen()?.title?.string ?: "Inventory"
@@ -38,12 +38,13 @@ fun Minekt.container(): ContainerInfo = game { mc ->
 }
 
 /** The item in the main hand, or null if empty. */
-fun Minekt.heldItem(): ItemStackInfo? = game { mc ->
+val Minekt.heldItem: ItemStackInfo? get() = game { mc ->
     val player = mc.player ?: error("Not in a world")
     player.mainHandItem.takeUnless { it.isEmpty }?.toInfo(player.inventory.selectedSlot)
 }
 
-fun Minekt.offhandItem(): ItemStackInfo? = game { mc ->
+/** The item in the offhand, or null if empty. */
+val Minekt.offhandItem: ItemStackInfo? get() = game { mc ->
     mc.player?.offhandItem?.takeUnless { it.isEmpty }?.toInfo(OFFHAND_INVENTORY_SLOT)
 }
 

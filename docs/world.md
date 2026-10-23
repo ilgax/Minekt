@@ -43,8 +43,7 @@ counts as a click, so `press("inventory")` opens the inventory and `press("attac
 ```kotlin
 press("forward"); sleep(2000); release("forward")
 press("hotbar.3"); release("hotbar.3")              // select the third hotbar slot
-press(Key.SNEAK)                                    // the common ones are also in Key
-echo(bindings())                                    // every binding's name, other mods' included
+echo(bindings)                                    // every binding's name, other mods' included
 ```
 
 Names are as in `options.txt`, with or without `key.`: `forward`, `jump`, `inventory`, `hotbar.1` … `hotbar.9`,
@@ -54,30 +53,30 @@ released.
 ## Inventory, containers and interaction
 
 ```kotlin
-val target = targetedBlock() ?: stop()                 // what the crosshair is on
+val target = targetedBlock ?: stop()                 // what the crosshair is on
 useOn(target.pos, target.face)                         // right-click it (opens a chest)
-val chest = container()                                // slots of the open menu
+val chest = container                                // slots of the open menu
 chest.playerSlots.filter { it.id == "minecraft:cobblestone" }.forEach { shiftClick(it.index) }
 closeScreen()
 
 useOn(BlockPos(10, 63, 10), Face.UP)                   // place the held block on top of (10, 63, 10)
-attack(targetedEntity()!!.id)
+attack(targetedEntity!!.id)
 ```
 
-Slot numbers are the open menu's indices, as listed by `container().slots`. Each slot says whether it
+Slot numbers are the open menu's indices, as listed by `container.slots`. Each slot says whether it
 belongs to the player's inventory or to the container. The server applies its usual reach and permission
 checks to every action.
 
 ### Item details
 
-Items from `inventory()`, `heldItem()`, `offhandItem()` and a slot's `item` carry what their tooltip would
+Items from `inventory`, `heldItem`, `offhandItem` and a slot's `item` carry what their tooltip would
 tell you:
 
 ```kotlin
-val sword = heldItem() ?: stop()
+val sword = heldItem ?: stop()
 if (sword.durability != null && sword.durability!! < 20) echo("${sword.name} is about to break!")
 echo(sword.enchantments)                                   // {minecraft:sharpness=3, minecraft:looting=2}
-val food = inventory().filter { it.isFood }.maxByOrNull { it.nutrition ?: 0 }
+val food = inventory.filter { it.isFood }.maxByOrNull { it.nutrition ?: 0 }
 ```
 
 `id`, `count`, `slot`, `name` (what the tooltip shows), `customName`, `damage` and `maxDamage` (0 for items that
@@ -116,7 +115,7 @@ if (!world.isDay) echo("Night falls (${world.timeOfDay})")
 val diamonds = scanRegion(BlockPos(-128, -64, -128), BlockPos(128, 16, 128)) { it == "minecraft:deepslate_diamond_ore" }
 ```
 
-`blockAt(pos)` tells you everything about one block, where `getBlock` only gives its id:
+`blockAt(pos)` tells you everything about one block, where `blockId` only gives its id (cheaper, for big loops):
 
 ```kotlin
 val crop = blockAt(BlockPos(10, 64, 10))
@@ -146,7 +145,7 @@ clearFakeBlocks()
 ```
 
 - Block names take state properties like commands do. A wrong name throws, saying why.
-- The fake is put in your client's world, so it looks and collides like a real block, and `getBlock` and
+- The fake is put in your client's world, so it looks and collides like a real block, and `blockId` and
   `blockAt` see it. The server doesn't know: standing on a fake block, or walking through a fake wall into a
   real one, gets you pulled back, and breaking one shows the real block again.
 - If the server changes a faked block, the fake stays and the new block shows when the fake is removed. Fakes

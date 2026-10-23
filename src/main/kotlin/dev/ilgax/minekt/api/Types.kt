@@ -160,8 +160,6 @@ data class ItemStackInfo(
     val isFood: Boolean get() = nutrition != null
 }
 
-/** Movement / action keys a script can hold down. */
-enum class Key { FORWARD, BACK, LEFT, RIGHT, JUMP, SNEAK, SPRINT, ATTACK, USE, DROP, SWAP_OFFHAND }
 
 /** A side of a block. */
 enum class Face { DOWN, UP, NORTH, SOUTH, WEST, EAST }
@@ -248,3 +246,11 @@ sealed interface GameEvent {
 
 /** The sidebar scoreboard: its title and lines, top to bottom. */
 data class Sidebar(val title: String, val lines: List<String>)
+
+/** A chat or system message, for `onChat`: its [text], and the player who sent it ([sender]; null for system messages). */
+data class ChatMessage(val text: String, val sender: String? = null) {
+    override fun toString() = text
+}
+
+/** A changed script setting, for `onSettingChange`: its [key] (the property name) and new [value]. */
+data class SettingChange(val key: String, val value: Any)

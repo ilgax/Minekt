@@ -62,11 +62,11 @@ class EvalAndRunTest {
 
     @Test
     fun `handlers registered by eval belong to the calling script`() {
-        val job = run("evalhandler", """eval("onChat { if (it == \"bye\") stop() else echo(\"heard \" + it) }")""")
+        val job = run("evalhandler", """eval("onChat { if (it.text == \"bye\") stop() else echo(\"heard \" + it.text) }")""")
         while (job.state != Job.State.LISTENING) Thread.sleep(20)
-        jobs.dispatch(Job.Event.Chat("hello"))
+        jobs.dispatch(Job.Event.Chat(dev.ilgax.minekt.api.ChatMessage("hello")))
         assertEquals("heard hello", host.next())
-        jobs.dispatch(Job.Event.Chat("bye"))
+        jobs.dispatch(Job.Event.Chat(dev.ilgax.minekt.api.ChatMessage("bye")))
         awaitDone(job)
     }
 
@@ -74,7 +74,7 @@ class EvalAndRunTest {
     fun `runScript returns another script's result and startScript runs it in parallel`() {
         host.scriptDir.resolve("double.kts").writeText("args.first().toInt() * 2")
         host.scriptDir.resolve("broken.kts").writeText("error(\"no fuel\")")
-        host.scriptDir.resolve("forever.kts").writeText("onChat { }")
+        host.scriptDir.resolve("forever.kts").writeText("onChat { }\nUnit")
         awaitDone(
             run(
                 "caller",

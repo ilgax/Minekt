@@ -24,9 +24,10 @@ fun Minekt.publish(topic: String, value: Any? = null) {
 /**
  * Call [handler] with each value published to [topic] (by any script, this one included), on this
  * script's thread after its body finishes; the script stays alive while subscribed. Pass
- * `latest = true` to also get the topic's current value right away, if there is one.
+ * `latest = true` to also get the topic's current value right away, if there is one. `remove()` on
+ * the result stops listening.
  */
-inline fun <reified T> Minekt.subscribe(topic: String, latest: Boolean = false, noinline handler: (T) -> Unit): Subscription =
+inline fun <reified T> Minekt.subscribe(topic: String, latest: Boolean = false, noinline handler: (T) -> Unit): Handler =
     subscribe(topic, object : TypeToken<T>() {}.type, latest) { @Suppress("UNCHECKED_CAST") handler(it as T) }
 
 /** Wait until something is published to [topic] and return it. */
@@ -37,13 +38,8 @@ suspend inline fun <reified T> Minekt.awaitMessage(topic: String): T =
 inline fun <reified T> Minekt.lastMessage(topic: String): T? =
     @Suppress("UNCHECKED_CAST") (lastMessage(topic, object : TypeToken<T>() {}.type) as T?)
 
-/** Returned by [subscribe]; [cancel] stops listening. */
-class Subscription internal constructor(private val cancel: () -> Unit) {
-    fun cancel() = cancel.invoke()
-}
-
 @PublishedApi
-internal fun Minekt.subscribe(topic: String, type: Type, latest: Boolean, handler: (Any?) -> Unit): Subscription {
+internal fun Minekt.subscribe(topic: String, type: Type, latest: Boolean, handler: (Any?) -> Unit): Handler {
     job.checkAlive()
     val converting: (Any?) -> Unit = { value -> handler(job.bus.convert(value, type)) }
     val handlers = job.messageHandlers.computeIfAbsent(topic) { CopyOnWriteArrayList() }
@@ -52,7 +48,7 @@ internal fun Minekt.subscribe(topic: String, type: Type, latest: Boolean, handle
         val (published, value) = job.bus.latest(topic)
         if (published) job.post(Job.Event.Message(topic, value, job.name))
     }
-    return Subscription { handlers -= converting }
+    return Handler { handlers -= converting }
 }
 
 @PublishedApi

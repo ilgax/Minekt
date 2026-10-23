@@ -45,7 +45,7 @@ fun awaitPreview(seconds: Int = 20): String? {
 fun click(command: String) = game { it.player!!.connection.sendUnattendedCommand(command, null) }
 
 var waited = 0
-while (getBlock(player.position.blockPos.offset(dy = -1)) == "minecraft:void_air" && waited < 1200) { waitTicks(20); waited += 20 }
+while (blockId(player.position.blockPos.offset(dy = -1)) == "minecraft:void_air" && waited < 1200) { waitTicks(20); waited += 20 }
 waitTicks(20)
 scripts.resolve("greet.kts").toFile().delete(); scripts.resolve("pasted.kts").toFile().delete()
 

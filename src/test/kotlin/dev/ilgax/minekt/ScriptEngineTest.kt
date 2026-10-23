@@ -105,11 +105,11 @@ class ScriptEngineTest {
 
     @Test
     fun `chat handlers keep the job alive until stop`() {
-        val job = jobs.eval("""onChat { if (it == "quit") stop() else echo("got " + it) }""")
+        val job = jobs.eval("""onChat { if (it.text == "quit") stop() else echo("got " + it.text) }""")
         while (job.state != Job.State.LISTENING) Thread.sleep(20)
-        jobs.dispatch(Job.Event.Chat("ping"))
+        jobs.dispatch(Job.Event.Chat(dev.ilgax.minekt.api.ChatMessage("ping")))
         assertEquals(MessageKind.SCRIPT to "got ping", host.next())
-        jobs.dispatch(Job.Event.Chat("quit"))
+        jobs.dispatch(Job.Event.Chat(dev.ilgax.minekt.api.ChatMessage("quit")))
         awaitDone(job)
     }
 
@@ -184,7 +184,7 @@ class ScriptEngineTest {
         while (job.state != Job.State.LISTENING) Thread.sleep(20)
         assertEquals(2, registry.count(id))
         assertTrue(registry.all().any { it is dev.ilgax.minekt.api.Shape.Text && it.text == "hi" && it.scale == 2f })
-        jobs.dispatch(Job.Event.Chat("bye"))
+        jobs.dispatch(Job.Event.Chat(dev.ilgax.minekt.api.ChatMessage("bye")))
         awaitDone(job)
         assertEquals(0, registry.count(id))
     }
@@ -230,10 +230,10 @@ class ScriptEngineTest {
 
     @Test
     fun `coroutines keep the script alive and await events`() {
-        val job = jobs.eval("""launch { val msg = awaitChat { "go" in it }; awaitTicks(2); echo("got " + msg) }""")
+        val job = jobs.eval("""launch { val msg = awaitChat { "go" in it.text }; awaitTicks(2); echo("got " + msg) }""")
         awaitListening(job)
-        jobs.dispatch(Job.Event.Chat("not yet"))
-        jobs.dispatch(Job.Event.Chat("go go"))
+        jobs.dispatch(Job.Event.Chat(dev.ilgax.minekt.api.ChatMessage("not yet")))
+        jobs.dispatch(Job.Event.Chat(dev.ilgax.minekt.api.ChatMessage("go go")))
         repeat(3) { Thread.sleep(50); jobs.dispatch(Job.Event.Tick) }
         assertEquals(MessageKind.SCRIPT to "got go go", host.next())
         awaitDone(job) // ends by itself once its only coroutine finishes
@@ -270,8 +270,8 @@ class ScriptEngineTest {
     fun `game events reach typed handlers and awaiters`() {
         val job = jobs.eval(
             """
-            onDamage { amount, health -> echo("hurt", amount, health) }
-            onItemGained { id, n -> echo("gained", id, n) }
+            onDamage { (amount, health) -> echo("hurt", amount, health) }
+            onItemGained { (id, n) -> echo("gained", id, n) }
             launch { awaitEventOf<GameEvent.Death>(); echo("died"); stop() }
             """.trimIndent()
         )

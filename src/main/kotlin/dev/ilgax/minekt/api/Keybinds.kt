@@ -38,14 +38,14 @@ class Keybind internal constructor(private val job: Job, private val id: String,
     val isDown: Boolean get() = handle.isDown
 
     /** Run [handler] (on the script's thread) each time the key goes down: once per press, however long it's held. Keeps the script alive. */
-    fun onPress(handler: () -> Unit) = add(true, handler)
+    fun onPress(handler: () -> Unit): Handler = add(true, handler)
 
     /** Run [handler] each time the key is let go. Keeps the script alive. */
-    fun onRelease(handler: () -> Unit) = add(false, handler)
+    fun onRelease(handler: () -> Unit): Handler = add(false, handler)
 
-    private fun add(press: Boolean, handler: () -> Unit) {
+    private fun add(press: Boolean, handler: () -> Unit): Handler {
         job.checkAlive()
-        job.keybindHandlers.computeIfAbsent(id) { CopyOnWriteArrayList() } += Job.KeybindHandler(press, handler)
+        return addHandler(job.keybindHandlers.computeIfAbsent(id) { CopyOnWriteArrayList() }, Job.KeybindHandler(press, handler))
     }
 
     /** Suspend until the key is pressed. */

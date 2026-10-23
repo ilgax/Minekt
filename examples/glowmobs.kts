@@ -1,6 +1,6 @@
 // \glowmobs — outlines mobs around you through walls: hostile ones red, others green, players white,
 // plus chests and barrels yellow. Updated every second. Stops with \kill.
-// Shows: glow on entities and blocks, changing a glow's color, findBlocks.
+// Shows: glow on entities, highlight on blocks, changing a glow's color, findBlocks.
 
 val range by setting(32, 8..64, label = "Range (blocks)")
 val hostile = setOf(
@@ -10,7 +10,7 @@ val hostile = setOf(
 )
 
 val mobGlows = HashMap<Int, Glow>()
-val blockGlows = HashMap<BlockPos, Glow>()
+val chests = HashMap<BlockPos, ShapeHandle>()
 
 every(1.seconds) {
     val near = entities(range.toDouble()).filter { it.health != null }
@@ -29,6 +29,6 @@ every(1.seconds) {
 
     val containers = findBlocks(minOf(range, 16)) { it == "minecraft:chest" || it == "minecraft:barrel" || it == "minecraft:trapped_chest" }
         .map { it.pos }.toSet()
-    blockGlows.keys.filter { it !in containers }.forEach { blockGlows.remove(it)?.remove() }
-    for (pos in containers) blockGlows.getOrPut(pos) { glowBlock(pos, Color.YELLOW) }
+    chests.keys.filter { it !in containers }.forEach { chests.remove(it)?.remove() }
+    for (pos in containers) chests.getOrPut(pos) { highlight(pos, Color.YELLOW, fill = false) }
 }

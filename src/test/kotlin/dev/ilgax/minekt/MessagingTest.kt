@@ -69,7 +69,7 @@ class MessagingTest {
             "waiter",
             """
             val sub = subscribe<Any?>("never") { echo("should not happen") }
-            sub.cancel()
+            sub.remove()
             launch { echo("number " + (awaitMessage<Long>("n") + 1)) }
             echo("waiting")
             """.trimIndent(),

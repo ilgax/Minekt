@@ -57,7 +57,7 @@ class FabricEventsTest {
 
             TestEvents.PING.register { echo("ping") }
             TestEvents.MODIFY.register { text -> "${'$'}text!" }
-            onChat { if (it == "bye") stop() }
+            onChat { if (it.text == "bye") stop() }
             """.trimIndent(),
         )
         awaitState(job, Job.State.LISTENING)
@@ -66,7 +66,7 @@ class FabricEventsTest {
         assertEquals("ping", host.next())
         assertEquals("hi!", TestEvents.MODIFY.invoker().modify("hi"))
 
-        jobs.dispatch(Job.Event.Chat("bye"))
+        jobs.dispatch(Job.Event.Chat(dev.ilgax.minekt.api.ChatMessage("bye")))
         awaitState(job, Job.State.DONE)
         assertEquals(0, TestEvents.listenerCount(TestEvents.PING), "the listener is taken out of the event")
         assertEquals(0, TestEvents.listenerCount(TestEvents.MODIFY))
@@ -92,7 +92,7 @@ class FabricEventsTest {
             """
             @file:OptIn(ExperimentalFabricEvents::class)
             dev.ilgax.minekt.TestEvents.MODIFY.register { text -> error("broken listener") }
-            onChat { if (it == "bye") stop() }
+            onChat { if (it.text == "bye") stop() }
             """.trimIndent(),
         )
         awaitState(job, Job.State.LISTENING)
@@ -101,7 +101,7 @@ class FabricEventsTest {
         assertEquals("hi", TestEvents.MODIFY.invoker().modify("hi"))
         Thread.sleep(200)
         assertTrue(host.messages.isEmpty(), "switched off after the first error: ${host.messages}")
-        jobs.dispatch(Job.Event.Chat("bye"))
+        jobs.dispatch(Job.Event.Chat(dev.ilgax.minekt.api.ChatMessage("bye")))
         awaitState(job, Job.State.DONE)
     }
 }

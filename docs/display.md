@@ -6,16 +6,19 @@ Boxes, lines, arrows and floating text, drawn in the 3D world until removed or t
 
 ```kotlin
 val ores = findBlocks(16) { it.endsWith("_ore") }
-ores.forEach { highlight(it.pos, Color.CYAN) }                 // filled box around each block
+ores.forEach { highlight(it.pos, Color.CYAN) }                 // each block outlined in its own shape
 val label = text(Vec3(0.5, 80.0, 0.5), "Spawn", Color.YELLOW, scale = 2f)
 line(player.position, Vec3(0.5, 64.0, 0.5), Color.RED, width = 3f)
-label.remove()                                                  // every call returns a handle
+label.color = Color.GREEN                                       // every call returns a handle to recolor
+label.remove()                                                  // or remove it
 clearShapes()                                                   // or drop them all
 ```
 
-- Every shape takes `color` (ARGB: `Color.RED`, `Color.rgb(r, g, b, a)`) and `throughWalls` (default `true`:
-  drawn on top of terrain, so you can see it behind blocks). Boxes take `fill`; lines and arrows take `width`;
-  text takes `scale`.
+- Every shape takes `color` (`Color.RED`, `0xRRGGBB`, or `Color.rgb(r, g, b, a)` for see-through) and
+  `throughWalls` (default `true`: drawn on top of terrain, so you can see it behind blocks). Boxes and highlights
+  take `fill`; lines and arrows take `width`; text takes `scale`.
+- `highlight(pos)` follows the block's real shape: a slab is outlined as a slab, a fence as a post, and it
+  follows the block if it changes.
 - Fills come out solid rather than see-through when drawn through walls (that's how the game's gizmo renderer
   works). Use `fill = false` for outlines only.
 - A script that only draws ends straight away and takes its shapes with it. Keep it alive with a handler
@@ -25,18 +28,18 @@ clearShapes()                                                   // or drop them 
 
 ## Glow outlines
 
-The Glowing effect's outline, on any entity or block, in any color, seen through walls, only on your screen:
+The Glowing effect's outline on any entity, in any color, seen through walls, only on your screen:
 
 ```kotlin
 for (e in entities(32.0)) if (e.type == "minecraft:zombie") glow(e, Color.RED)
-val chest = glowBlock(12, 64, -30, Color.YELLOW)          // fill = true also tints it
-chest.color = Color.GREEN                                 // change it while it shows
-chest.remove()
+val g = glow(targetedEntity ?: return, Color.YELLOW)
+g.color = Color.GREEN                                     // change it while it shows
+g.remove()
 ```
 
-- Entities get exactly the game's glowing outline (the newest glow wins if two scripts glow the same one).
-  `glow` takes an entity or its id, so it also works with ids from `targetedEntity()` or `onEntityAppear`.
-- Blocks are outlined in their own shape (a slab is a slab, a fence is a post), through walls.
+- It's exactly the game's glowing outline (the newest glow wins if two scripts glow the same one). `glow`
+  takes an entity or its id, so it also works with ids from `onEntityAppear`.
+- For blocks, use `highlight(pos)` (above): it outlines a block in its own shape.
 - Like shapes, glows come off when the script ends and don't keep it running on their own.
 
 ## Drawing every frame

@@ -101,17 +101,17 @@ class PersistenceTest {
     @Test
     fun `values are autosaved while the script runs and saved when it is killed`() {
         val jobs = JobManager(host)
-        dir.resolve("live.kts").writeText("val log by persistent { mutableListOf<String>() }\nlog += \"started\"\nonChat { log += it }")
+        dir.resolve("live.kts").writeText("val log by persistent { mutableListOf<String>() }\nlog += \"started\"\nonChat { log += it.text }")
         val job = jobs.runScript("live", emptyList())!!
         while (job.state != Job.State.LISTENING) Thread.sleep(20)
-        jobs.dispatch(Job.Event.Chat("first"))
+        jobs.dispatch(Job.Event.Chat(dev.ilgax.minekt.api.ChatMessage("first")))
         val file = dir.resolve("data/live.json")
         val deadline = System.currentTimeMillis() + 15_000
         while (!(file.exists() && "first" in file.readText())) {
             if (System.currentTimeMillis() > deadline) fail("not autosaved while running")
             Thread.sleep(200)
         }
-        jobs.dispatch(Job.Event.Chat("second"))
+        jobs.dispatch(Job.Event.Chat(dev.ilgax.minekt.api.ChatMessage("second")))
         Thread.sleep(200)
         jobs.kill(job.id)
         while (job.state != Job.State.DONE) Thread.sleep(20)

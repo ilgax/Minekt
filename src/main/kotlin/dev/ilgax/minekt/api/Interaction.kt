@@ -14,14 +14,14 @@ import net.minecraft.world.phys.Vec3 as McVec3
 // still applies its usual reach and permission checks).
 
 /** The block under the crosshair, or null. */
-fun Minekt.targetedBlock(): TargetedBlock? = game { mc ->
+val Minekt.targetedBlock: TargetedBlock? get() = game { mc ->
     val hit = mc.hitResult as? BlockHitResult ?: return@game null
     if (hit.type != HitResult.Type.BLOCK) return@game null
     TargetedBlock(hit.blockPos.toApi(), mc.level!!.blockId(hit.blockPos), hit.direction.toApi(), hit.location.toApi())
 }
 
 /** The entity under the crosshair, or null. */
-fun Minekt.targetedEntity(): EntityInfo? = game { mc ->
+val Minekt.targetedEntity: EntityInfo? get() = game { mc ->
     (mc.hitResult as? EntityHitResult)?.entity?.toInfo(mc.player)
 }
 

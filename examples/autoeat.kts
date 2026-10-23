@@ -5,7 +5,7 @@
 val eatBelow by setting(14, 1..19, label = "Eat when food is below")
 
 /** Hotbar slots (0–8) holding something edible, the most filling first. */
-fun foodSlots(): List<Int> = inventory().filter { it.slot in 0..8 && it.isFood }.sortedByDescending { it.nutrition }.map { it.slot }
+fun foodSlots(): List<Int> = inventory.filter { it.slot in 0..8 && it.isFood }.sortedByDescending { it.nutrition }.map { it.slot }
 
 launch {
     while (true) {

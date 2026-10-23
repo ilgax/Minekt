@@ -17,7 +17,7 @@ keeps running until you `\kill` it (or, for `coords`, for a minute).
 | [autoeat.kts](autoeat.kts) | Eats from your hotbar when you're hungry | `player.food`, `press("use")`, item details (`isFood`, `nutrition`) |
 | [quicktools.kts](quicktools.kts) | Full bright on a key, a low-health warning, no jumping while sneaking | the same mod as in [Coming from Fabric](../docs/from-fabric.md): Fabric events, `hook`, `onStop` |
 | [minimap.kts](minimap.kts) | A map of the ground around you in the colors of real maps | `pixels`, reading the world through `game { }` |
-| [glowmobs.kts](glowmobs.kts) | Outlines mobs (by kind) and chests around you through walls | `glow`, `glowBlock`, changing a glow's color |
+| [glowmobs.kts](glowmobs.kts) | Outlines mobs (by kind) and chests around you through walls | `glow`, `highlight`, changing a glow's color |
 | [preview.kts](preview.kts) | A floor of any block, only on your screen, to try out a build | `fakeBlocks`, `targetedBlock`, `keybind` |
 | [chatfilter.kts](chatfilter.kts) | Hides chat messages with words you choose | Fabric API events (experimental), `setting` |
 

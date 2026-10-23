@@ -38,7 +38,7 @@ class StopAndDamageTest {
 
         val stopper = run("stopcall", """onStop { echo("bye ${'$'}it") }; onChat { stop() }""")
         awaitState(stopper, Job.State.LISTENING)
-        jobs.dispatch(Job.Event.Chat("x"))
+        jobs.dispatch(Job.Event.Chat(dev.ilgax.minekt.api.ChatMessage("x")))
         awaitState(stopper, Job.State.DONE)
         assertEquals("bye FINISHED", host.next())
 
@@ -72,8 +72,8 @@ class StopAndDamageTest {
         val job = run(
             "damage",
             """
-            onDamage { amount, health -> echo("short ${'$'}amount ${'$'}health") }
-            onDamage { amount, health, cause, attacker -> echo("long ${'$'}amount ${'$'}cause ${'$'}{attacker?.name}") }
+            onDamage { (amount, health) -> echo("short ${'$'}amount ${'$'}health") }
+            onDamage { (amount, health, cause, attacker) -> echo("long ${'$'}amount ${'$'}cause ${'$'}{attacker?.name}") }
             onChat { stop() }
             """.trimIndent(),
         )
@@ -83,7 +83,7 @@ class StopAndDamageTest {
         jobs.dispatch(Job.Event.Game(GameEvent.Damage(2f, 15f)))
         val messages = List(4) { host.next() }.toSet()
         assertEquals(setOf("short 3.0 17.0", "long 3.0 minecraft:mob_attack Zombie", "short 2.0 15.0", "long 2.0 null null"), messages)
-        jobs.dispatch(Job.Event.Chat("x"))
+        jobs.dispatch(Job.Event.Chat(dev.ilgax.minekt.api.ChatMessage("x")))
         awaitState(job, Job.State.DONE)
     }
 }

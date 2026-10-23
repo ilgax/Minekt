@@ -46,12 +46,13 @@ fun pixel(name: String, x: Int, y: Int): Int {
     return image.getRGB((x * scale).toInt(), (y * scale).toInt()) and 0xFFFFFF
 }
 
+// Color.RED and Color.GREEN are soft (255, 64, 64 and 64, 255, 64), not pure.
 val redish = { r: Int, g: Int, b: Int -> r > 180 && g < 90 && b < 90 }
 val greenish = { r: Int, g: Int, b: Int -> g > 180 && r < 90 && b < 90 }
 val yellowish = { r: Int, g: Int, b: Int -> r > 180 && g > 180 && b < 70 }
 
 var waited = 0
-while (getBlock(player.position.blockPos.offset(dy = -1)) == "minecraft:void_air" && waited < 1200) { waitTicks(20); waited += 20 }
+while (blockId(player.position.blockPos.offset(dy = -1)) == "minecraft:void_air" && waited < 1200) { waitTicks(20); waited += 20 }
 waitTicks(40)
 val me = player.name
 server("gamemode creative $me")
@@ -80,15 +81,17 @@ check("glow(entity) outlines it in its color, through a wall") {
     val after = count("vz-glow-3", redish) + count("vz-glow-4", greenish)
     (before < 20 && with > 100 && green > 100 && after < 20) then "red px: $before -> $with; green after recolor: $green; after remove: $after"
 }
-check("glowBlock outlines a block through a wall, in its shape") {
+check("highlight outlines a block through a wall, in its shape, and recolors") {
     server("setblock 0 200 6 minecraft:oak_slab")
     waitTicks(5)
     val before = count("vz-gb-0", yellowish)
-    val g = glowBlock(0, 200, 6, Color.YELLOW, fill = true)
+    val g = highlight(0, 200, 6, Color.YELLOW)
     val with = count("vz-gb-1", yellowish)
+    g.color = Color.GREEN
+    val green = count("vz-gb-1g", greenish)
     g.remove()
     val after = count("vz-gb-2", yellowish)
-    (before < 20 && with > 100 && after < 20) then "yellow px: $before -> $with -> $after"
+    (before < 20 && with > 100 && green > 100 && after < 20) then "yellow px: $before -> $with -> $after; green after recolor: $green"
 }
 server("fill -2 200 3 2 203 3 minecraft:air")
 server("kill @e[tag=vz]")
@@ -98,11 +101,11 @@ server("kill @e[tag=vz]")
 check("fakeBlock shows a block only on this client; remove() brings the real one back") {
     val f = fakeBlock(0, 200, 3, "minecraft:glass")
     waitTicks(2)
-    val shown = getBlock(BlockPos(0, 200, 3))
+    val shown = blockId(BlockPos(0, 200, 3))
     val real = serverBlock(0, 200, 3)
     f.remove()
     waitTicks(2)
-    (shown == "minecraft:glass" && real == "minecraft:air" && getBlock(BlockPos(0, 200, 3)) == "minecraft:air") then "client $shown, server $real, after remove ${getBlock(BlockPos(0, 200, 3))}"
+    (shown == "minecraft:glass" && real == "minecraft:air" && blockId(BlockPos(0, 200, 3)) == "minecraft:air") then "client $shown, server $real, after remove ${blockId(BlockPos(0, 200, 3))}"
 }
 check("fake block states parse, like commands") {
     val f = fakeBlock(1, 200, 3, "minecraft:oak_stairs[facing=east,half=top]")
@@ -118,21 +121,21 @@ check("a server change under a fake keeps the fake, and shows after remove") {
     val f = fakeBlock(0, 200, 4, "minecraft:glass")
     server("setblock 0 200 4 minecraft:gold_block")
     waitTicks(10)
-    val during = getBlock(BlockPos(0, 200, 4))
+    val during = blockId(BlockPos(0, 200, 4))
     f.remove()
     waitTicks(2)
-    val after = getBlock(BlockPos(0, 200, 4))
+    val after = blockId(BlockPos(0, 200, 4))
     server("setblock 0 200 4 minecraft:air")
     (during == "minecraft:glass" && after == "minecraft:gold_block") then "during $during, after $after"
 }
 check("two fakes on one block: the newest shows, then the older, then the real one") {
     val a = fakeBlock(0, 200, 5, "minecraft:glass")
     val b = fakeBlock(0, 200, 5, "minecraft:diamond_block")
-    val top = getBlock(BlockPos(0, 200, 5))
+    val top = blockId(BlockPos(0, 200, 5))
     b.remove()
-    val next = getBlock(BlockPos(0, 200, 5))
+    val next = blockId(BlockPos(0, 200, 5))
     a.remove()
-    val last = getBlock(BlockPos(0, 200, 5))
+    val last = blockId(BlockPos(0, 200, 5))
     (top == "minecraft:diamond_block" && next == "minecraft:glass" && last == "minecraft:air") then "$top, $next, $last"
 }
 check("fakeBlocks: 2000 at once is quick") {
@@ -140,19 +143,19 @@ check("fakeBlocks: 2000 at once is quick") {
     val plan = buildMap { for (x in -4..4) for (y in 201..204) for (z in -3..12) put(BlockPos(x, y + 10, z), "minecraft:glass") }
     val many = fakeBlocks(plan)
     val ms = (System.nanoTime() - started) / 1_000_000
-    val ok = getBlock(BlockPos(4, 214, 12)) == "minecraft:glass"
+    val ok = blockId(BlockPos(4, 214, 12)) == "minecraft:glass"
     clearFakeBlocks()
-    val cleared = getBlock(BlockPos(4, 214, 12)) == "minecraft:air"
+    val cleared = blockId(BlockPos(4, 214, 12)) == "minecraft:air"
     (ok && cleared && ms < 2000) then "${many.size} in $ms ms, cleared: $cleared"
 }
 check("fake blocks come off when their script ends") {
     val file = game { it.gameDirectory.toPath().resolve("minekt/vzchild.kts") }
     java.nio.file.Files.writeString(file, "fakeBlock(2, 200, 6, \"minecraft:emerald_block\")\nsleep(1500)\nstop()\n")
     val run = startScript("vzchild")
-    val during = waitFor(5) { getBlock(BlockPos(2, 200, 6)) == "minecraft:emerald_block" }
+    val during = waitFor(5) { blockId(BlockPos(2, 200, 6)) == "minecraft:emerald_block" }
     run.await()
     waitTicks(2)
-    val after = getBlock(BlockPos(2, 200, 6))
+    val after = blockId(BlockPos(2, 200, 6))
     java.nio.file.Files.deleteIfExists(file)
     (during && after == "minecraft:air") then "during: $during, after: $after"
 }
@@ -246,7 +249,7 @@ check("the prefix can be changed, is saved, and bad ones are refused") {
 launch {
     check("fakes don't show up as block changes") {
         val changes = AtomicInteger()
-        onBlockChange { _, _, _ -> changes.incrementAndGet() }
+        onBlockChange { (_, _, _) -> changes.incrementAndGet() }
         val f = fakeBlock(-1, 200, 5, "minecraft:glass")
         f.remove()
         server("setblock -1 200 5 minecraft:stone")

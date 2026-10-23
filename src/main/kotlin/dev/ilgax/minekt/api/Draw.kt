@@ -31,15 +31,15 @@ import net.minecraft.world.phys.Vec3 as McVec3
 // A handler that throws is removed and its error shown. They keep the script alive.
 
 /** Run [handler] every frame while the HUD is drawn (not when it's hidden with F1). */
-fun Minekt.onHudRender(handler: (HudCanvas) -> Unit) {
+fun Minekt.onHudRender(handler: (HudCanvas) -> Unit): Handler {
     job.checkAlive()
-    job.hudRenderHandlers += handler
+    return addHandler(job.hudRenderHandlers, handler)
 }
 
 /** Run [handler] every frame while the world is drawn, to draw lines, boxes and text in it. */
-fun Minekt.onWorldRender(handler: (WorldCanvas) -> Unit) {
+fun Minekt.onWorldRender(handler: (WorldCanvas) -> Unit): Handler {
     job.checkAlive()
-    job.worldRenderHandlers += handler
+    return addHandler(job.worldRenderHandlers, handler)
 }
 
 /**
@@ -148,5 +148,3 @@ class WorldCanvas internal constructor(
     private fun Vec3.mc() = McVec3(x, y, z)
 }
 
-/** 0xRRGGBB colors are made opaque; ones with an alpha byte are kept. */
-private fun opaque(color: Int) = if (color ushr 24 == 0) color or (0xFF shl 24) else color

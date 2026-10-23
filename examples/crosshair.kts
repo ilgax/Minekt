@@ -5,7 +5,7 @@
 @Volatile var target: EntityInfo? = null
 @Volatile var speed = 0.0
 onTick {
-    target = targetedEntity()
+    target = targetedEntity
     val v = player.velocity
     speed = Math.hypot(v.x, v.z) * 20 // blocks per tick → per second
 }

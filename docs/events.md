@@ -7,7 +7,7 @@ handling events until it calls `stop()` or you `\kill` it:
 
 ```kotlin
 // \chatbot
-onChat { msg -> if (msg.endsWith("ping")) echo("pong!") }
+onChat { msg -> if (msg.text.endsWith("ping")) echo("pong!") }
 keybind("Stop chatbot", default = "k").onPress { stop() }
 ```
 
@@ -23,9 +23,9 @@ onStop { reason -> game { mc -> mc.options.gamma().set(before) } }   // reason: 
 Game events work the same way:
 
 ```kotlin
-onDamage { amount, health -> if (health < 6) echo("Low health!") }
-onDamage { amount, health, cause, attacker -> echo("$cause by ${attacker?.name}") }   // "minecraft:arrow by Skeleton"
-onItemGained { id, count -> if ("diamond" in id) echo("+$count diamond") }
+onDamage { (amount, health) -> if (health < 6) echo("Low health!") }
+onDamage { (amount, health, cause, attacker) -> echo("$cause by ${attacker?.name}") }   // "minecraft:arrow by Skeleton"
+onItemGained { (id, count) -> if ("diamond" in id) echo("+$count diamond") }
 onScreenOpen { screen -> if (screen.isContainer) echo("Opened ${screen.title}") }
 onEvent { event -> if (event is GameEvent.DimensionChange) echo("Now in ${event.to}") }
 ```
@@ -36,18 +36,33 @@ type (`minecraft:fall`, `minecraft:mob_attack`, `minecraft:arrow`, …), `attack
 skeleton, not its arrow; `GameEvent.Damage.projectile` has the arrow). Both are null when the server didn't say. `onItemGained` fires whenever the count of an item in your inventory goes up, from
 pickups, crafting or taking items out of chests.
 
+Handlers with more than one value (`onChat`, `onDamage`, `onBlockChange`, `onSound`, …) get one event object.
+Unpack the parts you want in parentheses, in order, with names of your own, or keep the whole thing:
+
+```kotlin
+onChat { (text, sender) -> if (sender != null) echo("$sender said $text") }
+onDamage { e -> if (e.cause == "minecraft:fall") echo("Ouch: ${e.amount}") }
+```
+
+Every `on…` call returns a `Handler`. `remove()` takes out just that handler, while the others keep running:
+
+```kotlin
+val watch = onTick { if (player.health < 6) actionBar("Low health!") }
+keybind("Quiet", default = "q").onPress { watch.remove() }
+```
+
 ## More events
 
 ```kotlin
-onBlockChange { pos, old, new -> if (new == "minecraft:air" && "ore" in old) echo("$old mined at $pos") }
+onBlockChange { (pos, old, new) -> if (new == "minecraft:air" && "ore" in old) echo("$old mined at $pos") }
 onEntityAppear { e -> if (e.type == "minecraft:creeper") toast("Creeper!", "${e.distance.toInt()} blocks away") }
-onEntityGone { e, died -> if (died) echo("${e.name} died") }
-onSound { id, pos, category -> if (id == "minecraft:entity.creeper.primed") title("RUN") }
-onParticle { id, pos, count -> … }                     // particles the server sends
+onEntityGone { (e, died) -> if (died) echo("${e.name} died") }
+onSound { (id, pos, category) -> if (id == "minecraft:entity.creeper.primed") title("RUN") }
+onParticle { (id, pos, count) -> … }                     // particles the server sends
 onPlayerJoin { name -> echo("$name joined") }          // tab list changes
 onPlayerLeave { name -> echo("$name left") }
 onScoreboardChange { sidebar -> echo(sidebar.title, sidebar.lines) }
-echo(tabList(), sidebar())                              // read them any time
+echo(tabList, sidebar)                              // read them any time
 ```
 
 - `onBlockChange` sees every block that turns into another block in loaded chunks: placed, broken, grown,
@@ -70,7 +85,7 @@ launch {                                   // runs alongside everything else
     while (true) { actionBar("HP ${player.health}"); awaitTicks(10) }
 }
 launch {
-    val msg = awaitChat { "ready" in it }  // suspends until a matching message arrives
+    val msg = awaitChat { "ready" in it.text }  // suspends until a matching message arrives
     echo("Got: $msg")
 }
 val reply = runBlocking { withTimeoutOrNull(5_000) { awaitChat() } }   // wait in the script body
@@ -175,7 +190,7 @@ subscribe<Stats>("stats", latest = true) { actionBar("HP: ${it.health} in ${it.d
 ```
 
 - Topics are any name you like. `subscribe` handlers run after the script body; the script stays alive while
-  subscribed. `subscribe` returns a handle with `cancel()`.
+  subscribed. `subscribe` returns a `Handler`: `remove()` stops listening.
 - `latest = true` also delivers the topic's current value right away. `lastMessage<T>(topic)` reads it at any
   time, even if it was published before this script started.
 - `awaitMessage<T>(topic)` waits for the next one inside a coroutine.

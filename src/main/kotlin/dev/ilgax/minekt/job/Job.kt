@@ -55,7 +55,7 @@ class Job internal constructor(
 ) {
     sealed interface Event {
         data object Tick : Event
-        data class Chat(val text: String) : Event
+        data class Chat(val message: dev.ilgax.minekt.api.ChatMessage) : Event
         data class Command(val name: String, val args: List<String>) : Event
         /** A script keybind went down ([pressed]) or up. */
         data class Keybind(val id: String, val pressed: Boolean = true) : Event
@@ -94,7 +94,7 @@ class Job internal constructor(
     private val events = LinkedBlockingQueue<Event>()
 
     internal val tickHandlers = CopyOnWriteArrayList<() -> Unit>()
-    internal val chatHandlers = CopyOnWriteArrayList<(String) -> Unit>()
+    internal val chatHandlers = CopyOnWriteArrayList<(dev.ilgax.minekt.api.ChatMessage) -> Unit>()
     internal val commandHandlers = ConcurrentHashMap<String, (List<String>) -> Unit>()
     /** `keybind(…).onPress { }`, by keybind id. */
     /** Keybind id → handlers for it going down (`onPress`) and up (`onRelease`). */
@@ -109,7 +109,7 @@ class Job internal constructor(
 
     internal fun wantsGame(type: Class<*>) = gameAwaiters.get() > 0 || gameEventTypes.any { it.isAssignableFrom(type) }
     internal val messageHandlers = ConcurrentHashMap<String, CopyOnWriteArrayList<(Any?) -> Unit>>()
-    internal val settingHandlers = CopyOnWriteArrayList<(String, Any) -> Unit>()
+    internal val settingHandlers = CopyOnWriteArrayList<(dev.ilgax.minekt.api.SettingChange) -> Unit>()
     /** Settings this run declared with `by setting(…)`; others are dropped from the file when it ends cleanly. */
     internal val declaredSettings: MutableSet<String> = ConcurrentHashMap.newKeySet()
 
@@ -350,8 +350,8 @@ class Job internal constructor(
                     }
                     is ResultValue.Value -> {
                         this.result.complete(value.value)
-                        // `\eval launch { … }` returns a coroutine handle; not worth echoing.
-                        if (name == EVAL_NAME && value.value !is kotlinx.coroutines.Job) {
+                        // `\eval launch { … }` or `\eval onTick { … }` return a handle; not worth echoing.
+                        if (name == EVAL_NAME && value.value !is kotlinx.coroutines.Job && value.value !is dev.ilgax.minekt.api.Handler) {
                             logs.add(name, ScriptLogs.Level.ECHO, "= ${value.value}", run = id)
                             host.echo("= ${value.value}", MessageKind.INFO)
                         }
@@ -404,14 +404,14 @@ class Job internal constructor(
                         tickQueued.set(false)
                         tickHandlers.forEach { it() }
                     }
-                    is Event.Chat -> chatHandlers.forEach { it(event.text) }
+                    is Event.Chat -> chatHandlers.forEach { it(event.message) }
                     is Event.Command -> commandHandlers[event.name]?.invoke(event.args)
                     is Event.Keybind -> keybindHandlers[event.id]?.forEach { if (it.onPress == event.pressed) it.handler() }
                     is Event.Click -> clickActions[event.id]?.invoke()
                     is Event.Game -> gameHandlers.forEach { it(event.event) }
                     is Event.Message -> messageHandlers[event.topic]?.forEach { it(event.value) }
                     is Event.Packet -> packetHandlers.forEach { if (it.matches(event.packet, event.incoming)) it.handler(event.packet) }
-                    is Event.Setting -> settingHandlers.forEach { it(event.key, event.value) }
+                    is Event.Setting -> settingHandlers.forEach { it(dev.ilgax.minekt.api.SettingChange(event.key, event.value)) }
                 }
             }
         } catch (t: Throwable) {

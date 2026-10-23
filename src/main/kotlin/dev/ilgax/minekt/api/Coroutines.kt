@@ -33,9 +33,9 @@ suspend fun Minekt.awaitTicks(ticks: Int = 1) {
     repeat(ticks) { job.awaitEvent { it == Job.Event.Tick } }
 }
 
-/** Suspend until a chat message matching [predicate] arrives; returns its text. */
-suspend fun Minekt.awaitChat(predicate: (String) -> Boolean = { true }): String =
-    (job.awaitEvent { it is Job.Event.Chat && predicate(it.text) } as Job.Event.Chat).text
+/** Suspend until a chat message matching [predicate] arrives (`awaitChat { "ready" in it.text }`), and return it. */
+suspend fun Minekt.awaitChat(predicate: (ChatMessage) -> Boolean = { true }): ChatMessage =
+    (job.awaitEvent { it is Job.Event.Chat && predicate(it.message) } as Job.Event.Chat).message
 
 /** Suspend until a [GameEvent] matching [predicate] happens. */
 suspend fun Minekt.awaitEvent(predicate: (GameEvent) -> Boolean = { true }): GameEvent {

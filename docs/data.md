@@ -11,7 +11,7 @@ var speed by setting(1.0, 0.5..3.0, step = 0.25)             // a decimal slider
 var mode by setting("walk", listOf("walk", "sprint"))        // a choice
 var greeting by setting("Hello", label = "Greeting text")    // a text box
 
-onSettingChange { key, value -> echo("$key is now $value") }
+onSettingChange { (key, value) -> echo("$key is now $value") }
 ```
 
 - They show up in the script manager (the script's **Settings** button) and with `\settings <script>`, also while

@@ -38,7 +38,7 @@ class Pixels internal constructor(
 
     /** Set the pixel at [x], [y]: 0xRRGGBB is opaque, 0xAARRGGBB keeps its alpha. */
     operator fun set(x: Int, y: Int, color: Int) {
-        data[index(x, y)] = opaqueColor(color)
+        data[index(x, y)] = opaque(color)
         dirty.set(true)
     }
 
@@ -50,7 +50,7 @@ class Pixels internal constructor(
 
     /** Set every pixel to [color]. */
     fun fill(color: Int) {
-        data.fill(opaqueColor(color))
+        data.fill(opaque(color))
         dirty.set(true)
     }
 
@@ -62,7 +62,7 @@ class Pixels internal constructor(
 
     /** Fill a rectangle. Parts outside are left out. */
     fun fill(x: Int, y: Int, width: Int, height: Int, color: Int) {
-        val c = opaqueColor(color)
+        val c = opaque(color)
         for (py in maxOf(0, y) until minOf(this.height, y + height)) {
             data.fill(c, py * this.width + maxOf(0, x), py * this.width + minOf(this.width, x + width))
         }
@@ -121,5 +121,3 @@ fun Minekt.pixels(width: Int, height: Int): Pixels {
     job.checkAlive()
     return Pixels(width, height, job)
 }
-
-private fun opaqueColor(color: Int) = if (color ushr 24 == 0) color or (0xFF shl 24) else color

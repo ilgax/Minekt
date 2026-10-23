@@ -30,7 +30,7 @@ ores.groupBy { it.id }.forEach { (id, found) -> echo("  $id × ${found.size}") }
 
 ```kotlin
 // lowhealth.kts
-onDamage { _, health ->
+onDamage { (_, health) ->
     if (health < 6) {
         title("Low health!")
         playSound("minecraft:block.note_block.bell")

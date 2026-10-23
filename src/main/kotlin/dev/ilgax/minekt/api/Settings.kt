@@ -44,9 +44,9 @@ fun Minekt.setting(default: String, options: List<String>, label: String? = null
 }
 
 /** Run [handler] (on the script's thread) when the player changes a setting: its property name and new value. */
-fun Minekt.onSettingChange(handler: (key: String, value: Any) -> Unit) {
+fun Minekt.onSettingChange(handler: (SettingChange) -> Unit): Handler {
     job.checkAlive()
-    job.settingHandlers += handler
+    return addHandler(job.settingHandlers, handler)
 }
 
 class SettingProperty<T : Any> internal constructor(

@@ -21,7 +21,7 @@ fun server(command: String) = game { mc ->
 }
 
 var waited = 0
-while (getBlock(player.position.blockPos.offset(dy = -1)) == "minecraft:void_air" && waited < 1200) { waitTicks(20); waited += 20 }
+while (blockId(player.position.blockPos.offset(dy = -1)) == "minecraft:void_air" && waited < 1200) { waitTicks(20); waited += 20 }
 waitTicks(40)
 val me = player.name
 server("gamemode survival $me")
@@ -36,7 +36,7 @@ server("summon minecraft:arrow 2 201 4 {NoGravity:1b,Tags:[\"sdtest\",\"sdarrow\
 waitTicks(20)
 
 val hits = CopyOnWriteArrayList<String>()
-onDamage { amount, _, cause, attacker -> hits += "$amount $cause ${attacker?.type}" }
+onDamage { (amount, _, cause, attacker) -> hits += "$amount $cause ${attacker?.type}" }
 val projectiles = CopyOnWriteArrayList<String?>()
 onEvent { if (it is GameEvent.Damage) projectiles += it.projectile?.type }
 

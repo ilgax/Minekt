@@ -20,17 +20,38 @@ object Color {
     fun withAlpha(color: Int, alpha: Int): Int = (color and 0x00FFFFFF) or (alpha and 0xFF shl 24)
 }
 
+/** 0xRRGGBB colors are made opaque; ones with an alpha byte are kept. The rule for every color in Minekt. */
+internal fun opaque(color: Int) = if (color ushr 24 == 0) color or (0xFF shl 24) else color
+
 /** Something a script draws in the world. Immutable; drawn every tick until removed or the script ends. */
 sealed interface Shape {
     val throughWalls: Boolean
+    val color: Int
 
-    data class Box(val min: Vec3, val max: Vec3, val color: Int, val fill: Boolean, override val throughWalls: Boolean) : Shape
-    data class Line(val from: Vec3, val to: Vec3, val color: Int, val width: Float, val arrow: Boolean, override val throughWalls: Boolean) : Shape
-    data class Text(val pos: Vec3, val text: String, val color: Int, val scale: Float, override val throughWalls: Boolean) : Shape
+    fun withColor(color: Int): Shape
+
+    data class Box(val min: Vec3, val max: Vec3, override val color: Int, val fill: Boolean, override val throughWalls: Boolean) : Shape {
+        override fun withColor(color: Int) = copy(color = color)
+    }
+    data class Line(val from: Vec3, val to: Vec3, override val color: Int, val width: Float, val arrow: Boolean, override val throughWalls: Boolean) : Shape {
+        override fun withColor(color: Int) = copy(color = color)
+    }
+    data class Text(val pos: Vec3, val text: String, override val color: Int, val scale: Float, override val throughWalls: Boolean) : Shape {
+        override fun withColor(color: Int) = copy(color = color)
+    }
+    /** A block's outline in its own shape (a slab is a slab), whatever is there when it's drawn. */
+    data class BlockOutline(val pos: BlockPos, override val color: Int, val fill: Boolean, override val throughWalls: Boolean) : Shape {
+        override fun withColor(color: Int) = copy(color = color)
+    }
 }
 
-/** A drawn shape; call [remove] to take it away early. */
+/** A drawn shape: change its [color], or [remove] it early. */
 class ShapeHandle internal constructor(private val id: Long, private val registry: ShapeRegistry) {
+    /** The shape's color; set it to recolor the shape where it is. */
+    var color: Int
+        get() = registry.get(id)?.color ?: 0
+        set(value) = registry.update(id) { it.withColor(opaque(value)) }
+
     fun remove() = registry.remove(id)
 }
 
@@ -46,6 +67,10 @@ class ShapeRegistry {
     }
 
     fun remove(id: Long) = byJob.values.forEach { it.remove(id) }
+
+    fun get(id: Long): Shape? = byJob.values.firstNotNullOfOrNull { it[id] }
+
+    fun update(id: Long, change: (Shape) -> Shape) = byJob.values.forEach { shapes -> shapes.computeIfPresent(id) { _, shape -> change(shape) } }
 
     fun clear(jobId: Int) {
         byJob.remove(jobId)

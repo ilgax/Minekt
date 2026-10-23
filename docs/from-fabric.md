@@ -122,7 +122,7 @@ tick, nothing slow. A script's body runs on its own thread instead, so it can do
 
 ```kotlin
 press("forward"); sleep(2000); release("forward")
-val msg = awaitChat { "ready" in it }
+val msg = awaitChat { "ready" in it.text }
 ```
 
 and touch the game through `game { mc -> … }`, which runs the block on the game thread and returns its
@@ -153,8 +153,8 @@ Hook the class that declares the method, as a mixin targets it: `LivingEntity` f
 ### Events
 
 Fabric API events work as in a mod (experimental, opt in with one line). Minekt also has its own events,
-which keep the script alive and run on the script's thread: `onTick`, `onChat`, `onDamage { amount, health,
-cause, attacker -> }`, `onBlockChange`, `onEntityAppear`, `onPacket`… Use whichever reads better; on the client,
+which keep the script alive and run on the script's thread: `onTick`, `onChat`, `onDamage { (amount, health,
+cause, attacker) -> }`, `onBlockChange`, `onEntityAppear`, `onPacket`… Use whichever reads better; on the client,
 some of Minekt's (like `onDamage`) have no Fabric equivalent.
 
 ### No `fabric.mod.json`

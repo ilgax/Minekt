@@ -20,14 +20,14 @@ fun show() {
 }
 
 fun moveHere() {
-    val target = targetedBlock() ?: return actionBar("Look at a block first")
+    val target = targetedBlock ?: return actionBar("Look at a block first")
     center = target.pos.offset(dy = 1)
     show()
 }
 
 keybind("Move preview", default = "p").onPress { moveHere() }
 keybind("Preview held block", default = "o").onPress {
-    val held = heldItem()
+    val held = heldItem
     if (held == null) actionBar("Hold a block first")
     else {
         block = held.id

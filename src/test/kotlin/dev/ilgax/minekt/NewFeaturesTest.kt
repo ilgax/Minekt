@@ -55,7 +55,7 @@ class NewFeaturesTest {
             var mode by setting("walk", listOf("walk", "sprint"))
             var speed by setting(1.0, 0.5..3.0, step = 0.25, label = "Walk speed")
             echo(range, autoEat, mode, speed)
-            onSettingChange { key, value -> echo("changed", key, value, range); stop() }
+            onSettingChange { (key, value) -> echo("changed", key, value, range); stop() }
         """.trimIndent()
         val first = run("miner", code)
         assertEquals("16 true walk 1.0", host.next())
@@ -202,7 +202,7 @@ class NewFeaturesTest {
         val job = run(
             "events",
             """
-            onBlockChange { pos, old, new -> echo("block", pos, old, new) }
+            onBlockChange { (pos, old, new) -> echo("block", pos, old, new) }
             onPlayerJoin { echo("join", it); stop() }
             """.trimIndent(),
         )

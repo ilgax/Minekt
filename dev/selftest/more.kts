@@ -63,7 +63,7 @@ fun clickWidget(text: String): Boolean {
 }
 
 var waited = 0
-while (getBlock(player.position.blockPos.offset(dy = -1)) == "minecraft:void_air" && waited < 1200) { waitTicks(20); waited += 20 }
+while (blockId(player.position.blockPos.offset(dy = -1)) == "minecraft:void_air" && waited < 1200) { waitTicks(20); waited += 20 }
 waitTicks(20)
 val me = player.name
 server("gamemode survival $me")
@@ -132,9 +132,9 @@ check("onPacketSent sees movement packets") {
     val moves = AtomicInteger()
     val counter = launch { while (true) { awaitPacket<ServerboundMovePlayerPacket>(sent = true); moves.incrementAndGet() } }
     sleep(200)
-    press(Key.FORWARD)
+    press("forward")
     sleep(600)
-    release(Key.FORWARD)
+    release("forward")
     sleep(300)
     counter.cancel()
     (moves.get() > 3) then "${moves.get()} move packets"
@@ -151,17 +151,17 @@ check("hook counts and cancels jumps") {
             if (cancel) call.cancel()
         }
     }
-    press(Key.JUMP)
+    press("jump")
     sleep(300)
-    release(Key.JUMP)
+    release("jump")
     sleep(1000)
     val counted = jumps.get()
     cancel = true
     val y0 = position.y
     var maxY = y0
-    press(Key.JUMP)
+    press("jump")
     repeat(15) { waitTicks(1); maxY = maxOf(maxY, position.y) }
-    release(Key.JUMP)
+    release("jump")
     h.remove()
     (counted >= 1 && maxY - y0 < 0.1 && jumps.get() > counted) then "jumps seen=${jumps.get()}, rise while cancelled=${"%.2f".format(maxY - y0)}"
 }
