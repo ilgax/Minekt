@@ -74,7 +74,15 @@ then open a singleplayer world. Each one reports `OK`/`FAIL` lines in chat and c
 - `\draw`: drawing every frame, pressing bindings by name, the player's and other entities' fields, styled and
   clickable chat, and the clipboard.
 - `\fabric`: Fabric API events from scripts: ticks, hiding a chat message, removal when a
-  script is killed, and the opt-in message.
+  script is killed, and a script with only a listener running until it's killed.
+- `\mksevents`: server scripts in the singleplayer world through `/mks`: `onEvent<ServerEvent.Chat>` seeing the
+  player's chat, and a server script with only a Fabric listener running until `/mks kill`.
+- `\realplayer`: a real player on a real server. Run `./gradlew prodServer` with `online-mode=false` and
+  `white-list=false` in its `server.properties` and `dev/servertest/realplayer.kts` in its `minekt/` and
+  `autorun.txt`, then join with `--quickPlayMultiplayer localhost:25565` and `[multiplayer]` / `\realplayer` in the
+  client's `autorun.txt`. Checks the server's packet hooks, the `/mks install` and `/mks share` chat buttons (the
+  game asks before a button runs a command that needs permissions; the test answers like a player), and `/mks`
+  leaving the command tree without op.
 - `\examples`: starts every script in `examples/` and checks it runs without errors, then takes a screenshot.
 - `\stopdamage`: `onDamage`'s cause and attacker from real server damage (fall, a zombie, a skeleton's arrow),
   and `onStop` putting a setting back after `\kill`.
