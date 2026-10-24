@@ -151,8 +151,8 @@ public final class dev/ilgax/minekt/api/EffectInfo {
 }
 
 public final class dev/ilgax/minekt/api/EntityInfo {
-	public fun <init> (ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;Lnet/minecraft/world/phys/Vec3;Ljava/lang/Float;DLjava/lang/Float;Ljava/lang/String;ZLjava/util/Map;Ljava/util/List;Lnet/minecraft/world/phys/Vec3;FFZZZZLjava/lang/Integer;)V
-	public synthetic fun <init> (ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;Lnet/minecraft/world/phys/Vec3;Ljava/lang/Float;DLjava/lang/Float;Ljava/lang/String;ZLjava/util/Map;Ljava/util/List;Lnet/minecraft/world/phys/Vec3;FFZZZZLjava/lang/Integer;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;Lnet/minecraft/world/phys/Vec3;Ljava/lang/Float;DLjava/lang/Float;Ljava/lang/String;ZLjava/util/Map;Ljava/util/List;Lnet/minecraft/world/phys/Vec3;FFZZZZLjava/lang/Integer;Ljava/lang/String;)V
+	public synthetic fun <init> (ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;Lnet/minecraft/world/phys/Vec3;Ljava/lang/Float;DLjava/lang/Float;Ljava/lang/String;ZLjava/util/Map;Ljava/util/List;Lnet/minecraft/world/phys/Vec3;FFZZZZLjava/lang/Integer;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()I
 	public final fun component10 ()Z
 	public final fun component11 ()Ljava/util/Map;
@@ -166,6 +166,7 @@ public final class dev/ilgax/minekt/api/EntityInfo {
 	public final fun component19 ()Z
 	public final fun component2 ()Ljava/lang/String;
 	public final fun component20 ()Ljava/lang/Integer;
+	public final fun component21 ()Ljava/lang/String;
 	public final fun component3 ()Ljava/lang/String;
 	public final fun component4 ()Ljava/lang/String;
 	public final fun component5 ()Lnet/minecraft/world/phys/Vec3;
@@ -173,10 +174,11 @@ public final class dev/ilgax/minekt/api/EntityInfo {
 	public final fun component7 ()D
 	public final fun component8 ()Ljava/lang/Float;
 	public final fun component9 ()Ljava/lang/String;
-	public final fun copy (ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;Lnet/minecraft/world/phys/Vec3;Ljava/lang/Float;DLjava/lang/Float;Ljava/lang/String;ZLjava/util/Map;Ljava/util/List;Lnet/minecraft/world/phys/Vec3;FFZZZZLjava/lang/Integer;)Ldev/ilgax/minekt/api/EntityInfo;
-	public static synthetic fun copy$default (Ldev/ilgax/minekt/api/EntityInfo;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;Lnet/minecraft/world/phys/Vec3;Ljava/lang/Float;DLjava/lang/Float;Ljava/lang/String;ZLjava/util/Map;Ljava/util/List;Lnet/minecraft/world/phys/Vec3;FFZZZZLjava/lang/Integer;ILjava/lang/Object;)Ldev/ilgax/minekt/api/EntityInfo;
+	public final fun copy (ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;Lnet/minecraft/world/phys/Vec3;Ljava/lang/Float;DLjava/lang/Float;Ljava/lang/String;ZLjava/util/Map;Ljava/util/List;Lnet/minecraft/world/phys/Vec3;FFZZZZLjava/lang/Integer;Ljava/lang/String;)Ldev/ilgax/minekt/api/EntityInfo;
+	public static synthetic fun copy$default (Ldev/ilgax/minekt/api/EntityInfo;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;Lnet/minecraft/world/phys/Vec3;Ljava/lang/Float;DLjava/lang/Float;Ljava/lang/String;ZLjava/util/Map;Ljava/util/List;Lnet/minecraft/world/phys/Vec3;FFZZZZLjava/lang/Integer;Ljava/lang/String;ILjava/lang/Object;)Ldev/ilgax/minekt/api/EntityInfo;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getCustomName ()Ljava/lang/String;
+	public final fun getDimension ()Ljava/lang/String;
 	public final fun getDistance ()D
 	public final fun getEffects ()Ljava/util/List;
 	public final fun getEquipment ()Ljava/util/Map;
@@ -1196,7 +1198,7 @@ public final class dev/ilgax/minekt/api/Timer {
 public final class dev/ilgax/minekt/api/TimersKt {
 	public static final fun after-8Mi8wO0 (Ldev/ilgax/minekt/api/ScriptContext;JLkotlin/jvm/functions/Function0;)Ldev/ilgax/minekt/api/Timer;
 	public static final fun afterTicks (Ldev/ilgax/minekt/api/ScriptContext;ILkotlin/jvm/functions/Function0;)Ldev/ilgax/minekt/api/Timer;
-	public static final fun atDaytime (Ldev/ilgax/minekt/api/Minekt;JLkotlin/jvm/functions/Function0;)Ldev/ilgax/minekt/api/Timer;
+	public static final fun atDaytime (Ldev/ilgax/minekt/api/ScriptContext;JLkotlin/jvm/functions/Function0;)Ldev/ilgax/minekt/api/Timer;
 	public static final fun every-vLdBGDU (Ldev/ilgax/minekt/api/ScriptContext;JJLkotlin/jvm/functions/Function0;)Ldev/ilgax/minekt/api/Timer;
 	public static synthetic fun every-vLdBGDU$default (Ldev/ilgax/minekt/api/ScriptContext;JJLkotlin/jvm/functions/Function0;ILjava/lang/Object;)Ldev/ilgax/minekt/api/Timer;
 	public static final fun everyTicks (Ldev/ilgax/minekt/api/ScriptContext;ILkotlin/jvm/functions/Function0;)Ldev/ilgax/minekt/api/Timer;
@@ -1305,6 +1307,17 @@ public final class dev/ilgax/minekt/api/server/OnlinePlayer {
 	public fun toString ()Ljava/lang/String;
 }
 
+public final class dev/ilgax/minekt/api/server/ServerEntitiesKt {
+	public static final fun entities (Ldev/ilgax/minekt/api/server/ServerMinekt;Ljava/lang/String;Lnet/minecraft/world/phys/Vec3;DLjava/lang/String;)Ljava/util/List;
+	public static synthetic fun entities$default (Ldev/ilgax/minekt/api/server/ServerMinekt;Ljava/lang/String;Lnet/minecraft/world/phys/Vec3;DLjava/lang/String;ILjava/lang/Object;)Ljava/util/List;
+	public static final fun entity (Ldev/ilgax/minekt/api/server/ServerMinekt;I)Ldev/ilgax/minekt/api/EntityInfo;
+	public static final fun entity (Ldev/ilgax/minekt/api/server/ServerMinekt;Ljava/lang/String;)Ldev/ilgax/minekt/api/EntityInfo;
+	public static final fun killEntity (Ldev/ilgax/minekt/api/server/ServerMinekt;I)Z
+	public static final fun removeEntity (Ldev/ilgax/minekt/api/server/ServerMinekt;I)Z
+	public static final fun spawn (Ldev/ilgax/minekt/api/server/ServerMinekt;Ljava/lang/String;Lnet/minecraft/world/phys/Vec3;Ljava/lang/String;)Ldev/ilgax/minekt/api/EntityInfo;
+	public static synthetic fun spawn$default (Ldev/ilgax/minekt/api/server/ServerMinekt;Ljava/lang/String;Lnet/minecraft/world/phys/Vec3;Ljava/lang/String;ILjava/lang/Object;)Ldev/ilgax/minekt/api/EntityInfo;
+}
+
 public abstract interface class dev/ilgax/minekt/api/server/ServerEvent {
 }
 
@@ -1338,6 +1351,70 @@ public final class dev/ilgax/minekt/api/server/ServerEvent$Chat : dev/ilgax/mine
 	public fun toString ()Ljava/lang/String;
 }
 
+public final class dev/ilgax/minekt/api/server/ServerEvent$Damage : dev/ilgax/minekt/api/server/ServerEvent {
+	public fun <init> (Ldev/ilgax/minekt/api/EntityInfo;FFLjava/lang/String;Ldev/ilgax/minekt/api/EntityInfo;Ldev/ilgax/minekt/api/EntityInfo;)V
+	public synthetic fun <init> (Ldev/ilgax/minekt/api/EntityInfo;FFLjava/lang/String;Ldev/ilgax/minekt/api/EntityInfo;Ldev/ilgax/minekt/api/EntityInfo;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ldev/ilgax/minekt/api/EntityInfo;
+	public final fun component2 ()F
+	public final fun component3 ()F
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()Ldev/ilgax/minekt/api/EntityInfo;
+	public final fun component6 ()Ldev/ilgax/minekt/api/EntityInfo;
+	public final fun copy (Ldev/ilgax/minekt/api/EntityInfo;FFLjava/lang/String;Ldev/ilgax/minekt/api/EntityInfo;Ldev/ilgax/minekt/api/EntityInfo;)Ldev/ilgax/minekt/api/server/ServerEvent$Damage;
+	public static synthetic fun copy$default (Ldev/ilgax/minekt/api/server/ServerEvent$Damage;Ldev/ilgax/minekt/api/EntityInfo;FFLjava/lang/String;Ldev/ilgax/minekt/api/EntityInfo;Ldev/ilgax/minekt/api/EntityInfo;ILjava/lang/Object;)Ldev/ilgax/minekt/api/server/ServerEvent$Damage;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAmount ()F
+	public final fun getAttacker ()Ldev/ilgax/minekt/api/EntityInfo;
+	public final fun getCause ()Ljava/lang/String;
+	public final fun getEntity ()Ldev/ilgax/minekt/api/EntityInfo;
+	public final fun getHealth ()F
+	public final fun getProjectile ()Ldev/ilgax/minekt/api/EntityInfo;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class dev/ilgax/minekt/api/server/ServerEvent$Death : dev/ilgax/minekt/api/server/ServerEvent {
+	public fun <init> (Ldev/ilgax/minekt/api/EntityInfo;Ljava/lang/String;Ldev/ilgax/minekt/api/EntityInfo;)V
+	public synthetic fun <init> (Ldev/ilgax/minekt/api/EntityInfo;Ljava/lang/String;Ldev/ilgax/minekt/api/EntityInfo;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ldev/ilgax/minekt/api/EntityInfo;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ldev/ilgax/minekt/api/EntityInfo;
+	public final fun copy (Ldev/ilgax/minekt/api/EntityInfo;Ljava/lang/String;Ldev/ilgax/minekt/api/EntityInfo;)Ldev/ilgax/minekt/api/server/ServerEvent$Death;
+	public static synthetic fun copy$default (Ldev/ilgax/minekt/api/server/ServerEvent$Death;Ldev/ilgax/minekt/api/EntityInfo;Ljava/lang/String;Ldev/ilgax/minekt/api/EntityInfo;ILjava/lang/Object;)Ldev/ilgax/minekt/api/server/ServerEvent$Death;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCause ()Ljava/lang/String;
+	public final fun getEntity ()Ldev/ilgax/minekt/api/EntityInfo;
+	public final fun getKiller ()Ldev/ilgax/minekt/api/EntityInfo;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class dev/ilgax/minekt/api/server/ServerEvent$EntityRemoved : dev/ilgax/minekt/api/server/ServerEvent {
+	public fun <init> (Ldev/ilgax/minekt/api/EntityInfo;ZLjava/lang/String;)V
+	public final fun component1 ()Ldev/ilgax/minekt/api/EntityInfo;
+	public final fun component2 ()Z
+	public final fun component3 ()Ljava/lang/String;
+	public final fun copy (Ldev/ilgax/minekt/api/EntityInfo;ZLjava/lang/String;)Ldev/ilgax/minekt/api/server/ServerEvent$EntityRemoved;
+	public static synthetic fun copy$default (Ldev/ilgax/minekt/api/server/ServerEvent$EntityRemoved;Ldev/ilgax/minekt/api/EntityInfo;ZLjava/lang/String;ILjava/lang/Object;)Ldev/ilgax/minekt/api/server/ServerEvent$EntityRemoved;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getDied ()Z
+	public final fun getEntity ()Ldev/ilgax/minekt/api/EntityInfo;
+	public final fun getReason ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class dev/ilgax/minekt/api/server/ServerEvent$EntitySpawn : dev/ilgax/minekt/api/server/ServerEvent {
+	public fun <init> (Ldev/ilgax/minekt/api/EntityInfo;)V
+	public final fun component1 ()Ldev/ilgax/minekt/api/EntityInfo;
+	public final fun copy (Ldev/ilgax/minekt/api/EntityInfo;)Ldev/ilgax/minekt/api/server/ServerEvent$EntitySpawn;
+	public static synthetic fun copy$default (Ldev/ilgax/minekt/api/server/ServerEvent$EntitySpawn;Ldev/ilgax/minekt/api/EntityInfo;ILjava/lang/Object;)Ldev/ilgax/minekt/api/server/ServerEvent$EntitySpawn;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getEntity ()Ldev/ilgax/minekt/api/EntityInfo;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
 public final class dev/ilgax/minekt/api/server/ServerEvent$PlayerJoin : dev/ilgax/minekt/api/server/ServerEvent {
 	public fun <init> (Ljava/lang/String;)V
 	public final fun component1 ()Ljava/lang/String;
@@ -1360,6 +1437,29 @@ public final class dev/ilgax/minekt/api/server/ServerEvent$PlayerLeave : dev/ilg
 	public fun toString ()Ljava/lang/String;
 }
 
+public final class dev/ilgax/minekt/api/server/ServerInventory {
+	public final fun clearSlot (I)V
+	public final fun count (Ljava/lang/String;)I
+	public final fun get (I)Ldev/ilgax/minekt/api/ItemStackInfo;
+	public final fun getItems ()Ljava/util/List;
+	public final fun getName ()Ljava/lang/String;
+	public final fun getSize ()I
+	public final fun give (Ljava/lang/String;I)Z
+	public static synthetic fun give$default (Ldev/ilgax/minekt/api/server/ServerInventory;Ljava/lang/String;IILjava/lang/Object;)Z
+	public final fun setSlot (ILjava/lang/String;ILjava/lang/String;Ljava/util/List;Ljava/util/Map;I)V
+	public static synthetic fun setSlot$default (Ldev/ilgax/minekt/api/server/ServerInventory;ILjava/lang/String;ILjava/lang/String;Ljava/util/List;Ljava/util/Map;IILjava/lang/Object;)V
+	public final fun take (Ljava/lang/String;I)I
+	public static synthetic fun take$default (Ldev/ilgax/minekt/api/server/ServerInventory;Ljava/lang/String;IILjava/lang/Object;)I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class dev/ilgax/minekt/api/server/ServerInventoryKt {
+	public static final fun container (Ldev/ilgax/minekt/api/server/ServerMinekt;Lnet/minecraft/core/BlockPos;Ljava/lang/String;)Ldev/ilgax/minekt/api/server/ServerInventory;
+	public static synthetic fun container$default (Ldev/ilgax/minekt/api/server/ServerMinekt;Lnet/minecraft/core/BlockPos;Ljava/lang/String;ILjava/lang/Object;)Ldev/ilgax/minekt/api/server/ServerInventory;
+	public static final fun enderChest (Ldev/ilgax/minekt/api/server/ServerMinekt;Ljava/lang/String;)Ldev/ilgax/minekt/api/server/ServerInventory;
+	public static final fun inventory (Ldev/ilgax/minekt/api/server/ServerMinekt;Ljava/lang/String;)Ldev/ilgax/minekt/api/server/ServerInventory;
+}
+
 public final class dev/ilgax/minekt/api/server/ServerMinekt : dev/ilgax/minekt/api/ScriptContext {
 	public final fun blockId (IIILjava/lang/String;)Ljava/lang/String;
 	public final fun blockId (Lnet/minecraft/core/BlockPos;Ljava/lang/String;)Ljava/lang/String;
@@ -1373,6 +1473,12 @@ public final class dev/ilgax/minekt/api/server/ServerMinekt : dev/ilgax/minekt/a
 	public static synthetic fun give$default (Ldev/ilgax/minekt/api/server/ServerMinekt;Ljava/lang/String;Ljava/lang/String;IILjava/lang/Object;)Z
 	public final fun onBlockBreak (Lkotlin/jvm/functions/Function1;)Ldev/ilgax/minekt/api/Handler;
 	public final fun onChat (Lkotlin/jvm/functions/Function1;)Ldev/ilgax/minekt/api/Handler;
+	public final fun onDamage (Lkotlin/jvm/functions/Function1;)Ldev/ilgax/minekt/api/Handler;
+	public final fun onDeath (Lkotlin/jvm/functions/Function1;)Ldev/ilgax/minekt/api/Handler;
+	public final fun onEntityRemoved (Lkotlin/jvm/functions/Function1;)Ldev/ilgax/minekt/api/Handler;
+	public final fun onEntitySpawn (Lkotlin/jvm/functions/Function1;)Ldev/ilgax/minekt/api/Handler;
+	public final fun onEvent (Lkotlin/jvm/functions/Function1;)Ldev/ilgax/minekt/api/Handler;
+	public final fun onPlayerDeath (Lkotlin/jvm/functions/Function1;)Ldev/ilgax/minekt/api/Handler;
 	public final fun onPlayerJoin (Lkotlin/jvm/functions/Function1;)Ldev/ilgax/minekt/api/Handler;
 	public final fun onPlayerLeave (Lkotlin/jvm/functions/Function1;)Ldev/ilgax/minekt/api/Handler;
 	public final fun player (Ljava/lang/String;)Ldev/ilgax/minekt/api/server/OnlinePlayer;
@@ -1385,5 +1491,25 @@ public final class dev/ilgax/minekt/api/server/ServerMinekt : dev/ilgax/minekt/a
 	public final fun teleport (Ljava/lang/String;Lnet/minecraft/world/phys/Vec3;Ljava/lang/String;)V
 	public static synthetic fun teleport$default (Ldev/ilgax/minekt/api/server/ServerMinekt;Ljava/lang/String;Lnet/minecraft/world/phys/Vec3;Ljava/lang/String;ILjava/lang/Object;)V
 	public final fun tell (Ljava/lang/String;[Ljava/lang/Object;)V
+}
+
+public final class dev/ilgax/minekt/api/server/ServerWorldKt {
+	public static final fun blockAt (Ldev/ilgax/minekt/api/server/ServerMinekt;IIILjava/lang/String;)Ldev/ilgax/minekt/api/BlockInfo;
+	public static final fun blockAt (Ldev/ilgax/minekt/api/server/ServerMinekt;Lnet/minecraft/core/BlockPos;Ljava/lang/String;)Ldev/ilgax/minekt/api/BlockInfo;
+	public static synthetic fun blockAt$default (Ldev/ilgax/minekt/api/server/ServerMinekt;IIILjava/lang/String;ILjava/lang/Object;)Ldev/ilgax/minekt/api/BlockInfo;
+	public static synthetic fun blockAt$default (Ldev/ilgax/minekt/api/server/ServerMinekt;Lnet/minecraft/core/BlockPos;Ljava/lang/String;ILjava/lang/Object;)Ldev/ilgax/minekt/api/BlockInfo;
+	public static final fun findBlocks (Ldev/ilgax/minekt/api/server/ServerMinekt;Lnet/minecraft/core/BlockPos;ILjava/lang/String;Lkotlin/jvm/functions/Function1;)Ljava/util/List;
+	public static synthetic fun findBlocks$default (Ldev/ilgax/minekt/api/server/ServerMinekt;Lnet/minecraft/core/BlockPos;ILjava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Ljava/util/List;
+	public static final fun getDayTime (Ldev/ilgax/minekt/api/server/ServerMinekt;)J
+	public static final fun getWeather (Ldev/ilgax/minekt/api/server/ServerMinekt;)Ljava/lang/String;
+	public static final fun raycast (Ldev/ilgax/minekt/api/server/ServerMinekt;Ljava/lang/String;DZZZZ)Ldev/ilgax/minekt/api/RayHit;
+	public static final fun raycast (Ldev/ilgax/minekt/api/server/ServerMinekt;Lnet/minecraft/world/phys/Vec3;Lnet/minecraft/world/phys/Vec3;Ljava/lang/String;ZZZZ)Ldev/ilgax/minekt/api/RayHit;
+	public static synthetic fun raycast$default (Ldev/ilgax/minekt/api/server/ServerMinekt;Ljava/lang/String;DZZZZILjava/lang/Object;)Ldev/ilgax/minekt/api/RayHit;
+	public static synthetic fun raycast$default (Ldev/ilgax/minekt/api/server/ServerMinekt;Lnet/minecraft/world/phys/Vec3;Lnet/minecraft/world/phys/Vec3;Ljava/lang/String;ZZZZILjava/lang/Object;)Ldev/ilgax/minekt/api/RayHit;
+	public static final fun setTime (Ldev/ilgax/minekt/api/server/ServerMinekt;J)V
+	public static final fun setWeather (Ldev/ilgax/minekt/api/server/ServerMinekt;Ljava/lang/String;Ljava/lang/Integer;)V
+	public static synthetic fun setWeather$default (Ldev/ilgax/minekt/api/server/ServerMinekt;Ljava/lang/String;Ljava/lang/Integer;ILjava/lang/Object;)V
+	public static final fun world (Ldev/ilgax/minekt/api/server/ServerMinekt;Ljava/lang/String;)Ldev/ilgax/minekt/api/WorldInfo;
+	public static synthetic fun world$default (Ldev/ilgax/minekt/api/server/ServerMinekt;Ljava/lang/String;ILjava/lang/Object;)Ldev/ilgax/minekt/api/WorldInfo;
 }
 

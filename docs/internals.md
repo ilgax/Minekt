@@ -8,7 +8,10 @@
 - A `Host` is the side a job runs on: the client (`MinektClient`, a `ClientHost` that can reach the game) or one
   server run (`ServerScripts`). It gives the job its script folder, tick clock, compiler and receiver.
   `MinektServer` is the main entrypoint, loaded on both sides, so it and everything server scripts use must
-  never load client classes (dedicated servers don't have them).
+  never load client classes (dedicated servers don't have them). Snapshot conversions (`Convert.kt`), method
+  hooks, class rewrites and Fabric events are side-neutral; server packet hooks come from a common `Connection`
+  mixin (`ServerConnectionMixin`), the client's from a client-only one. `/mks` checks permission nodes through
+  Fabric's permission API (`MksPermissions`).
 - The Kotlin scripting host and embeddable compiler are bundled (jar-in-jar) and run in the game's JVM. A warm-up
   compile at startup means the first script doesn't pay for compiler start-up. Compiled scripts are cached by
   content, so editing a file and re-running it picks up the change without restarting the game.
