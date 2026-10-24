@@ -110,7 +110,7 @@ val reply = runBlocking { withTimeoutOrNull(5_000) { awaitChat() } }   // wait i
 ```
 
 - A script stays alive while any of its coroutines run; `\kill` cancels them all.
-- They run on the script's own threads, so blocking calls (`game { }`, `sleep`, `httpGet`) are fine inside.
+- They run on the script's own threads, so blocking calls (`game { }`, `sleep`, `http`) are fine inside.
 - `stop()` or an error inside a coroutine ends the whole script.
 - `await…` only sees things that happen after it starts waiting.
 - `kotlinx.coroutines.*` is imported by default (`delay`, `withTimeout`, `async`, `coroutineScope`, ...).
@@ -148,10 +148,10 @@ onRawKey { e -> if (e.key == "key.keyboard.q" && e.action == InputAction.PRESS) 
 onRawMouse { e -> if (e is RawMouseButton && e.button == 1) echo("right ${e.action}") }        // buttons and scrolling
 onMouseMove { e -> if (frozen) e.cancel() }                                                     // camera stays put
 
-tapKey("e")                        // press and release: opens the inventory, like the real key
+keyDown("e"); keyUp("e")           // press and release: opens the inventory, like the real key
 keyDown("w"); sleep(1000); keyUp("w")
 typeText("hello")                  // into whatever has focus: chat, a sign, a text box
-clickMouse(); mouseDown(1); mouseUp(1)
+mouseDown(); mouseUp(); mouseDown(1); mouseUp(1)
 scrollMouse(-1.0)                  // one notch down: next hotbar slot
 moveMouse(200.0, 0.0)              // turns the camera in game, moves the cursor in screens
 ```

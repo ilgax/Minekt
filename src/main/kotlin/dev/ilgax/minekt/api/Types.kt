@@ -111,6 +111,10 @@ data class EntityInfo(
     val vehicleId: Int? = null,
     /** Like `minecraft:overworld`. */
     val dimension: String? = null,
+    /** A player's `survival`, `creative`, `adventure` or `spectator`, in server scripts; null otherwise. */
+    val gameMode: String? = null,
+    /** Whether a player may use operator commands (permission level 2, like `/gamemode`), in server scripts; null otherwise. */
+    val isOp: Boolean? = null,
 ) {
     /** What it holds in its main hand, or null. */
     val heldItem: String? get() = equipment["mainhand"]

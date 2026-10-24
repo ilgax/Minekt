@@ -19,8 +19,8 @@ import kotlin.time.toJavaDuration
 
 // Web requests, e.g. a Discord webhook:
 //
-//   httpPost(webhook, mapOf("content" to "Found diamonds at ${player.position}"))
-//   val weather = httpGet("https://api.example.com/weather?city=Oslo").json<Weather>()
+//   http("POST", webhook, mapOf("content" to "Found diamonds"))
+//   val weather = http("GET", "https://api.example.com/weather?city=Oslo").json<Weather>()
 //
 // They block the script until the answer arrives (use `launch { }` to keep going meanwhile), and
 // `\kill` stops them. Any status code is returned, check `ok`; only network failures throw.
@@ -42,15 +42,7 @@ class HttpResult(val status: Int, val body: String, val headers: Map<String, Lis
     override fun toString() = "HttpResult($status, ${body.length} chars)"
 }
 
-/** GET [url]. */
-fun ScriptContext.httpGet(url: String, headers: Map<String, String> = emptyMap(), timeout: Duration = 30.seconds): HttpResult =
-    http("GET", url, null, headers, timeout)
-
-/** POST [body] to [url]: a String is sent as it is, anything else as JSON. */
-fun ScriptContext.httpPost(url: String, body: Any? = null, headers: Map<String, String> = emptyMap(), timeout: Duration = 30.seconds): HttpResult =
-    http("POST", url, body, headers, timeout)
-
-/** Any request: [method] is GET, POST, PUT, PATCH, DELETE, … [body] as for [httpPost]. */
+/** A web request: [method] is GET, POST, PUT, PATCH, DELETE, … [body] is sent as it is if it's a String, else as JSON. */
 fun ScriptContext.http(method: String, url: String, body: Any? = null, headers: Map<String, String> = emptyMap(), timeout: Duration = 30.seconds): HttpResult {
     checkCanWait("http")
     val uri = runCatching { URI(url) }.getOrNull()?.takeIf { it.scheme == "http" || it.scheme == "https" }

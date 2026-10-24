@@ -7,6 +7,9 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
 
+fun modVersion(id: String): String? =
+    net.fabricmc.loader.api.FabricLoader.getInstance().getModContainer(id).map { it.metadata.version.friendlyString }.orElse(null)
+
 val results = CopyOnWriteArrayList<String>()
 
 fun report(ok: Boolean?, name: String, detail: Any?) {

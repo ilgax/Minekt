@@ -60,7 +60,7 @@ chest.playerSlots.filter { it.id == "minecraft:cobblestone" }.forEach { shiftCli
 game { it.player!!.closeContainer() }          // the game's own call, like anything else without a helper
 
 useOn(BlockPos(10, 63, 10), Face.UP)                   // place the held block on top of (10, 63, 10)
-attack(targetedEntity!!.id)
+attack(entities(4.0).first().id)
 ```
 
 Slot numbers are the open menu's indices, as listed by `container.slots`. Each slot says whether it

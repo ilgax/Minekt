@@ -47,9 +47,6 @@ suspend fun Minekt.awaitEvent(predicate: (MinektEvent) -> Boolean = { true }): M
     }
 }
 
-/** Suspend until a game event of type [T] happens, e.g. `awaitEventOf<MinektEvent.Death>()`. */
-suspend inline fun <reified T : MinektEvent> Minekt.awaitEventOf(): T = awaitEvent { it is T } as T
-
 /** Suspend until a screen matching [predicate] opens, e.g. `awaitScreen { it.isContainer }`. */
 suspend fun Minekt.awaitScreen(predicate: (ScreenInfo) -> Boolean = { true }): ScreenInfo =
     (awaitEvent { it is MinektEvent.ScreenOpen && predicate(it.screen) } as MinektEvent.ScreenOpen).screen

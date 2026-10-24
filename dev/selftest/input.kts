@@ -46,9 +46,9 @@ launch {
         waitFor(5) { keys.any { it.key == "key.keyboard.j" && it.action == InputAction.PRESS && !it.synthetic } } then
             keys.filter { it.key == "key.keyboard.j" }.map { "${it.action}${if (it.synthetic) " synthetic" else ""}" }
     }
-    check("tapKey(\"e\") opens the inventory like the real key") {
-        tapKey("e")
-        waitFor(5) { screenName() == "InventoryScreen" }.also { tapKey("escape"); waitFor(5) { screenName() == null } } then
+    check("keyDown(\"e\"); keyUp(\"e\") opens the inventory like the real key") {
+        keyDown("e"); keyUp("e")
+        waitFor(5) { screenName() == "InventoryScreen" }.also { keyDown("escape"); keyUp("escape"); waitFor(5) { screenName() == null } } then
             keys.filter { it.synthetic }.map { "${it.key} ${it.action}" }.take(2)
     }
     check("cancelling E in onRawKey stops the real key from opening the inventory") {
@@ -59,12 +59,12 @@ launch {
         (!opened && keys.any { it.key == "key.keyboard.e" && !it.synthetic }) then "inventory stayed closed"
     }
     check("typeText types into chat") {
-        tapKey("t")
+        keyDown("t"); keyUp("t")
         waitFor(5) { screenName() == "ChatScreen" }
         typeText("hello from minekt")
         sleep(300)
         val typed = game { mc -> (mc.gui.screen() as? ChatScreen)?.children()?.filterIsInstance<EditBox>()?.firstOrNull()?.value }
-        tapKey("escape")
+        keyDown("escape"); keyUp("escape")
         waitFor(5) { screenName() == null }
         (typed == "hello from minekt") then typed
     }
@@ -96,7 +96,7 @@ launch {
         (Math.abs(yaw) < 0.01f) then "yaw $yaw"
     }
     check("a bad key name is explained") {
-        runCatching { tapKey("notakey") }.exceptionOrNull()?.message.orEmpty().let { ("Unknown key 'notakey'" in it) then it }
+        runCatching { keyDown("notakey"); keyUp("notakey") }.exceptionOrNull()?.message.orEmpty().let { ("Unknown key 'notakey'" in it) then it }
     }
 
     echo("IN DONE")

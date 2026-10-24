@@ -79,9 +79,9 @@ class EvalAndRunTest {
             run(
                 "caller",
                 """
-                echo(runScript("double", "21"))
-                echo(runCatching { runScript("broken") }.exceptionOrNull()?.message)
-                echo(runCatching { runScript("missing") }.exceptionOrNull()?.message)
+                echo(startScript("double", "21").await())
+                echo(runCatching { startScript("broken").await() }.exceptionOrNull()?.message)
+                echo(runCatching { startScript("missing").await() }.exceptionOrNull()?.message)
                 val bg = startScript("forever")
                 echo(bg.name, bg.await(), bg.isRunning)   // its body is done, its handler keeps it running
                 bg.kill()

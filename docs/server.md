@@ -6,11 +6,11 @@ change the world for everyone, answer players' commands, and react to what anyon
 
 ```kotlin
 // <server>/minekt/greeter.kts   →   /mks run greeter
-onPlayerJoin { name ->
+onEvent<ServerEvent.PlayerJoin> { (name) ->
     tell(name, chatText("Welcome, $name!", Color.GREEN))
     inventory(name).give("minecraft:bread", 3)
 }
-onChat { (player, message) ->
+onEvent<ServerEvent.Chat> { (player, message) ->
     if (message == "!spawn") runCommand("tp $player 0.5 80 0.5")
 }
 command("day", CommandPermission.OPS) { call ->
@@ -44,9 +44,10 @@ server { s -> s.playerList.getPlayerByName("Steve")?.let { it.teleportTo(s.overw
 ```
 
 Event listeners (Fabric's, like the one above) run on the server thread, right then, and can cancel what they're
-about: keep them quick, and they can't wait (`sleep`, `waitTicks`). Minekt's own handlers (`onDamage`, `onChat`…)
-run on the script's thread just after, with plain copies of what happened: they can take their time, but can't
-cancel anything.
+about: keep them quick, and they can't wait (`sleep`, `waitTicks`). Minekt's `onEvent<ServerEvent.Damage> { }`,
+`onEvent<ServerEvent.Chat> { }`… run on the script's thread just after, with plain copies of what happened: they can
+take their time, but can't cancel anything. A script with listeners or handlers keeps running until it stops itself
+or is killed; then they're all taken out again.
 
 ## Installing
 
@@ -135,8 +136,8 @@ that isn't about your own client works the same as in client scripts:
 - timers: `every`, `after`, `everyTicks`, `afterTicks`, `atDaytime`; coroutines: `launch`, `async`, `awaitTicks`
 - messages between scripts (`publish`, `subscribe`), only between scripts of the same server
 - `setting(…)` and `persistent { … }` (`perWorld` keys by the world folder), `save()`
-- `httpGet`, `httpPost`, `http`; `@file:DependsOn` and `@file:Import`
-- `eval`, `startScript`, `runScript` (scripts from the server's folder)
+- `http`; `@file:DependsOn` and `@file:Import`
+- `eval`, `startScript` (scripts from the server's folder)
 - `chatText` and `Color` for styled messages
 - Fabric API events, like `ServerTickEvents.END_SERVER_TICK.register { … }`, with no opt-in
 - the experimental power tools, with the same opt-ins as on the client: `hook`, `hookAfter`, `rewriteClass`,
@@ -147,7 +148,7 @@ And on top, the server API:
 | Call | |
 |---|---|
 | `server { s -> … }` | run code on the server thread with the live `MinecraftServer`: anything the game or a mod offers |
-| `players`, `player(name)` | who's online: `name`, `uuid`, `position`, `dimension`, `health`, `gameMode`, `isOp` |
+| `players` | who's online, as entities with their `gameMode` and `isOp`: `players.find { it.name == "Steve" }` |
 | `broadcast(…)`, `tell(player, …)` | messages to everyone, or one player |
 | `runCommand("time set day")` | run a command as the console; returns what it answered |
 | `setBlock(x, y, z, "minecraft:oak_log[axis=x]", dimension)` | place a block, with its state; also by `BlockPos` |
@@ -159,13 +160,13 @@ And on top, the server API:
 | `spawn("minecraft:zombie", pos, dimension)` | spawn an entity like `/summon`; returns it |
 | `killEntity(id)`, `removeEntity(id)` | kill it (loot, a death), or remove it without dying |
 | `inventory(player)`, `enderChest(player)`, `container(pos, dimension)` | items, with `items`, `inv[slot]`, `count`, `setSlot(slot, item, count, name, lore, enchantments, damage)`, `clearSlot`, `give`, `take` |
-| `onChat { (player, message) -> }` | players' chat messages |
-| `onPlayerJoin { name -> }`, `onPlayerLeave { name -> }` | players coming and going |
-| `onBlockBreak { (player, pos, block, dimension) -> }` | a player broke a block |
-| `onEntitySpawn { entity -> }`, `onEntityRemoved { (entity, died, reason) -> }` | entities coming into the world (spawned, or their chunk loaded) and leaving it |
-| `onDamage { (entity, amount, health, cause, attacker, projectile) -> }` | any living entity lost health |
-| `onDeath { (entity, cause, killer) -> }` | any living entity (players too) died |
-| `onEvent { event -> }` | every server event |
+| `onEvent<ServerEvent.Chat> { (player, message) -> }` | players' chat messages |
+| `onEvent<ServerEvent.PlayerJoin> { (name) -> }`, `ServerEvent.PlayerLeave` | players coming and going |
+| `onEvent<ServerEvent.BlockBreak> { (player, pos, block, dimension) -> }` | a player broke a block |
+| `onEvent<ServerEvent.EntitySpawn> { (entity) -> }`, `ServerEvent.EntityRemoved` `(entity, died, reason)` | entities coming into the world (spawned, or their chunk loaded) and leaving it |
+| `onEvent<ServerEvent.Damage> { (entity, amount, health, cause, attacker, projectile) -> }` | any living entity lost health |
+| `onEvent<ServerEvent.Death> { (entity, cause, killer) -> }` | any living entity (players too) died |
+| `onEvent<ServerEvent> { when (it) { … } }` | every server event |
 | `command(name, permission) { call -> }` | a server command for `EVERYONE` or only `OPS` (permission level 2, like `/gamemode`): `call.sender`, `call.args`, `call.reply(…)` |
 | `onPacket<T> { packet, player -> }`, `onPacketSent`, `interceptPacket`, `interceptPacketSent`, `sendPacket(player, packet)` | players' packets (`ExperimentalPackets`) |
 
@@ -185,8 +186,8 @@ disappear when the script ends. A name that's already a command of the game or a
 | | Client scripts | Server scripts |
 |---|---|---|
 | Output, waiting, timers, coroutines, messages, settings, persistent values, web requests, eval | ✔ | ✔ |
-| Chat, players joining and leaving | ✔ (`onChat`, tab list) | ✔ (`onChat`, `onPlayerJoin`, `onPlayerLeave`) |
-| Blocks | what's loaded around you; `onBlockChange` | any dimension; `onBlockBreak` with who broke it |
+| Chat, players joining and leaving | ✔ (`onChat`, tab list) | ✔ (`ServerEvent.Chat`, `PlayerJoin`, `PlayerLeave`) |
+| Blocks | what's loaded around you; `onBlockChange` | any dimension; `ServerEvent.BlockBreak` with who broke it |
 | Entities | what's loaded around you; appear / gone | every loaded one; spawn, kill, remove; spawn / removed |
 | Damage and death | your own | any living entity |
 | Inventories | yours, and the open container | any player's, ender chests, any container |

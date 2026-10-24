@@ -62,14 +62,15 @@ class ServerScriptsTest {
             subscribe<Int>("count") { writeLog("count", it) }
             launch { awaitTicks(20); waitTicks(1) }
             onTick { }
-            onChat { (player, message) -> if (message == "!spawn") runCommand("tp " + player + " 0.5 80 0.5") }
-            onPlayerJoin { name -> tell(name, chatText(greeting, Color.GREEN)); inventory(name).give("minecraft:bread", 3) }
-            onPlayerLeave { broadcast(it, "left") }
-            onBlockBreak { (player, pos, block, dimension) -> if (block == "minecraft:diamond_ore") echo(player, pos, dimension) }
+            onEvent<ServerEvent.Chat> { (player, message) -> if (message == "!spawn") runCommand("tp " + player + " 0.5 80 0.5") }
+            onEvent<ServerEvent.PlayerJoin> { (name) -> tell(name, chatText(greeting, Color.GREEN)); inventory(name).give("minecraft:bread", 3) }
+            onEvent<ServerEvent.PlayerLeave> { broadcast(it.player, "left") }
+            onEvent<ServerEvent.BlockBreak> { (player, pos, block, dimension) -> if (block == "minecraft:diamond_ore") echo(player, pos, dimension) }
+            onEvent<ServerEvent> { if (it is ServerEvent.Death) echo(it.entity.name) }
             command("heal", CommandPermission.OPS) { call -> call.reply("healed", call.sender, call.args) }
             val online: Int = server { it.playerList.playerCount }
             setBlock(BlockPos(0, 64, 0), "minecraft:oak_log[axis=x]")
-            echo(players.map { it.name }, player("Steve")?.isOp, blockAt(BlockPos(0, 64, 0), "the_nether").id, runCommand("time query daytime"))
+            echo(players.map { it.name }, players.find { it.name == "Steve" }?.isOp, blockAt(BlockPos(0, 64, 0), "the_nether").id, runCommand("time query daytime"))
             val n = eval("1 + 1") as Int
             onStop { save() }
         """.trimIndent()
@@ -90,9 +91,9 @@ class ServerScriptsTest {
     @Test
     fun `server scripts run without a client and get server events`() {
         val job = jobs.start("events", emptyList(), """
-            onChat { (player, message) -> echo("chat", player, message) }
-            onPlayerJoin { echo("join", it) }
-            onBlockBreak { (player, pos, block) -> echo("break", player, pos, block) }
+            onEvent<ServerEvent.Chat> { (player, message) -> echo("chat", player, message) }
+            onEvent<ServerEvent.PlayerJoin> { echo("join", it.player) }
+            onEvent<ServerEvent.BlockBreak> { (player, pos, block) -> echo("break", player, pos, block) }
             echo("ready")
         """.trimIndent().toScriptSource("events.kts"))
         assertEquals("ready", host.next())
@@ -118,11 +119,11 @@ class ServerScriptsTest {
             val cow = spawn("minecraft:cow", Vec3(0.5, 80.0, 0.5))
             entity(cow.id)?.dimension; entity(cow.uuid)
             killEntity(cow.id); removeEntity(zombies.first().id)
-            onEntitySpawn { if (it.type == "minecraft:phantom") removeEntity(it.id) }
-            onEntityRemoved { (entity, died, reason) -> echo(entity.name, died, reason) }
-            onDamage { (entity, amount, health, cause, attacker, projectile) -> echo(entity.type, amount, health, cause, attacker?.name, projectile?.type) }
-            onDeath { (entity, cause, killer) -> echo(entity.name, cause, killer?.name) }
-            onEvent { if (it is ServerEvent.Damage) echo(it.amount) }
+            onEvent<ServerEvent.EntitySpawn> { (entity) -> if (entity.type == "minecraft:phantom") removeEntity(entity.id) }
+            onEvent<ServerEvent.EntityRemoved> { (entity, died, reason) -> echo(entity.name, died, reason) }
+            onEvent<ServerEvent.Damage> { (entity, amount, health, cause, attacker, projectile) -> echo(entity.type, amount, health, cause, attacker?.name, projectile?.type) }
+            onEvent<ServerEvent.Death> { (entity, cause, killer) -> echo(entity.name, cause, killer?.name) }
+            onEvent<ServerEvent> { if (it is ServerEvent.Damage) echo(it.amount) }
 
             val inv = inventory("Steve")
             inv.setSlot(0, "minecraft:diamond_sword", name = "Excalibur", lore = listOf("Sharp"), enchantments = mapOf("sharpness" to 5), damage = 10)
@@ -165,10 +166,10 @@ class ServerScriptsTest {
         val steve = EntityInfo(8, "s", "Steve", "minecraft:player", Vec3.ZERO, 20f, 0.0)
         assertFalse(jobs.wantsServer(ServerEvent.Damage::class.java))
         val job = jobs.start("entities", emptyList(), """
-            onEntitySpawn { echo("spawn", it.name, it.dimension) }
-            onEntityRemoved { (entity, died, reason) -> echo("removed", entity.name, died, reason) }
-            onDamage { (entity, amount, health, cause, attacker) -> echo("damage", entity.name, amount, health, cause, attacker?.name) }
-            onDeath { (entity, cause, killer) -> if (entity.type == "minecraft:player") echo("player death", entity.name, cause, killer?.name) }
+            onEvent<ServerEvent.EntitySpawn> { (entity) -> echo("spawn", entity.name, entity.dimension) }
+            onEvent<ServerEvent.EntityRemoved> { (entity, died, reason) -> echo("removed", entity.name, died, reason) }
+            onEvent<ServerEvent.Damage> { (entity, amount, health, cause, attacker) -> echo("damage", entity.name, amount, health, cause, attacker?.name) }
+            onEvent<ServerEvent.Death> { (entity, cause, killer) -> if (entity.type == "minecraft:player") echo("player death", entity.name, cause, killer?.name) }
             echo("ready")
         """.trimIndent().toScriptSource("entities.kts"))
         assertEquals("ready", host.next())

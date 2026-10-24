@@ -7,7 +7,6 @@ import dev.ilgax.minekt.job.Job
 import dev.ilgax.minekt.job.JobKilledException
 import dev.ilgax.minekt.job.JobStopException
 import dev.ilgax.minekt.job.ScriptLogs
-import net.fabricmc.loader.api.FabricLoader
 
 /**
  * What every script can use, on the client and on a server: output, waiting, stopping, ticks. Client
@@ -104,11 +103,6 @@ abstract class ScriptContext internal constructor(internal val job: Job) {
 
     /** End the script now. Works from inside event handlers too. */
     fun stop(): Nothing = throw JobStopException()
-
-    fun isModLoaded(id: String): Boolean = FabricLoader.getInstance().isModLoaded(id)
-
-    fun modVersion(id: String): String? =
-        FabricLoader.getInstance().getModContainer(id).map { it.metadata.version.friendlyString }.orElse(null)
 
     // ---- events -------------------------------------------------------------------------------
 

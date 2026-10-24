@@ -70,10 +70,10 @@ try {
     check("entity events") {
         var spawned = false; var damaged = false; var died = false; var removed: String? = null
         val handles = listOf(
-            onEntitySpawn { if (it.type == "minecraft:pig") spawned = true },
-            onDamage { (entity, amount, _, cause) -> if (entity.type == "minecraft:pig" && amount > 0 && cause.isNotEmpty()) damaged = true },
-            onDeath { if (it.entity.type == "minecraft:pig") died = true },
-            onEntityRemoved { (entity, _, reason) -> if (entity.type == "minecraft:sheep") removed = reason },
+            onEvent<ServerEvent.EntitySpawn> { (entity) -> if (entity.type == "minecraft:pig") spawned = true },
+            onEvent<ServerEvent.Damage> { (entity, amount, _, cause) -> if (entity.type == "minecraft:pig" && amount > 0 && cause.isNotEmpty()) damaged = true },
+            onEvent<ServerEvent.Death> { if (it.entity.type == "minecraft:pig") died = true },
+            onEvent<ServerEvent.EntityRemoved> { (entity, _, reason) -> if (entity.type == "minecraft:sheep") removed = reason },
         )
         val pig = spawn("minecraft:pig", Vec3(4.5, 101.0, 4.5))
         runCommand("damage ${pig.uuid} 2")
@@ -110,6 +110,16 @@ try {
         var fabricTicks = 0
         ServerTickEvents.END_SERVER_TICK.register { fabricTicks++ }
         waitFor { fabricTicks >= 3 }
+    }
+    check("a script with only a Fabric listener keeps running") {
+        java.io.File("minekt/listener.kts").writeText(
+            "net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.END_SERVER_TICK.register { }"
+        )
+        val run = startScript("listener")
+        waitTicks(40)
+        val alive = run.isRunning
+        run.kill()
+        alive && waitFor { !run.isRunning }
     }
     check("packet hooks") { onPacket<ServerboundChatPacket> { _, _ -> }.remove(); true }
 

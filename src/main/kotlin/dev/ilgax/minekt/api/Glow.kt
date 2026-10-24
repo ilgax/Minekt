@@ -8,7 +8,7 @@ import dev.ilgax.minekt.job.Job
 // The Glowing effect's outline on any entity, in any color, seen through walls, only on your screen:
 //
 //   for (e in entities(32.0)) if (e.type == "minecraft:zombie") glow(e, Color.RED)
-//   val g = glow(targetedEntity!!, Color.YELLOW)
+//   val g = glow(entities(8.0).first().id, Color.YELLOW)
 //   g.color = Color.GREEN        // change it later
 //   g.remove()
 //
@@ -31,7 +31,7 @@ class Glow internal constructor(
     fun remove() = Glows.remove(this)
 }
 
-/** Outline entity [entity] (an id, from `entities()` or `targetedEntity()`) in [color]. */
+/** Outline entity [entity] (an id, from `entities()` or an event) in [color]. */
 @ExperimentalVisuals
 fun Minekt.glow(entity: Int, color: Int = Color.WHITE): Glow = addGlow(Glow(job, entity, color))
 

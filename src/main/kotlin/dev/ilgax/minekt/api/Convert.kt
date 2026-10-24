@@ -5,6 +5,8 @@ import net.minecraft.core.BlockPos
 import net.minecraft.core.Direction
 import net.minecraft.core.component.DataComponents
 import net.minecraft.core.registries.BuiltInRegistries
+import net.minecraft.server.level.ServerPlayer
+import net.minecraft.server.permissions.Permissions
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.EquipmentSlot
 import net.minecraft.world.entity.LivingEntity
@@ -48,6 +50,8 @@ internal fun Entity.toInfo(self: Entity?, origin: Vec3? = null) = EntityInfo(
     onFire = isOnFire,
     vehicleId = vehicle?.id,
     dimension = level().dimension().identifier().toString(),
+    gameMode = (this as? ServerPlayer)?.gameMode()?.serializedName,
+    isOp = (this as? ServerPlayer)?.permissions()?.hasPermission(Permissions.COMMANDS_GAMEMASTER),
 )
 
 internal fun ItemStack.toInfo(slot: Int): ItemStackInfo {

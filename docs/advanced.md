@@ -99,8 +99,8 @@ eval("echo(name.uppercase() + count * 2)", "name" to "hi", "count" to 21)   // p
 val generated = (1..3).joinToString("\n") { "echo(\"line $it\")" }
 eval(generated)                                                       // code built at runtime
 
-val result = runScript("ores", "32")      // run minekt/ores.kts and wait for its result
-val miner = startScript("miner")          // or start it and carry on
+val result = startScript("ores", "32").await()   // run minekt/ores.kts and wait for its result
+val miner = startScript("miner")                 // or start it and carry on
 miner.isRunning; miner.await(); miner.kill()
 ```
 
@@ -111,7 +111,7 @@ miner.isRunning; miner.await(); miner.kill()
   Minekt's and the game's classes. A class a script declared itself comes in as `Any`.
 - A compile error throws `IllegalArgumentException` with the error and its line; an exception in the code is
   rethrown as it is.
-- A script's result is what its body evaluates to: its last expression. `runScript` / `await` wait for the body
+- A script's result is what its body evaluates to: its last expression. `await` waits for the body
   to finish (the script may keep running for its handlers) and throw if it didn't compile, failed or was killed.
   Started scripts are scripts of their own: they show up in `\jobs` and keep running after the caller ends.
 - Results cross between scripts as they are, so stick to strings, numbers, collections and Minekt's types:
@@ -163,7 +163,7 @@ Notes:
 - **Only what the client has.** In multiplayer, server-side mods aren't reachable. In singleplayer the built-in
   server runs in the same process, so `game { it.singleplayerServer }` gets you there.
 - **Missing mods are compile errors.** A script that imports a mod which isn't installed won't compile. Guard
-  it with `isModLoaded(…)` plus reflection if it should run either way.
+  it with `FabricLoader.getInstance().isModLoaded(…)` plus reflection if it should run either way.
 - **Threads.** Scripts run on their own thread. Touch the game or another mod only inside `game { }`.
 
 ## Raw access

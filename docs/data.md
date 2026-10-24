@@ -45,15 +45,15 @@ var motd by persistent(store = "shared") { "" }                         // share
 ## Web requests
 
 ```kotlin
-httpPost(webhookUrl, mapOf("content" to "Found diamonds at ${BlockPos.containing(player.position).toShortString()}"))   // a Discord webhook
+http("POST", webhookUrl, mapOf("content" to "Found diamonds at ${BlockPos.containing(player.position).toShortString()}"))   // a Discord webhook
 data class Weather(val temperature: Double, val description: String)
-val weather = httpGet("https://api.example.com/weather?city=Oslo").json<Weather>()
-val page = httpGet("https://example.com", headers = mapOf("Accept" to "text/html"))
+val weather = http("GET", "https://api.example.com/weather?city=Oslo").json<Weather>()
+val page = http("GET", "https://example.com", headers = mapOf("Accept" to "text/html"))
 if (!page.ok) echo("status ${page.status}")
 http("DELETE", "https://api.example.com/items/3", headers = mapOf("Authorization" to "Bearer $token"))
 ```
 
-- `httpPost` sends a String as plain text and anything else (maps, lists, data classes) as JSON.
+- A `body` that's a String is sent as plain text, and anything else (maps, lists, data classes) as JSON.
 - Every request returns its `status`, `body` and `headers` whatever the status: check `ok` or call `orThrow()`.
   Only network failures throw (no internet, unknown host, timeout; the default `timeout` is 30 seconds).
 - `json<T>()` parses the body into a data class, `Map<String, Any?>`, `List<…>`, …

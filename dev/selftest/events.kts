@@ -161,15 +161,15 @@ launch {
         local.start()
         try {
             val url = "http://127.0.0.1:${local.address.port}/"
-            val get = httpGet(url)
-            val post = httpPost(url, mapOf("player" to me))
+            val get = http("GET", url)
+            val post = http("POST", url, mapOf("player" to me))
             (get.body == "got GET " && post.body == "got POST {\"player\":\"$me\"}") then "${get.body} | ${post.body}"
         } finally {
             local.stop(0)
         }
     }
     check("httpGet to the internet (through the JVM's proxy settings, if any)") {
-        val result = runCatching { httpGet("https://example.com/") }
+        val result = runCatching { http("GET", "https://example.com/") }
         result.fold({ "status ${it.status}" }, { "no internet here: ${it.message}" })
     }
 

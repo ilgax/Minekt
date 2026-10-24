@@ -23,7 +23,7 @@ import kotlin.time.Duration
 //
 //   val n = eval("(1..10).sum()") as Int
 //   eval("echo(greeting.uppercase())", "greeting" to "hi")        // pass values in by name
-//   val ores = runScript("ores", "32")                            // run another script, get its result
+//   val ores = startScript("ores", "32").await()                  // run another script, get its result
 //   val miner = startScript("miner"); …; miner.kill()             // or start it and carry on
 
 /**
@@ -123,10 +123,6 @@ fun ScriptContext.startScript(name: String, vararg args: String): ScriptRun {
     val started = job.jobs.runScript(name, args.toList()) ?: error("Couldn't start $name")
     return ScriptRun(job, started)
 }
-
-/** [startScript] and wait for its result: what its body evaluated to (see [ScriptRun.await]). */
-fun ScriptContext.runScript(name: String, vararg args: String, timeout: Duration = Duration.INFINITE): Any? =
-    startScript(name, *args).await(timeout)
 
 private val IDENTIFIER = Regex("[A-Za-z_][A-Za-z0-9_]*")
 

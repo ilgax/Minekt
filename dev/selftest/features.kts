@@ -97,7 +97,7 @@ check("closeScreen + events") {
 }
 
 // ---- entities ----
-check("targetedEntity + attack") {
+check("the crosshair's entity + attack") {
     // A cleared pen with a floor to the south, so the pig can't suffocate and the chest isn't in the way.
     server("fill ${base.x - 1} ${base.y - 1} ${base.z + 2} ${base.x + 1} ${base.y - 1} ${base.z + 4} minecraft:stone")
     server("fill ${base.x - 1} ${base.y} ${base.z + 2} ${base.x + 1} ${base.y + 2} ${base.z + 4} minecraft:air")
@@ -106,7 +106,7 @@ check("targetedEntity + attack") {
     val pig = entities(8.0).first { it.type == "minecraft:pig" }
     lookAt(pig.position.x, pig.position.y + 0.5, pig.position.z)
     waitTicks(2)
-    val target = targetedEntity
+    val target = game { mc -> (mc.hitResult as? net.minecraft.world.phys.EntityHitResult)?.entity?.id }?.let { entity(it) }
     attack(pig.id)
     waitTicks(5)
     val after = entities(8.0).firstOrNull { it.id == pig.id }
@@ -119,17 +119,17 @@ server("gamemode survival $me")
 waitTicks(10)
 check("Damage event") {
     server("damage $me 4")
-    runBlocking { withTimeoutOrNull(3000) { awaitEventOf<MinektEvent.Damage>() } } ?: false
+    runBlocking { withTimeoutOrNull(3000) { (awaitEvent { it is MinektEvent.Damage } as MinektEvent.Damage) } } ?: false
 }
 check("Death + Respawn events") {
     server("kill $me")
-    runBlocking { withTimeoutOrNull(3000) { awaitEventOf<MinektEvent.Death>() } } ?: return@check false
+    runBlocking { withTimeoutOrNull(3000) { (awaitEvent { it is MinektEvent.Death } as MinektEvent.Death) } } ?: return@check false
     game { it.player!!.respawn() }
-    runBlocking { withTimeoutOrNull(5000) { awaitEventOf<MinektEvent.Respawn>() } } ?: false
+    runBlocking { withTimeoutOrNull(5000) { (awaitEvent { it is MinektEvent.Respawn } as MinektEvent.Respawn) } } ?: false
 }
 check("DimensionChange + ChunkLoad events") {
     server("execute in minecraft:the_nether run tp $me 0 100 0")
-    val change = runBlocking { withTimeoutOrNull(15000) { awaitEventOf<MinektEvent.DimensionChange>() } }
+    val change = runBlocking { withTimeoutOrNull(15000) { (awaitEvent { it is MinektEvent.DimensionChange } as MinektEvent.DimensionChange) } }
     waitTicks(40)
     "$change, ${seen.count { it is MinektEvent.ChunkLoad }} chunk loads".takeIf { change != null } ?: false
 }

@@ -102,7 +102,7 @@ class Job internal constructor(
 
     class KeybindHandler(val onPress: Boolean, val handler: () -> Unit)
     internal val gameHandlers = CopyOnWriteArrayList<(MinektEvent) -> Unit>()
-    /** Server scripts' `onChat`, `onPlayerJoin`, `onBlockBreak`…, each filtering the events it wants. */
+    /** Server scripts' `onEvent` handlers, each filtering the events it wants. */
     internal val serverHandlers = CopyOnWriteArrayList<(dev.ilgax.minekt.api.server.ServerEvent) -> Unit>()
     /** Server event types the handlers above are for (`ServerEvent` itself: all), so the server only builds wanted events. */
     internal val serverEventTypes: MutableSet<Class<*>> = ConcurrentHashMap.newKeySet()
@@ -132,6 +132,9 @@ class Job internal constructor(
     class InputHandler(val type: Class<out dev.ilgax.minekt.api.InputEvent>, val handler: (dev.ilgax.minekt.api.InputEvent) -> Unit)
 
     internal val inputHandlers = CopyOnWriteArrayList<InputHandler>()
+
+    /** Fabric event listeners this script registered: they keep it running, like its own handlers. */
+    internal val fabricListeners = java.util.concurrent.atomic.AtomicInteger()
 
     /** Actions behind this script's clickable chat text, by id (see [ChatClicks]). They don't keep it alive. */
     internal val clickActions = ConcurrentHashMap<Long, () -> Unit>()
@@ -463,7 +466,7 @@ class Job internal constructor(
             gameHandlers.isNotEmpty() || serverHandlers.isNotEmpty() || keybindHandlers.values.any { it.isNotEmpty() } ||
             messageHandlers.values.any { it.isNotEmpty() } || openScreens.get() > 0 || settingHandlers.isNotEmpty() || inputHandlers.isNotEmpty() ||
             hudRenderHandlers.isNotEmpty() || worldRenderHandlers.isNotEmpty() ||
-            packetHandlers.isNotEmpty() || packetFilters.isNotEmpty() || MethodHooks.hasHooks(this) || ClassRewrites.has(this)
+            packetHandlers.isNotEmpty() || packetFilters.isNotEmpty() || fabricListeners.get() > 0 || MethodHooks.hasHooks(this) || ClassRewrites.has(this)
 
     internal fun handleThrowable(t: Throwable) {
         val root = generateSequence(t) { it.cause }.last()

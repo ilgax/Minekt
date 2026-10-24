@@ -58,7 +58,6 @@ java.nio.file.Files.writeString(
     net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register {
         System.setProperty("minekt.fabrichelper", ((System.getProperty("minekt.fabrichelper") ?: "0").toInt() + 1).toString())
     }
-    onChat { }
     """.trimIndent(),
 )
 check("killing a script takes its listener out of the event") {
@@ -76,10 +75,12 @@ check("killing a script takes its listener out of the event") {
 }
 
 java.nio.file.Files.writeString(dir.resolve("fabricnoopt.kts"), "net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register { }")
-check("Fabric events need no opt-in") {
+check("a listener-only script needs no opt-in and runs until it's killed") {
     val run = startScript("fabricnoopt")
-    val result = runCatching { run.await(kotlin.time.Duration.parse("20s")) }
-    result.isSuccess then "ran without @file:OptIn"
+    waitTicks(40)
+    val alive = run.isRunning
+    run.kill()
+    (alive && waitFor(5) { !run.isRunning }) then "kept running with only its listener, stopped on kill"
 }
 
 echo("FE DONE")

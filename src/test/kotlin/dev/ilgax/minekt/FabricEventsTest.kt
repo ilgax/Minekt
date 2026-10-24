@@ -76,8 +76,8 @@ class FabricEventsTest {
     }
 
     @Test
-    fun `Fabric events need no opt-in`() {
-        val job = run("fabricplain", "dev.ilgax.minekt.TestEvents.PING.register { }\nonChat { }")
+    fun `a script with only a Fabric listener runs until it's killed, with no opt-in`() {
+        val job = run("fabricplain", "dev.ilgax.minekt.TestEvents.PING.register { }")
         awaitState(job, Job.State.LISTENING)
         assertEquals(1, TestEvents.listenerCount(TestEvents.PING))
         job.kill()

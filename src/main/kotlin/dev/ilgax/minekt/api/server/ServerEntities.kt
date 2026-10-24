@@ -13,9 +13,9 @@ import java.util.UUID
 
 // Entities on the server: every loaded one, in every dimension.
 //
-//   entities(type = "minecraft:zombie", near = player("Steve")!!.position, radius = 32.0).forEach { killEntity(it.id) }
+//   entities(type = "minecraft:zombie", near = Vec3(0.0, 64.0, 0.0), radius = 32.0).forEach { killEntity(it.id) }
 //   val cow = spawn("minecraft:cow", Vec3(0.5, 80.0, 0.5))
-//   onEntitySpawn { if (it.type == "minecraft:phantom") removeEntity(it.id) }
+//   onEvent<ServerEvent.EntitySpawn> { (entity) -> if (entity.type == "minecraft:phantom") removeEntity(entity.id) }
 
 /**
  * Loaded entities (players too): in [dimension] (default: every dimension), of [type] (an id like

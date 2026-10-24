@@ -156,13 +156,13 @@ class NewFeaturesTest {
                     "web",
                     """
                     data class Data(val name: String, val levels: List<Int>)
-                    val data = httpGet("$base/data").json<Data>()
+                    val data = http("GET", "$base/data").json<Data>()
                     echo(data.name, data.levels.sum())
-                    echo(httpPost("$base/echo", mapOf("content" to "hi"), headers = mapOf("X-Test" to "yes")).body)
-                    echo(httpPost("$base/echo", "plain").body)
-                    val missing = httpGet("$base/missing")
+                    echo(http("POST", "$base/echo", mapOf("content" to "hi"), headers = mapOf("X-Test" to "yes")).body)
+                    echo(http("POST", "$base/echo", "plain").body)
+                    val missing = http("GET", "$base/missing")
                     echo(missing.status, missing.ok, runCatching { missing.orThrow() }.exceptionOrNull()?.message)
-                    echo(runCatching { httpGet("ftp://x") }.exceptionOrNull()?.message)
+                    echo(runCatching { http("GET", "ftp://x") }.exceptionOrNull()?.message)
                     """.trimIndent(),
                 ),
             )
@@ -183,7 +183,7 @@ class NewFeaturesTest {
         server.executor = java.util.concurrent.Executors.newCachedThreadPool()
         server.start()
         try {
-            val job = run("slow", "echo(\"asking\")\nhttpGet(\"http://127.0.0.1:${server.address.port}/\")\necho(\"answered\")")
+            val job = run("slow", "echo(\"asking\")\nhttp(\"GET\", \"http://127.0.0.1:${server.address.port}/\")\necho(\"answered\")")
             assertEquals("asking", host.next())
             Thread.sleep(300)
             val started = System.currentTimeMillis()

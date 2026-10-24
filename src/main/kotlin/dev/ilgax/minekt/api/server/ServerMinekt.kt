@@ -2,6 +2,7 @@ package dev.ilgax.minekt.api.server
 
 import dev.ilgax.minekt.api.EntityInfo
 import dev.ilgax.minekt.api.Handler
+import dev.ilgax.minekt.api.toInfo
 import dev.ilgax.minekt.api.ScriptContext
 import dev.ilgax.minekt.job.Job
 import dev.ilgax.minekt.server.ServerScripts
@@ -45,11 +46,8 @@ class ServerMinekt internal constructor(job: Job) : ScriptContext(job) {
 
     // ---- players ------------------------------------------------------------------------------
 
-    /** Everyone online, by name. */
-    val players: List<OnlinePlayer> get() = server { s -> s.playerList.players.map(::info).sortedBy { it.name } }
-
-    /** The player called [name] (any case), or null if they aren't online. */
-    fun player(name: String): OnlinePlayer? = server { s -> s.playerList.getPlayerByName(name)?.let(::info) }
+    /** Everyone online, by name, with their [EntityInfo.gameMode] and [EntityInfo.isOp]. */
+    val players: List<EntityInfo> get() = server { s -> s.playerList.players.map { it.toInfo(null) }.sortedBy { it.name } }
 
     /** Show a message to everyone online (and in the server log). [ChatText] parts keep their colors. */
     fun broadcast(vararg parts: Any?) {
@@ -98,37 +96,21 @@ class ServerMinekt internal constructor(job: Job) : ScriptContext(job) {
 
     // ---- events -------------------------------------------------------------------------------
 
-    /** A player sent a chat message: `onChat { (player, message) -> }`. Handlers run on the script thread. */
-    fun onChat(handler: (ServerEvent.Chat) -> Unit): Handler = on(handler)
+    /**
+     * Call [handler] for every server event of type [T], on the script's thread with a plain copy of what happened:
+     * `onEvent<ServerEvent.Damage> { (entity, amount, health, cause, attacker) -> }`, or every event with
+     * `onEvent<ServerEvent> { when (it) { is ServerEvent.Chat -> … } }`. It runs just after the event, so it can't
+     * cancel it (a Fabric event listener can), but it can take its time. Only the types scripts listen for are built.
+     */
+    inline fun <reified T : ServerEvent> onEvent(noinline handler: (T) -> Unit): Handler =
+        addServerHandler(T::class.java) { if (it is T) handler(it) }
 
-    fun onPlayerJoin(handler: (name: String) -> Unit): Handler = on<ServerEvent.PlayerJoin> { handler(it.player) }
-
-    fun onPlayerLeave(handler: (name: String) -> Unit): Handler = on<ServerEvent.PlayerLeave> { handler(it.player) }
-
-    /** A player broke a block: `onBlockBreak { (player, pos, block, dimension) -> }`. */
-    fun onBlockBreak(handler: (ServerEvent.BlockBreak) -> Unit): Handler = on(handler)
-
-    /** An entity came into the world: spawned, or loaded with its chunk. */
-    fun onEntitySpawn(handler: (EntityInfo) -> Unit): Handler = on<ServerEvent.EntitySpawn> { handler(it.entity) }
-
-    /** An entity left the world: `onEntityRemoved { (entity, died, reason) -> }`, see [ServerEvent.EntityRemoved]. */
-    fun onEntityRemoved(handler: (ServerEvent.EntityRemoved) -> Unit): Handler = on(handler)
-
-    /** Any living entity (players too) lost health: `onDamage { (entity, amount, health, cause, attacker, projectile) -> }`. */
-    fun onDamage(handler: (ServerEvent.Damage) -> Unit): Handler = on(handler)
-
-    /** Any living entity (players too) died: `onDeath { (entity, cause, killer) -> }`. */
-    fun onDeath(handler: (ServerEvent.Death) -> Unit): Handler = on(handler)
-
-    /** Every [ServerEvent]; use `when (event) { is ServerEvent.Damage -> … }`. */
-    fun onEvent(handler: (ServerEvent) -> Unit): Handler = on(handler)
-
-    private inline fun <reified T : ServerEvent> on(crossinline handler: (T) -> Unit): Handler {
+    @PublishedApi
+    internal fun addServerHandler(type: Class<out ServerEvent>, handler: (ServerEvent) -> Unit): Handler {
         job.checkAlive()
-        val filtered: (ServerEvent) -> Unit = { if (it is T) handler(it) }
-        job.serverEventTypes += T::class.java
-        job.serverHandlers += filtered
-        return Handler { job.serverHandlers.remove(filtered) }
+        job.serverEventTypes += type
+        job.serverHandlers += handler
+        return Handler { job.serverHandlers.remove(handler) }
     }
 
     /**
@@ -175,14 +157,4 @@ class ServerMinekt internal constructor(job: Job) : ScriptContext(job) {
 
     internal fun identifier(id: String): Identifier =
         Identifier.tryParse(if (':' in id) id else "minecraft:$id") ?: throw IllegalArgumentException("'$id' isn't an id")
-
-    private fun info(player: ServerPlayer) = OnlinePlayer(
-        name = player.name.string,
-        uuid = player.uuid.toString(),
-        position = player.position(),
-        dimension = player.level().dimension().identifier().toString(),
-        health = player.health,
-        gameMode = player.gameMode().serializedName,
-        isOp = player.permissions().hasPermission(Permissions.COMMANDS_GAMEMASTER),
-    )
 }

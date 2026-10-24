@@ -185,17 +185,10 @@ class Minekt internal constructor(job: Job) : ScriptContext(job) {
             .sortedBy { it.distance }
     }
 
-    /** The entity with [id] (from `entities()`, an event or `targetedEntity()`), or null if it's gone. */
+    /** The entity with [id] (from `entities()` or an event), or null if it's gone. */
     fun entity(id: Int): EntityInfo? = game { mc -> mc.level?.getEntity(id)?.toInfo(mc.player) }
 
     fun entities(radius: Int): List<EntityInfo> = entities(radius.toDouble())
-
-    /** Every other player in the world, nearest first. */
-    val players: List<EntityInfo> get() = game { mc ->
-        val level = mc.level ?: error("Not in a world")
-        val self = mc.player
-        level.players().filter { it !== self }.map { it.toInfo(self) }.sortedBy { it.distance }
-    }
 
     // ---- world rendering ----------------------------------------------------------------------
     // Shapes stay until removed (handle.remove() / clearShapes()) or the script ends. throughWalls

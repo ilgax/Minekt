@@ -159,8 +159,8 @@ some of Minekt's (like `onDamage`) have no Fabric equivalent.
 
 ### No `fabric.mod.json`
 
-A script has no id, version or dependency list. `isModLoaded("sodium")` and `modVersion(…)` check for other
-mods at runtime, and `@file:DependsOn` pulls Maven libraries.
+A script has no id, version or dependency list. `FabricLoader.getInstance().isModLoaded("sodium")` checks for other
+mods at runtime, as in a mod, and `@file:DependsOn` pulls Maven libraries.
 
 ## From a script to a mod
 

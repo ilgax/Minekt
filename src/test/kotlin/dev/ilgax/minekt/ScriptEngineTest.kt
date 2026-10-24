@@ -273,7 +273,7 @@ class ScriptEngineTest {
             """
             onDamage { (amount, health) -> echo("hurt", amount, health) }
             onItemGained { (id, n) -> echo("gained", id, n) }
-            launch { awaitEventOf<MinektEvent.Death>(); echo("died"); stop() }
+            launch { (awaitEvent { it is MinektEvent.Death } as MinektEvent.Death); echo("died"); stop() }
             """.trimIndent()
         )
         awaitListening(job)

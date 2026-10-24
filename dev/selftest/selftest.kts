@@ -18,7 +18,7 @@ check("block below") { blockAt(BlockPos.containing(player.position).below()).id 
 check("findBlocks") { findBlocks(4) { it != "minecraft:air" }.groupingBy { it.id }.eachCount().entries.take(4) }
 check("entities") { entities(64).take(3).map { "${it.type}@%.0f".format(it.distance) } }
 check("inventory") { inventory.size }
-check("mods") { "fabric-api=${isModLoaded("fabric-api")} baritone=${baritone.isAvailable} kotlin=${modVersion("fabric-language-kotlin")}" }
+check("mods") { "fabric-api=${net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded("fabric-api")} baritone=${baritone.isAvailable} kotlin=${net.fabricmc.loader.api.FabricLoader.getInstance().getModContainer("fabric-language-kotlin").map { it.metadata.version.friendlyString }.orElse(null)}" }
 check("raw game access") { game { mc -> mc.options.fov().get() } }
 check("hud") { hudPanel { text("Minekt selftest"); text("running") }; "set" }
 check("lookAt") { val p = player.position; lookAt(p.x + 10, p.y + 1.62, p.z); "yaw=%.0f pitch=%.0f".format(player.yaw, player.pitch) }

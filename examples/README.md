@@ -7,7 +7,7 @@ keeps running until you `\kill` it (or, for `coords`, for a minute).
 | Script | What it does | Shows |
 |---|---|---|
 | [tracers.kts](tracers.kts) | Lines from your view to hostile mobs, toggled with a key | `onWorldRender`, `entityPosition`, `keybind`, `setting`, `Vec3` math |
-| [crosshair.kts](crosshair.kts) | A crosshair that turns red on mobs, with their name, health and your speed | `onHudRender`, `targetedEntity`, `player.velocity` |
+| [crosshair.kts](crosshair.kts) | A crosshair that turns red on mobs, with their name, health and your speed | `onHudRender`, the game's hit result, `player.velocity` |
 | [mobradar.kts](mobradar.kts) | A small radar of mobs and players around you, turning with you | `onHudRender`, `entities()`, trigonometry |
 | [effects.kts](effects.kts) | Your potion effects with time left and a bar that runs down | `onHudRender`, `player.effects`, item icons |
 | [fpsgraph.kts](fpsgraph.kts) | A graph of your frame rate | `onHudRender`, drawing a chart from rectangles |

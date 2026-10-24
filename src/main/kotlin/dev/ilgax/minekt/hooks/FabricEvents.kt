@@ -50,6 +50,7 @@ object FabricEvents {
         val handler = StandIn(job, listener)
         val standIn = Proxy.newProxyInstance(type.classLoader, arrayOf(type), handler)
         if (phase == null) event.register(standIn) else event.register(phase, standIn)
+        job.fabricListeners.incrementAndGet()
         job.cleanups += {
             handler.target = null
             if (!remove(event, standIn)) logger.warn("Couldn't take a listener of {} out of a Fabric event; it stays, doing nothing", job.name)
@@ -76,14 +77,22 @@ object FabricEvents {
                 try {
                     return method.invoke(target, *(args ?: emptyArray()))
                 } catch (e: InvocationTargetException) {
-                    this.target = null
+                    switchOff()
                     job.handleThrowable(e.cause ?: e)
                 } catch (e: Exception) {
-                    this.target = null
+                    switchOff()
                     job.handleThrowable(e)
                 }
             }
             return neutral(method, args)
+        }
+
+        /** A listener that failed stops running, and no longer keeps its script alive. */
+        @Synchronized
+        private fun switchOff() {
+            if (target == null) return
+            target = null
+            job.fabricListeners.decrementAndGet()
         }
     }
 
