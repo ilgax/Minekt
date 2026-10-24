@@ -27,8 +27,9 @@ fun ServerMinekt.world(dimension: String = "minecraft:overworld"): WorldInfo = s
         timeOfDay = time,
         gameTime = level.gameTime,
         isDay = time < 13000,
-        isRaining = level.isRaining,
-        isThundering = level.isThundering,
+        // The weather as set, not as it looks: rain fades in and out over a few seconds.
+        isRaining = level.canHaveWeather() && level.weatherData.isRaining,
+        isThundering = level.canHaveWeather() && level.weatherData.isThundering,
     )
 }
 
