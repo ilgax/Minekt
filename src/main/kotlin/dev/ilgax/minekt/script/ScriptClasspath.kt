@@ -2,8 +2,12 @@ package dev.ilgax.minekt.script
 
 import net.fabricmc.loader.api.FabricLoader
 import net.fabricmc.loader.api.ModContainer
+import net.fabricmc.loader.impl.launch.FabricLauncherBase
 import org.slf4j.LoggerFactory
 import java.io.File
+import java.net.URI
+import java.net.URL
+import java.net.URLClassLoader
 import java.nio.file.FileSystems
 import java.nio.file.Files
 import java.nio.file.Path
@@ -39,10 +43,46 @@ object ScriptClasspath {
                     .onFailure { logger.warn("Scripts can't use {}'s classes: {}", mod.metadata.id, it.toString()) }
                     .getOrDefault(emptyList())
             }
-        val all = (fromJvm + fromMods).filter(File::exists).distinctBy(File::getAbsolutePath)
-        logger.info("Scripts compile against {} jars and folders ({} from the JVM, {} from mods)", all.size, fromJvm.size, fromMods.size)
+        // The game's own libraries (Brigadier, DataFixerUpper, …): on a dedicated server Fabric's class loader
+        // loads them from the server's libraries/ folder, so they aren't on the JVM's class path.
+        val onError = { what: String, e: Throwable -> logger.warn("Scripts may miss some of the game's libraries: couldn't read {}: {}", what, e.toString()) }
+        val fromLauncher = runCatching { FabricLauncherBase.getLauncher().classPath.map(Path::toFile) }
+            .onFailure { onError("Fabric's launch class path", it) }.getOrDefault(emptyList())
+        val fromLoader = (fromLauncher + filesOf(ScriptClasspath::class.java.classLoader, onError)).distinctBy(File::getAbsolutePath)
+        val all = (fromJvm + fromLoader + fromMods).filter(File::exists).distinctBy(File::getAbsolutePath)
+        logger.info("Scripts compile against {} jars and folders ({} from the JVM, {} from the game's class loader, {} from mods)", all.size, fromJvm.size, fromLoader.size, fromMods.size)
         logger.debug("Script classpath: {}", all)
         all
+    }
+
+    /**
+     * The jars and folders on disk [loader] reads classes from: its URLs when it has them (a [URLClassLoader], or
+     * one keeping a [URLClassLoader] in a field, like Fabric's Knot), plus every jar with a `META-INF/MANIFEST.MF`
+     * it can see. A manifest-less jar in a loader that has no URLs isn't found. [onError] gets what couldn't be read.
+     */
+    internal fun filesOf(loader: ClassLoader, onError: (String, Throwable) -> Unit): List<File> {
+        val fromUrls = runCatching { urlsOf(loader).mapNotNull(::fileOf) }
+            .onFailure { onError("the class loader's URLs", it) }.getOrDefault(emptyList())
+        val fromManifests = runCatching { loader.getResources("META-INF/MANIFEST.MF").toList().mapNotNull(::fileOf) }
+            .onFailure { onError("the class loader's manifests", it) }.getOrDefault(emptyList())
+        return (fromUrls + fromManifests).distinctBy(File::getAbsolutePath)
+    }
+
+    private fun urlsOf(loader: ClassLoader): List<URL> {
+        if (loader is URLClassLoader) return loader.urLs.toList()
+        val field = loader.javaClass.declaredFields.firstOrNull { URLClassLoader::class.java.isAssignableFrom(it.type) } ?: return emptyList()
+        field.isAccessible = true
+        return (field.get(loader) as? URLClassLoader)?.urLs?.toList().orEmpty()
+    }
+
+    /** The file or folder behind a `file:` URL, or the jar behind a `jar:file:…!/entry` one. */
+    private fun fileOf(url: URL): File? {
+        val location = when (url.protocol) {
+            "file" -> url.toString()
+            "jar" -> url.path.substringBefore("!/").takeIf { it.startsWith("file:") } ?: return null
+            else -> return null
+        }
+        return runCatching { File(URI(location)) }.getOrNull()?.takeIf { it.exists() }
     }
 
     private fun filesOf(mod: ModContainer): List<File> = mod.rootPaths.mapIndexed { i, root ->

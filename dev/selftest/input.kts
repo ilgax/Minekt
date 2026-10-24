@@ -25,7 +25,7 @@ fun waitFor(seconds: Int, condition: () -> Boolean): Boolean {
 fun screenName() = game { it.gui.screen()?.javaClass?.simpleName }
 
 var waited = 0
-while (blockId(player.position.blockPos.below()) == "minecraft:void_air" && waited < 1200) { waitTicks(20); waited += 20 }
+while (blockAt(BlockPos.containing(player.position).below()).id == "minecraft:void_air" && waited < 1200) { waitTicks(20); waited += 20 }
 waitTicks(40)
 
 val keys = CopyOnWriteArrayList<RawKey>()
@@ -46,9 +46,9 @@ launch {
         waitFor(5) { keys.any { it.key == "key.keyboard.j" && it.action == InputAction.PRESS && !it.synthetic } } then
             keys.filter { it.key == "key.keyboard.j" }.map { "${it.action}${if (it.synthetic) " synthetic" else ""}" }
     }
-    check("tapKey(\"e\") opens the inventory like the real key") {
-        tapKey("e")
-        waitFor(5) { screenName() == "InventoryScreen" }.also { tapKey("escape"); waitFor(5) { screenName() == null } } then
+    check("keyDown(\"e\"); keyUp(\"e\") opens the inventory like the real key") {
+        keyDown("e"); keyUp("e")
+        waitFor(5) { screenName() == "InventoryScreen" }.also { keyDown("escape"); keyUp("escape"); waitFor(5) { screenName() == null } } then
             keys.filter { it.synthetic }.map { "${it.key} ${it.action}" }.take(2)
     }
     check("cancelling E in onRawKey stops the real key from opening the inventory") {
@@ -59,17 +59,17 @@ launch {
         (!opened && keys.any { it.key == "key.keyboard.e" && !it.synthetic }) then "inventory stayed closed"
     }
     check("typeText types into chat") {
-        tapKey("t")
+        keyDown("t"); keyUp("t")
         waitFor(5) { screenName() == "ChatScreen" }
         typeText("hello from minekt")
         sleep(300)
         val typed = game { mc -> (mc.gui.screen() as? ChatScreen)?.children()?.filterIsInstance<EditBox>()?.firstOrNull()?.value }
-        tapKey("escape")
+        keyDown("escape"); keyUp("escape")
         waitFor(5) { screenName() == null }
         (typed == "hello from minekt") then typed
     }
     check("scrollMouse moves the hotbar selection") {
-        selectSlot(0)
+        game { it.player!!.inventory.selectedSlot = 0 }
         waitTicks(2)
         scrollMouse(-1.0)
         waitFor(3) { player.selectedSlot == 1 } then "slot ${player.selectedSlot}"
@@ -96,7 +96,7 @@ launch {
         (Math.abs(yaw) < 0.01f) then "yaw $yaw"
     }
     check("a bad key name is explained") {
-        runCatching { tapKey("notakey") }.exceptionOrNull()?.message.orEmpty().let { ("Unknown key 'notakey'" in it) then it }
+        runCatching { keyDown("notakey"); keyUp("notakey") }.exceptionOrNull()?.message.orEmpty().let { ("Unknown key 'notakey'" in it) then it }
     }
 
     echo("IN DONE")

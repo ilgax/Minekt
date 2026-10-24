@@ -1,0 +1,35 @@
+name: build
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 25
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Build and test
+        run: ./gradlew build
+      - name: Test reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: build/test-results/test/
+      # Real dedicated servers with the full jar and the small jar (first start downloading the compiler, then a
+      # cached start). Running the server needs the Minecraft EULA accepted: https://aka.ms/MinecraftEULA
+      - name: Server smoke tests
+        run: ./gradlew serverSmokeTest -PacceptMinecraftEula=true
+      - name: Server logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoketest-logs
+          path: build/smoketest/*/logs/

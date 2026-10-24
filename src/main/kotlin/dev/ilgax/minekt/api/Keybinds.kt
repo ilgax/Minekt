@@ -1,5 +1,6 @@
 package dev.ilgax.minekt.api
 
+import dev.ilgax.minekt.job.clientHost
 import dev.ilgax.minekt.job.Job
 import dev.ilgax.minekt.job.KeybindHandle
 import java.util.concurrent.CopyOnWriteArrayList
@@ -24,7 +25,7 @@ fun Minekt.keybind(name: String, default: String? = null): Keybind {
     job.checkAlive()
     require(name.isNotBlank()) { "A keybind needs a name" }
     val id = "${job.name}/$name"
-    val handle = job.host.addKeybind(job, id, name, default?.let(::keyName))
+    val handle = job.clientHost.addKeybind(job, id, name, default?.let(::keyName))
     job.cleanups.addIfAbsent(job.keybindCleanup(id, handle))
     return Keybind(job, id, name, handle)
 }

@@ -57,10 +57,10 @@ val target = targetedBlock ?: stop()                 // what the crosshair is on
 useOn(target.pos, target.face)                         // right-click it (opens a chest)
 val chest = container                                // slots of the open menu
 chest.playerSlots.filter { it.id == "minecraft:cobblestone" }.forEach { shiftClick(it.index) }
-closeScreen()
+game { it.player!!.closeContainer() }          // the game's own call, like anything else without a helper
 
 useOn(BlockPos(10, 63, 10), Face.UP)                   // place the held block on top of (10, 63, 10)
-attack(targetedEntity!!.id)
+attack(entities(4.0).first().id)
 ```
 
 Slot numbers are the open menu's indices, as listed by `container.slots`. Each slot says whether it
@@ -115,7 +115,7 @@ if (!world.isDay) echo("Night falls (${world.timeOfDay})")
 val diamonds = scanRegion(BlockPos(-128, -64, -128), BlockPos(128, 16, 128)) { it == "minecraft:deepslate_diamond_ore" }
 ```
 
-`blockAt(pos)` tells you everything about one block, where `blockId` only gives its id (cheaper, for big loops):
+`blockAt(pos)` tells you everything about one block (`blockAt(pos).id` is just its id):
 
 ```kotlin
 val crop = blockAt(BlockPos(10, 64, 10))
@@ -140,15 +140,15 @@ Blocks only you can see, for build previews, markers or trying out a design:
 @file:OptIn(ExperimentalVisuals::class)
 
 val marker = fakeBlock(10, 64, 10, "minecraft:glowstone")
-fakeBlock(player.position.blockPos.below(), "minecraft:oak_stairs[facing=east,half=top]")
+fakeBlock(BlockPos.containing(player.position).below(), "minecraft:oak_stairs[facing=east,half=top]")
 marker.remove()                                            // the real block comes back
 fakeBlocks(plan.associate { it.pos to it.block })          // many at once: one trip to the game thread
 clearFakeBlocks()
 ```
 
 - Block names take state properties like commands do. A wrong name throws, saying why.
-- The fake is put in your client's world, so it looks and collides like a real block, and `blockId` and
-  `blockAt` see it. The server doesn't know: standing on a fake block, or walking through a fake wall into a
+- The fake is put in your client's world, so it looks and collides like a real block, and `blockAt`
+  sees it. The server doesn't know: standing on a fake block, or walking through a fake wall into a
   real one, gets you pulled back, and breaking one shows the real block again.
 - If the server changes a faked block, the fake stays and the new block shows when the fake is removed. Fakes
   come back by themselves after their chunk loads again.
@@ -165,7 +165,7 @@ is an ordinary script, made of the same calls you'd write by hand:
 
 ```kotlin
 // \farm, recorded with \record on 2026-10-10: 1.5 s.
-selectSlot(0)
+game { it.player!!.inventory.selectedSlot = 0 }
 setOrientation(90.0f, 10.0f)
 keyDown("w")
 keyDown("left.control")

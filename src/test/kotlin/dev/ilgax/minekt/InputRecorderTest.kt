@@ -25,7 +25,7 @@ class InputRecorderTest {
         val text = InputRecorder.script(
             "walk",
             listOf(
-                Action(0, "selectSlot(0)", initial = true),
+                Action(0, "game { it.player!!.inventory.selectedSlot = 0 }", initial = true),
                 Action(0, "setOrientation(90.0f, 10.0f)", initial = true),
                 Action(0, "keyDown(\"w\")"),
                 Action(0, "keyDown(\"left.control\")"),
@@ -40,7 +40,7 @@ class InputRecorderTest {
         assertTrue(text.startsWith("// \\walk, recorded with \\record on "), text)
         assertEquals(
             listOf(
-                "selectSlot(0)", "setOrientation(90.0f, 10.0f)", "keyDown(\"w\")", "keyDown(\"left.control\")",
+                "game { it.player!!.inventory.selectedSlot = 0 }", "setOrientation(90.0f, 10.0f)", "keyDown(\"w\")", "keyDown(\"left.control\")",
                 "waitTicks(20)", "keyDown(\"space\")",
                 "waitTicks(1)", "keyUp(\"space\")", "setOrientation(92.5f, 40.0f)", "mouseDown(0)",
                 "waitTicks(8)", "mouseUp(0)",
@@ -55,10 +55,10 @@ class InputRecorderTest {
 
     @Test
     fun `keys held when the recording ends are released at its end`() {
-        val text = InputRecorder.script("timed", listOf(Action(0, "selectSlot(0)", initial = true), Action(17, "keyDown(\"w\")")), length = 40)
+        val text = InputRecorder.script("timed", listOf(Action(0, "game { it.player!!.inventory.selectedSlot = 0 }", initial = true), Action(17, "keyDown(\"w\")")), length = 40)
         assertTrue("on " in text && ": 2.0 s." in text, text.lines().first())
         assertEquals(
-            listOf("selectSlot(0)", "waitTicks(17)", "keyDown(\"w\")", "waitTicks(23)", "keyUp(\"w\")"),
+            listOf("game { it.player!!.inventory.selectedSlot = 0 }", "waitTicks(17)", "keyDown(\"w\")", "waitTicks(23)", "keyUp(\"w\")"),
             text.lines().filter { it.isNotBlank() && !it.startsWith("//") },
         )
     }

@@ -75,19 +75,21 @@ class EvalAndRunTest {
         host.scriptDir.resolve("double.kts").writeText("args.first().toInt() * 2")
         host.scriptDir.resolve("broken.kts").writeText("error(\"no fuel\")")
         host.scriptDir.resolve("forever.kts").writeText("onChat { }\nUnit")
+        // A body that only ends when it's killed, so killing it right after starting it always comes first.
+        host.scriptDir.resolve("waiting.kts").writeText("sleep(60_000)")
         awaitDone(
             run(
                 "caller",
                 """
-                echo(runScript("double", "21"))
-                echo(runCatching { runScript("broken") }.exceptionOrNull()?.message)
-                echo(runCatching { runScript("missing") }.exceptionOrNull()?.message)
+                echo(startScript("double", "21").await())
+                echo(runCatching { startScript("broken").await() }.exceptionOrNull()?.message)
+                echo(runCatching { startScript("missing").await() }.exceptionOrNull()?.message)
                 val bg = startScript("forever")
                 echo(bg.name, bg.await(), bg.isRunning)   // its body is done, its handler keeps it running
                 bg.kill()
                 while (bg.isRunning) sleep(10)
                 echo("killed", bg.isRunning)
-                echo(runCatching { startScript("forever").also { it.kill() }.await() }.exceptionOrNull()?.message)
+                echo(runCatching { startScript("waiting").also { it.kill() }.await() }.exceptionOrNull()?.message)
                 """.trimIndent(),
             ),
         )
@@ -101,7 +103,7 @@ class EvalAndRunTest {
                 "No script named 'missing'",
                 "forever kotlin.Unit true",
                 "killed false",
-                "forever was killed before it finished",
+                "waiting was killed before it finished",
             ),
             lines.filterNot { it.startsWith("[broken]") },
         )

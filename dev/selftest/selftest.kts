@@ -10,15 +10,15 @@ fun check(name: String, block: () -> Any?) {
 
 // Wait (up to ~60 s) for the chunks around the player to arrive.
 var waited = 0
-while (blockId(player.position.blockPos.below()) == "minecraft:void_air" && waited < 1200) { waitTicks(20); waited += 20 }
+while (blockAt(BlockPos.containing(player.position).below()).id == "minecraft:void_air" && waited < 1200) { waitTicks(20); waited += 20 }
 waitTicks(40)
 echo("SELFTEST loaded after ${waited / 20} s")
 check("player") { "${player.name} at ${fmt(player.position)} in ${player.dimension}, hp ${player.health}" }
-check("block below") { blockId(player.position.blockPos.below()) }
+check("block below") { blockAt(BlockPos.containing(player.position).below()).id }
 check("findBlocks") { findBlocks(4) { it != "minecraft:air" }.groupingBy { it.id }.eachCount().entries.take(4) }
 check("entities") { entities(64).take(3).map { "${it.type}@%.0f".format(it.distance) } }
 check("inventory") { inventory.size }
-check("mods") { "fabric-api=${isModLoaded("fabric-api")} baritone=${baritone.isAvailable} kotlin=${modVersion("fabric-language-kotlin")}" }
+check("mods") { "fabric-api=${net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded("fabric-api")} baritone=${baritone.isAvailable} kotlin=${net.fabricmc.loader.api.FabricLoader.getInstance().getModContainer("fabric-language-kotlin").map { it.metadata.version.friendlyString }.orElse(null)}" }
 check("raw game access") { game { mc -> mc.options.fov().get() } }
 check("hud") { hudPanel { text("Minekt selftest"); text("running") }; "set" }
 check("lookAt") { val p = player.position; lookAt(p.x + 10, p.y + 1.62, p.z); "yaw=%.0f pitch=%.0f".format(player.yaw, player.pitch) }
@@ -52,7 +52,7 @@ check("command removed after script ends") { game { it.connection!!.commands.roo
 // ---- world rendering: draw one of everything in front of the player, then the harness screenshots ----
 val eye = player.position
 setOrientation(-90f, 15f) // face +X, looking slightly down
-val ahead = eye.blockPos.offset(5, 0, 0)
+val ahead = BlockPos.containing(eye).offset(5, 0, 0)
 check("draw shapes") {
     highlight(ahead.below(), Color.GREEN)                                  // filled block on the ground
     highlight(ahead.offset(0, -4, 3), Color.MAGENTA)                        // buried: visible only through walls

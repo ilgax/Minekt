@@ -52,7 +52,6 @@ class FabricEventsTest {
         val job = run(
             "fabricok",
             """
-            @file:OptIn(ExperimentalFabricEvents::class)
             import dev.ilgax.minekt.TestEvents
 
             TestEvents.PING.register { echo("ping") }
@@ -77,11 +76,12 @@ class FabricEventsTest {
     }
 
     @Test
-    fun `without the opt-in, register explains how to turn it on`() {
-        val job = run("fabricnoopt", "dev.ilgax.minekt.TestEvents.PING.register { }")
+    fun `a script with only a Fabric listener runs until it's killed, with no opt-in`() {
+        val job = run("fabricplain", "dev.ilgax.minekt.TestEvents.PING.register { }")
+        awaitState(job, Job.State.LISTENING)
+        assertEquals(1, TestEvents.listenerCount(TestEvents.PING))
+        job.kill()
         awaitState(job, Job.State.DONE)
-        val error = host.next()
-        assertTrue("@file:OptIn(ExperimentalFabricEvents::class)" in error, error)
         assertEquals(0, TestEvents.listenerCount(TestEvents.PING))
     }
 
@@ -90,7 +90,6 @@ class FabricEventsTest {
         val job = run(
             "fabricthrow",
             """
-            @file:OptIn(ExperimentalFabricEvents::class)
             dev.ilgax.minekt.TestEvents.MODIFY.register { text -> error("broken listener") }
             onChat { if (it.text == "bye") stop() }
             """.trimIndent(),

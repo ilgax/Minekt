@@ -1,6 +1,8 @@
 package dev.ilgax.minekt.script
 
 import dev.ilgax.minekt.api.Minekt
+import dev.ilgax.minekt.api.server.ServerMinekt
+import kotlin.reflect.KClass
 import java.io.File
 import kotlin.script.experimental.annotations.KotlinScript
 import kotlin.script.experimental.dependencies.DependsOn
@@ -29,10 +31,29 @@ abstract class MinektScript
 @Retention(AnnotationRetention.SOURCE)
 annotation class Import(vararg val paths: String)
 
-class MinektCompilationConfiguration : ScriptCompilationConfiguration({
-    implicitReceivers(Minekt::class)
+class MinektCompilationConfiguration : ScriptCompilationConfiguration({ minektScript(Minekt::class) })
+
+/**
+ * Template of server scripts: like [MinektScript], with a [ServerMinekt] as implicit receiver. Only the
+ * helpers that work on both sides (and the server API) are in scope, so client calls don't compile.
+ */
+@KotlinScript(
+    displayName = "Minekt server script",
+    fileExtension = "kts",
+    compilationConfiguration = MinektServerCompilationConfiguration::class,
+)
+abstract class MinektServerScript
+
+class MinektServerCompilationConfiguration : ScriptCompilationConfiguration({
+    minektScript(ServerMinekt::class, "dev.ilgax.minekt.api.server.*")
+})
+
+/** What client and server scripts share: imports, `@file:Import`, `@file:DependsOn`, the classpath. */
+private fun ScriptCompilationConfiguration.Builder.minektScript(receiver: KClass<*>, vararg extraImports: String) {
+    implicitReceivers(receiver)
     defaultImports(
         "dev.ilgax.minekt.api.*",
+        *extraImports,
         "net.minecraft.world.phys.Vec3",
         "net.minecraft.core.BlockPos",
         "kotlin.math.*",
@@ -56,7 +77,7 @@ class MinektCompilationConfiguration : ScriptCompilationConfiguration({
         onAnnotations(DependsOn::class, Repository::class, handler = ScriptDependencies::refine)
     }
     ide { acceptedLocations(ScriptAcceptedLocation.Everywhere) }
-})
+}
 
 private fun resolveImports(context: ScriptConfigurationRefinementContext): ResultWithDiagnostics<ScriptCompilationConfiguration> {
     // Matched by name, not `is Import`: under Fabric the compiler may instantiate the annotation

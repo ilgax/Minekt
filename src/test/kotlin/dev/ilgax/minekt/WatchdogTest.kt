@@ -54,9 +54,13 @@ class WatchdogTest {
     fun `a script hogging the CPU is reported`() {
         val job = jobs.eval("""echo("spinning"); while (true) {}""")
         assertTrue(host.next() == "spinning")
+        // Sample until the warning comes: with other tests busy, one window may not show a full core.
         job.sampleCpu()
-        Thread.sleep(500)
-        job.sampleCpu()
+        val deadline = System.currentTimeMillis() + 20_000
+        while (host.messages.isEmpty() && System.currentTimeMillis() < deadline) {
+            Thread.sleep(500)
+            job.sampleCpu()
+        }
         val message = host.next(5)
         assertTrue("CPU core busy" in message && "\\kill ${job.id}" in message, message)
         job.kill()

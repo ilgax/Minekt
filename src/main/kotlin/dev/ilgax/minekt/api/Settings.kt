@@ -18,39 +18,39 @@ import kotlin.reflect.KProperty
 // reads the current value. `onSettingChange` tells the script when one changes.
 
 /** An on/off setting. */
-fun Minekt.setting(default: Boolean, label: String? = null): SettingProperty<Boolean> =
+fun ScriptContext.setting(default: Boolean, label: String? = null): SettingProperty<Boolean> =
     SettingProperty(this, label, ScriptSettings.Kind.Toggle, default)
 
 /** A whole number in [range]. */
-fun Minekt.setting(default: Int, range: IntRange, label: String? = null): SettingProperty<Int> {
+fun ScriptContext.setting(default: Int, range: IntRange, label: String? = null): SettingProperty<Int> {
     require(!range.isEmpty()) { "Empty setting range" }
     return SettingProperty(this, label, ScriptSettings.Kind.Whole(range.first, range.last), default)
 }
 
 /** A decimal number in [range], adjusted in steps of [step]. */
-fun Minekt.setting(default: Double, range: ClosedFloatingPointRange<Double>, step: Double = 0.1, label: String? = null): SettingProperty<Double> {
+fun ScriptContext.setting(default: Double, range: ClosedFloatingPointRange<Double>, step: Double = 0.1, label: String? = null): SettingProperty<Double> {
     require(step > 0 && range.endInclusive > range.start) { "A decimal setting needs a range and a step above 0" }
     return SettingProperty(this, label, ScriptSettings.Kind.Decimal(range.start, range.endInclusive, step), default)
 }
 
 /** A line of text. */
-fun Minekt.setting(default: String, label: String? = null, maxLength: Int = 256): SettingProperty<String> =
+fun ScriptContext.setting(default: String, label: String? = null, maxLength: Int = 256): SettingProperty<String> =
     SettingProperty(this, label, ScriptSettings.Kind.Text(maxLength), default)
 
 /** One of [options]. */
-fun Minekt.setting(default: String, options: List<String>, label: String? = null): SettingProperty<String> {
+fun ScriptContext.setting(default: String, options: List<String>, label: String? = null): SettingProperty<String> {
     require(default in options) { "The default '$default' isn't one of the options" }
     return SettingProperty(this, label, ScriptSettings.Kind.Choice(options), default)
 }
 
 /** Run [handler] (on the script's thread) when the player changes a setting: its property name and new value. */
-fun Minekt.onSettingChange(handler: (SettingChange) -> Unit): Handler {
+fun ScriptContext.onSettingChange(handler: (SettingChange) -> Unit): Handler {
     job.checkAlive()
     return addHandler(job.settingHandlers, handler)
 }
 
 class SettingProperty<T : Any> internal constructor(
-    private val api: Minekt,
+    private val api: ScriptContext,
     private val label: String?,
     private val kind: ScriptSettings.Kind,
     private val default: T,

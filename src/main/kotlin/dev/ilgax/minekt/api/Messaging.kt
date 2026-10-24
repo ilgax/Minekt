@@ -16,7 +16,7 @@ import java.util.concurrent.CopyOnWriteArrayList
 // when the types differ, the value is copied across by its fields.
 
 /** Send [value] to every script subscribed to [topic]. It's also kept as the topic's latest value. */
-fun Minekt.publish(topic: String, value: Any? = null) {
+fun ScriptContext.publish(topic: String, value: Any? = null) {
     job.checkAlive()
     job.bus.publish(topic, value, job)
 }
@@ -27,19 +27,19 @@ fun Minekt.publish(topic: String, value: Any? = null) {
  * `latest = true` to also get the topic's current value right away, if there is one. `remove()` on
  * the result stops listening.
  */
-inline fun <reified T> Minekt.subscribe(topic: String, latest: Boolean = false, noinline handler: (T) -> Unit): Handler =
+inline fun <reified T> ScriptContext.subscribe(topic: String, latest: Boolean = false, noinline handler: (T) -> Unit): Handler =
     subscribe(topic, object : TypeToken<T>() {}.type, latest) { @Suppress("UNCHECKED_CAST") handler(it as T) }
 
 /** Wait until something is published to [topic] and return it. */
-suspend inline fun <reified T> Minekt.awaitMessage(topic: String): T =
+suspend inline fun <reified T> ScriptContext.awaitMessage(topic: String): T =
     @Suppress("UNCHECKED_CAST") (awaitMessage(topic, object : TypeToken<T>() {}.type) as T)
 
 /** The latest value published to [topic] (by any script, also before this one started), or null. */
-inline fun <reified T> Minekt.lastMessage(topic: String): T? =
+inline fun <reified T> ScriptContext.lastMessage(topic: String): T? =
     @Suppress("UNCHECKED_CAST") (lastMessage(topic, object : TypeToken<T>() {}.type) as T?)
 
 @PublishedApi
-internal fun Minekt.subscribe(topic: String, type: Type, latest: Boolean, handler: (Any?) -> Unit): Handler {
+internal fun ScriptContext.subscribe(topic: String, type: Type, latest: Boolean, handler: (Any?) -> Unit): Handler {
     job.checkAlive()
     val converting: (Any?) -> Unit = { value -> handler(job.bus.convert(value, type)) }
     val handlers = job.messageHandlers.computeIfAbsent(topic) { CopyOnWriteArrayList() }
@@ -52,13 +52,13 @@ internal fun Minekt.subscribe(topic: String, type: Type, latest: Boolean, handle
 }
 
 @PublishedApi
-internal suspend fun Minekt.awaitMessage(topic: String, type: Type): Any? {
+internal suspend fun ScriptContext.awaitMessage(topic: String, type: Type): Any? {
     val message = job.awaitEvent { it is Job.Event.Message && it.topic == topic } as Job.Event.Message
     return job.bus.convert(message.value, type)
 }
 
 @PublishedApi
-internal fun Minekt.lastMessage(topic: String, type: Type): Any? {
+internal fun ScriptContext.lastMessage(topic: String, type: Type): Any? {
     job.checkAlive()
     return job.bus.convert(job.bus.latest(topic).second, type)
 }

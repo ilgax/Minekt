@@ -1,4 +1,3 @@
-@file:OptIn(ExperimentalFabricEvents::class)
 // In-game test for Fabric API events from scripts (experimental): registered like in a mod, removed when
 // the script ends. Singleplayer test world.
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
@@ -29,7 +28,7 @@ fun chatLines(): List<String> = game { mc ->
 }
 
 var waited = 0
-while (blockId(player.position.blockPos.below()) == "minecraft:void_air" && waited < 1200) { waitTicks(20); waited += 20 }
+while (blockAt(BlockPos.containing(player.position).below()).id == "minecraft:void_air" && waited < 1200) { waitTicks(20); waited += 20 }
 waitTicks(40)
 val me = player.name
 
@@ -56,11 +55,9 @@ val dir = game { it.gameDirectory.toPath().resolve("minekt") }
 java.nio.file.Files.writeString(
     dir.resolve("fabrichelper.kts"),
     """
-    @file:OptIn(ExperimentalFabricEvents::class)
     net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register {
         System.setProperty("minekt.fabrichelper", ((System.getProperty("minekt.fabrichelper") ?: "0").toInt() + 1).toString())
     }
-    onChat { }
     """.trimIndent(),
 )
 check("killing a script takes its listener out of the event") {
@@ -78,10 +75,12 @@ check("killing a script takes its listener out of the event") {
 }
 
 java.nio.file.Files.writeString(dir.resolve("fabricnoopt.kts"), "net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register { }")
-check("without the opt-in, the error says how to turn it on") {
+check("a listener-only script needs no opt-in and runs until it's killed") {
     val run = startScript("fabricnoopt")
-    val message = runCatching { run.await(kotlin.time.Duration.parse("20s")) }.exceptionOrNull()?.message.orEmpty()
-    ("@file:OptIn(ExperimentalFabricEvents::class)" in message) then message
+    waitTicks(40)
+    val alive = run.isRunning
+    run.kill()
+    (alive && waitFor(5) { !run.isRunning }) then "kept running with only its listener, stopped on kill"
 }
 
 echo("FE DONE")

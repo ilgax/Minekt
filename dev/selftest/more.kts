@@ -65,7 +65,7 @@ fun clickWidget(text: String): Boolean {
 }
 
 var waited = 0
-while (blockId(player.position.blockPos.below()) == "minecraft:void_air" && waited < 1200) { waitTicks(20); waited += 20 }
+while (blockAt(BlockPos.containing(player.position).below()).id == "minecraft:void_air" && waited < 1200) { waitTicks(20); waited += 20 }
 waitTicks(20)
 val me = player.name
 server("gamemode survival $me")
@@ -159,10 +159,10 @@ check("hook counts and cancels jumps") {
     sleep(1000)
     val counted = jumps.get()
     cancel = true
-    val y0 = position.y
+    val y0 = player.position.y
     var maxY = y0
     press("jump")
-    repeat(15) { waitTicks(1); maxY = maxOf(maxY, position.y) }
+    repeat(15) { waitTicks(1); maxY = maxOf(maxY, player.position.y) }
     release("jump")
     h.remove()
     (counted >= 1 && maxY - y0 < 0.1 && jumps.get() > counted) then "jumps seen=${jumps.get()}, rise while cancelled=${"%.2f".format(maxY - y0)}"
@@ -189,7 +189,7 @@ check("record real input as a script and play it back") {
     waitTicks(2)
     chat("\\record walktest now")
     waitTicks(5)
-    val start = position
+    val start = player.position
     val slot = player.selectedSlot
     xdo("keydown --window WIN w")
     sleep(500)
@@ -200,17 +200,17 @@ check("record real input as a script and play it back") {
     waitTicks(5)
     chat("\\record stop")
     if (!waitFor(5) { java.nio.file.Files.exists(scripts.resolve("walktest.kts")) }) return@check "FALSE not saved"
-    val recorded = position.distanceTo(start)
+    val recorded = player.position.distanceTo(start)
     val text = java.nio.file.Files.readString(scripts.resolve("walktest.kts"))
     // Replay from where the recording started.
     server("tp $me ${start.x} ${start.y} ${start.z} 0 0")
-    selectSlot(slot)
+    game { it.player!!.inventory.selectedSlot = slot }
     waitTicks(20)
-    val before = position
+    val before = player.position
     chat("\\walktest")
-    waitFor(15) { MinektClient.jobs.jobs.none { it.name == "walktest" } && position.distanceTo(before) > 0.5 }
+    waitFor(15) { MinektClient.jobs.jobs.none { it.name == "walktest" } && player.position.distanceTo(before) > 0.5 }
     waitTicks(10)
-    val replayed = position.distanceTo(before)
+    val replayed = player.position.distanceTo(before)
     val turned = player.pitch == 20f
     val scrolled = player.selectedSlot != slot
     ("keyDown(\"w\")" in text && "keyUp(\"w\")" in text && "setOrientation(0.0f, 20.0f)" in text && "scrollMouse(" in text &&

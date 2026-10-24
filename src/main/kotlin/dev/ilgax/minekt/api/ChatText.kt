@@ -94,7 +94,7 @@ sealed class ChatClick {
     }
 
     private class Run(val action: () -> Unit) : ChatClick() {
-        override fun toEvent(job: Job) = ClickEvent.RunCommand("minekt click ${ChatClicks.add(job, action)}")
+        override fun toEvent(job: Job) = ClickEvent.RunCommand(job.host.clickCommand(ChatClicks.add(job, action)))
     }
 
     companion object {

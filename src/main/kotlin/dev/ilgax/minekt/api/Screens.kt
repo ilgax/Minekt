@@ -1,5 +1,6 @@
 package dev.ilgax.minekt.api
 
+import dev.ilgax.minekt.job.clientHost
 import dev.ilgax.minekt.hooks.ScriptScreenView
 import kotlinx.coroutines.CompletableDeferred
 import java.util.concurrent.CopyOnWriteArrayList
@@ -183,7 +184,7 @@ class ScriptScreen internal constructor(
 
     private fun closeNow() {
         val screen = view ?: return
-        runCatching { job.host.onGameThread { mc -> if (mc.gui.screen() === screen) mc.gui.setScreen(null) } }
+        runCatching { job.clientHost.onGameThread { mc -> if (mc.gui.screen() === screen) mc.gui.setScreen(null) } }
     }
 
     /** Game thread, when the screen goes away for any reason. */

@@ -2,16 +2,11 @@
 
 package dev.ilgax.minekt.api
 
-import kotlin.time.Duration
 import net.minecraft.world.phys.Vec3
 import net.minecraft.core.BlockPos
 import dev.ilgax.minekt.job.Job
-import dev.ilgax.minekt.job.ScriptLogs
-import dev.ilgax.minekt.job.JobKilledException
-import dev.ilgax.minekt.job.JobStopException
-import dev.ilgax.minekt.job.TickClock
+import dev.ilgax.minekt.job.clientHost
 import dev.ilgax.minekt.mixin.KeyMappingAccessor
-import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.client.KeyMapping
 import net.minecraft.client.Minecraft
 import net.minecraft.core.registries.BuiltInRegistries
@@ -21,53 +16,18 @@ import kotlin.math.atan2
 import kotlin.math.sqrt
 
 /**
- * The implicit receiver of every script: everything here is callable unqualified from a `.kts`.
+ * The implicit receiver of client scripts: everything here (and in [ScriptContext]) is callable
+ * unqualified from a `.kts`.
  *
  * Calls run on the script's own thread; anything touching the game hops to the client thread via
  * [game]. Every call checks whether the job was killed, so loops that use the API stay killable.
  */
-class Minekt internal constructor(internal val job: Job) {
-    /** Arguments passed after the script name: `\hello a b` → `["a", "b"]`. */
-    val args: List<String> get() = job.args
-
-    val jobId: Int get() = job.id
-
+class Minekt internal constructor(job: Job) : ScriptContext(job) {
     /** Helpers for Baritone, if it is installed. See [Baritone]. */
     @ExperimentalBaritone
     val baritone: Baritone by lazy { Baritone(this) }
 
     // ---- output -------------------------------------------------------------------------------
-
-    /** Print to the local chat (only you see it). */
-    fun echo(vararg parts: Any?) {
-        job.checkAlive()
-        if (parts.none { it is ChatText }) return job.output(parts.joinToString(" ", transform = ::display))
-        // Styled: plain parts become unstyled text, joined with spaces like the rest.
-        val text = net.minecraft.network.chat.Component.empty()
-        parts.forEachIndexed { i, part ->
-            if (i > 0) text.append(" ")
-            if (part is ChatText) text.append(part.toComponent(job)) else text.append(display(part))
-        }
-        job.output(text, parts.joinToString(" ", transform = ::display))
-    }
-
-    /** How [echo] and [writeLog] show a value: positions as `(x, y, z)`, also inside lists and maps. */
-    private fun display(value: Any?): String = when (value) {
-        is Vec3 -> value.short()
-        is BlockPos -> value.short()
-        is Map<*, *> -> value.entries.joinToString(", ", "{", "}") { (k, v) -> display(k) + "=" + display(v) }
-        is Iterable<*> -> value.joinToString(", ", "[", "]", transform = ::display)
-        else -> value.toString()
-    }
-
-    /**
-     * Write to this script's log only, not chat: `minekt/logs/<script>.log`, also shown by
-     * `\log <script>` and the Log button in the script manager.
-     */
-    fun writeLog(vararg parts: Any?) {
-        job.checkAlive()
-        job.logs.add(job.name, ScriptLogs.Level.LOG, parts.joinToString(" ", transform = ::display), run = job.id)
-    }
 
     /** Send a chat message to the server. Messages starting with `/` are sent as commands. */
     fun chat(message: String) = game { mc ->
@@ -78,52 +38,6 @@ class Minekt internal constructor(internal val job: Job) {
     /** Run a command (leading `/` optional). */
     fun execute(command: String) = chat(if (command.startsWith("/")) command else "/$command")
 
-    /** The text on the system clipboard ("" if there's none); set it to copy text. */
-    var clipboard: String
-        get() = game { mc -> mc.keyboardHandler.clipboard }
-        set(text) = game { mc -> mc.keyboardHandler.clipboard = text }
-
-    // ---- timing / control ---------------------------------------------------------------------
-
-    /**
-     * Wait [ms] milliseconds. While the script's main code waits, its handlers (`onChat`, `onTick`, keys…)
-     * run for events that arrive, so a loop can react to them. Not allowed on the game's thread.
-     */
-    fun sleep(ms: Long) {
-        checkCanWait("sleep")
-        val deadline = System.nanoTime() + ms * 1_000_000
-        waiting {
-            job.waitDelivering({ ((deadline - System.nanoTime()) / 1_000_000).coerceIn(1, 20) }) { System.nanoTime() >= deadline }
-        }
-    }
-
-    /** [sleep] for [duration]. */
-    fun sleep(duration: Duration) = sleep(duration.inWholeMilliseconds)
-
-    /** Wait for [ticks] client ticks (20 per second), running handlers like [sleep] does. */
-    fun waitTicks(ticks: Int = 1) {
-        checkCanWait("waitTicks")
-        val target = TickClock.ticks + ticks
-        waiting { job.waitDelivering({ 5 }) { TickClock.ticks >= target } }
-    }
-
-    private inline fun waiting(block: () -> Unit) {
-        try {
-            block()
-        } catch (_: InterruptedException) {
-            throw JobKilledException()
-        }
-    }
-
-    /**
-     * Refuse to wait on the game's thread, where `onHudRender`, `onWorldRender`, the raw input handlers,
-     * hooks and Fabric listeners run: the game would freeze until the wait ended (for good, for a tick).
-     */
-    internal fun checkCanWait(what: String) = job.checkCanWait(what)
-
-    /** End the script now. Works from inside event handlers too. */
-    fun stop(): Nothing = throw JobStopException()
-
     // ---- raw access ---------------------------------------------------------------------------
 
     /**
@@ -132,13 +46,8 @@ class Minekt internal constructor(internal val job: Job) {
      */
     fun <T> game(block: (Minecraft) -> T): T {
         job.checkAlive()
-        return job.host.onGameThread(block)
+        return job.clientHost.onGameThread(block)
     }
-
-    fun isModLoaded(id: String): Boolean = FabricLoader.getInstance().isModLoaded(id)
-
-    fun modVersion(id: String): String? =
-        FabricLoader.getInstance().getModContainer(id).map { it.metadata.version.friendlyString }.orElse(null)
 
     // ---- player -------------------------------------------------------------------------------
 
@@ -180,8 +89,6 @@ class Minekt internal constructor(internal val job: Job) {
             )
         }
 
-    val position: Vec3 get() = player.position
-
     fun setOrientation(yaw: Float, pitch: Float) = game { mc ->
         val p = mc.player ?: error("Not in a world")
         p.yRot = yaw
@@ -202,12 +109,10 @@ class Minekt internal constructor(internal val job: Job) {
         p.setYHeadRot(yaw)
     }
 
-    fun lookAt(pos: Vec3) = lookAt(pos.x, pos.y, pos.z)
-
     /**
      * Hold down one of the game's bindings, whatever key it's on, until [release]. By the binding's name,
      * as in `options.txt` with or without `key.`: `"forward"`, `"jump"`, `"inventory"`, `"hotbar.3"`,
-     * `"key.pickItem"`, or a binding another mod adds ([bindings] lists them). It also counts as a click,
+     * `"key.pickItem"`, or a binding another mod adds (`game { it.options.keyMappings }` lists them). It also counts as a click,
      * like a real key press (so `"inventory"` opens the inventory and `"attack"` swings). Held bindings
      * are released when the script ends.
      */
@@ -216,21 +121,26 @@ class Minekt internal constructor(internal val job: Job) {
     /** Let go of a binding held with [press]. */
     fun release(binding: String) = game { mc -> press(mapping(binding), false) }
 
-    /** The names of all the game's bindings, for [press]: `key.forward`, `key.inventory`, … */
-    val bindings: List<String> get() = game { mc -> mc.options.keyMappings.map { it.name } }
-
     private fun mapping(binding: String): KeyMapping = KeyMapping.get(binding) ?: KeyMapping.get("key.$binding")
-        ?: throw IllegalArgumentException("No binding named '$binding' (bindings lists them)")
+        ?: throw IllegalArgumentException("No binding named '$binding' (game { it.options.keyMappings } lists them)")
 
     private fun press(mapping: KeyMapping, down: Boolean) {
         if (down && !mapping.isDown) (mapping as KeyMappingAccessor).run { `minekt$setClickCount`(`minekt$getClickCount`() + 1) }
         mapping.setDown(down)
-        if (down) job.heldKeys += mapping else job.heldKeys -= mapping
+        if (down) {
+            heldKeys += mapping
+            job.cleanups.addIfAbsent(releaseHeldKeys)
+        } else {
+            heldKeys -= mapping
+        }
     }
 
-    fun selectSlot(slot: Int) = game { mc ->
-        require(slot in 0..8) { "Hotbar slot must be 0..8" }
-        mc.player?.inventory?.selectedSlot = slot
+    /** Keys the script pressed; released when the job ends so the player doesn't keep walking. */
+    private val heldKeys: MutableSet<KeyMapping> = java.util.concurrent.ConcurrentHashMap.newKeySet()
+
+    private val releaseHeldKeys: () -> Unit = {
+        if (heldKeys.isNotEmpty()) runCatching { job.clientHost.onGameThread { heldKeys.forEach { key -> key.setDown(false) } } }
+        heldKeys.clear()
     }
 
     /** All non-empty inventory slots. */
@@ -245,42 +155,11 @@ class Minekt internal constructor(internal val job: Job) {
 
     // ---- world --------------------------------------------------------------------------------
 
-    /**
-     * Just the id of the block at a position, e.g. `minecraft:stone` (unloaded chunks read as
-     * `minecraft:void_air`). Cheaper than [blockAt], for loops over many blocks.
-     */
-    fun blockId(x: Int, y: Int, z: Int): String = game { mc ->
-        val level = mc.level ?: error("Not in a world")
-        BuiltInRegistries.BLOCK.getKey(level.getBlockState(BlockPos(x, y, z)).block).toString()
-    }
-
-    fun blockId(pos: BlockPos) = blockId(pos.x, pos.y, pos.z)
-
     /** Everything about the block at [pos]: its state, light, biome, and a sign's text. */
     fun blockAt(pos: BlockPos): BlockInfo = game { mc ->
         val level = mc.level ?: error("Not in a world")
-        val at = pos
-        val state = level.getBlockState(at)
-        val sign = level.getBlockEntity(at) as? net.minecraft.world.level.block.entity.SignBlockEntity
-        fun lines(slot: net.minecraft.world.level.block.entity.SignTextSlot) = sign?.getText(slot)?.getMessages(false)?.map { it.string }
-        BlockInfo(
-            pos = pos,
-            id = BuiltInRegistries.BLOCK.getKey(state.block).toString(),
-            properties = state.values.toList().associate { it.property().name to it.valueName() },
-            biome = level.getBiome(at).registeredName,
-            skyLight = level.getBrightness(net.minecraft.world.level.LightLayer.SKY, at),
-            blockLight = level.getBrightness(net.minecraft.world.level.LightLayer.BLOCK, at),
-            light = level.getMaxLocalRawBrightness(at),
-            isAir = state.isAir,
-            isSolid = state.isSolid,
-            hardness = state.getDestroySpeed(level, at),
-            lightEmission = state.lightEmission,
-            signFront = lines(net.minecraft.world.level.block.entity.SignTextSlot.FRONT),
-            signBack = lines(net.minecraft.world.level.block.entity.SignTextSlot.BACK),
-        )
+        level.blockInfo(pos)
     }
-
-    fun blockAt(x: Int, y: Int, z: Int) = blockAt(BlockPos(x, y, z))
 
     /** Every block within [radius] of the player whose id matches [predicate]. One game-thread hop. */
     fun findBlocks(radius: Int, predicate: (String) -> Boolean): List<FoundBlock> = game { mc ->
@@ -306,17 +185,10 @@ class Minekt internal constructor(internal val job: Job) {
             .sortedBy { it.distance }
     }
 
-    /** The entity with [id] (from `entities()`, an event or `targetedEntity()`), or null if it's gone. */
+    /** The entity with [id] (from `entities()` or an event), or null if it's gone. */
     fun entity(id: Int): EntityInfo? = game { mc -> mc.level?.getEntity(id)?.toInfo(mc.player) }
 
     fun entities(radius: Int): List<EntityInfo> = entities(radius.toDouble())
-
-    /** Every other player in the world, nearest first. */
-    val players: List<EntityInfo> get() = game { mc ->
-        val level = mc.level ?: error("Not in a world")
-        val self = mc.player
-        level.players().filter { it !== self }.map { it.toInfo(self) }.sortedBy { it.distance }
-    }
 
     // ---- world rendering ----------------------------------------------------------------------
     // Shapes stay until removed (handle.remove() / clearShapes()) or the script ends. throughWalls
@@ -369,13 +241,6 @@ class Minekt internal constructor(internal val job: Job) {
         return addHandler(job.chatHandlers, handler)
     }
 
-    /** Call [handler] every client tick (see [onChat] for lifecycle). */
-    fun onTick(handler: () -> Unit): Handler {
-        job.checkAlive()
-        return addHandler(job.tickHandlers, handler)
-    }
-
-
     /**
      * Register `/name` as a client-side command while this script runs. [handler] gets the words
      * typed after the name (`"quoted words"` are grouped). [completions] are offered on Tab.
@@ -383,16 +248,26 @@ class Minekt internal constructor(internal val job: Job) {
      */
     fun command(name: String, completions: List<String> = emptyList(), handler: (args: List<String>) -> Unit): Handler {
         job.checkAlive()
-        job.commandHandlers[name] = handler
+        val call: (Job.Event.Command) -> Unit = { handler(it.args) }
+        job.commandHandlers[name] = call
         job.host.registerCommand(name, completions, job)?.let { error ->
             job.commandHandlers.remove(name)
             throw IllegalStateException(error)
         }
         return Handler {
-            if (job.commandHandlers.remove(name, handler)) job.host.unregisterCommand(name, job)
+            if (job.commandHandlers.remove(name, call)) job.host.unregisterCommand(name, job)
         }
     }
 
+
+    /** The save folder in singleplayer, the address on a server. */
+    override fun currentDayTime(): Long? = game { mc -> mc.level?.let { Math.floorMod(it.defaultClockTime, 24000L) } }
+
+    override fun worldKey(): String = game { mc ->
+        mc.singleplayerServer?.let { "singleplayer:" + it.getWorldPath(net.minecraft.world.level.storage.LevelResource.ROOT).toAbsolutePath().normalize().fileName }
+            ?: mc.currentServer?.let { "server:" + it.ip }
+            ?: error("perWorld values need you to be in a world")
+    }
 
     private fun Int.sq() = this * this
 

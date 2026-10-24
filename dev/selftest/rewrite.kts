@@ -16,7 +16,7 @@ fun check(name: String, block: () -> Any?) {
 infix fun Boolean.then(detail: Any?): Any? = if (this) detail else "FALSE $detail"
 
 var waited = 0
-while (blockId(player.position.blockPos.below()) == "minecraft:void_air" && waited < 1200) { waitTicks(20); waited += 20 }
+while (blockAt(BlockPos.containing(player.position).below()).id == "minecraft:void_air" && waited < 1200) { waitTicks(20); waited += 20 }
 waitTicks(20)
 
 fun version() = game { it.launchedVersion }

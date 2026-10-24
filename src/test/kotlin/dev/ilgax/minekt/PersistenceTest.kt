@@ -1,6 +1,6 @@
 package dev.ilgax.minekt
 
-import dev.ilgax.minekt.job.Host
+import dev.ilgax.minekt.job.ClientHost
 import dev.ilgax.minekt.job.Job
 import dev.ilgax.minekt.job.JobManager
 import dev.ilgax.minekt.job.MessageKind
@@ -19,7 +19,8 @@ import kotlin.test.fail
 
 /** `by persistent { }`: values survive script runs and "game restarts" (a fresh JobManager on the same folder). */
 class PersistenceTest {
-    private class FakeHost(override val scriptDir: Path) : Host {
+    private class FakeHost(override val scriptDir: Path) : ClientHost {
+        override val tickClock = dev.ilgax.minekt.job.TickClock()
         val messages = LinkedBlockingQueue<Pair<MessageKind, String>>()
         override fun echo(message: String, kind: MessageKind) { messages.put(kind to message) }
         override fun <T> onGameThread(block: (Minecraft) -> T): T = error("no game in tests")
@@ -63,7 +64,7 @@ class PersistenceTest {
             |homes["base"] = Vec3(1.5, 64.0, -3.0)""".trimMargin())
         // Typed access (.x on a Vec3) proves it was decoded as Vec3, not as a generic JSON map.
         assertEquals(listOf("1.5 3"), run("homes", """val homes by persistent { mutableMapOf<String, Vec3>() }
-            |echo(homes.getValue("base").x, homes.getValue("base").blockPos.z + 6)""".trimMargin(), JobManager(host)))
+            |echo(homes.getValue("base").x, BlockPos.containing(homes.getValue("base")).z + 6)""".trimMargin(), JobManager(host)))
     }
 
     @Test

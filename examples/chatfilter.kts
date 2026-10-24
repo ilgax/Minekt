@@ -1,4 +1,3 @@
-@file:OptIn(ExperimentalFabricEvents::class)
 // \chatfilter — hides chat and server messages containing words you choose (edit them under the script's
 // Settings in \menu), and counts what it hid. Experimental: uses Fabric API events like a mod would.
 // Shows: Fabric events from a script, settings, a small HUD counter.

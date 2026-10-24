@@ -79,7 +79,8 @@ data class EffectInfo(val id: String, val amplifier: Int, val durationTicks: Int
 
 /**
  * An entity, as of the moment it was read. [health], [maxHealth] and [isBaby] are for living
- * entities (null / false otherwise). [equipment] maps slots (`mainhand`, `offhand`, `head`, `chest`,
+ * entities (null / false otherwise). [distance] is from you in a client script; in a server script, from the
+ * position asked about (`entities(near = …)`), else 0. [equipment] maps slots (`mainhand`, `offhand`, `head`, `chest`,
  * `legs`, `feet`, `body`, `saddle`) to item ids, leaving out empty ones. [effects] are only what the
  * server shares: usually none for other entities.
  */
@@ -108,6 +109,12 @@ data class EntityInfo(
     val onFire: Boolean = false,
     /** The entity it rides (an id for `entity(id)`), or null. */
     val vehicleId: Int? = null,
+    /** Like `minecraft:overworld`. */
+    val dimension: String? = null,
+    /** A player's `survival`, `creative`, `adventure` or `spectator`, in server scripts; null otherwise. */
+    val gameMode: String? = null,
+    /** Whether a player may use operator commands (permission level 2, like `/gamemode`), in server scripts; null otherwise. */
+    val isOp: Boolean? = null,
 ) {
     /** What it holds in its main hand, or null. */
     val heldItem: String? get() = equipment["mainhand"]

@@ -21,17 +21,6 @@ val Minekt.targetedBlock: TargetedBlock? get() = game { mc ->
     TargetedBlock(hit.blockPos.immutable(), mc.level!!.blockId(hit.blockPos), hit.direction.toApi(), hit.location)
 }
 
-/** The entity under the crosshair, or null. */
-val Minekt.targetedEntity: EntityInfo? get() = game { mc ->
-    (mc.hitResult as? EntityHitResult)?.entity?.toInfo(mc.player)
-}
-
-/** Use the held item (right-click in the air: eat, throw, draw a bow...). */
-fun Minekt.useItem() = game { mc ->
-    val player = mc.player ?: error("Not in a world")
-    mc.gameMode!!.useItem(player, InteractionHand.MAIN_HAND).consumesAction()
-}
-
 /** Right-click a block face with the held item: open a chest, press a button, place against it. */
 fun Minekt.useOn(pos: BlockPos, face: Face = Face.UP): Boolean = game { mc ->
     val player = mc.player ?: error("Not in a world")
@@ -42,7 +31,7 @@ fun Minekt.useOn(pos: BlockPos, face: Face = Face.UP): Boolean = game { mc ->
     result.consumesAction()
 }
 
-/** Attack (left-click) an entity by id, e.g. one from `entities()` or `targetedEntity()`. */
+/** Attack (left-click) an entity by id, e.g. one from `entities()`. */
 fun Minekt.attack(entityId: Int) = game { mc ->
     val player = mc.player ?: error("Not in a world")
     mc.gameMode!!.attack(player, entity(mc, entityId))

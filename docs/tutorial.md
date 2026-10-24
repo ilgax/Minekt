@@ -9,7 +9,7 @@ the game.
 ```kotlin
 // hello.kts
 echo("Hello, ${player.name}!")
-echo("You're at ${player.position.toShortString()} in ${player.dimension}")
+echo("You're at", player.position, "in", player.dimension)
 ```
 
 `echo` prints to your own chat; nobody else sees it. `player` is a snapshot of you: name, position, health, …
