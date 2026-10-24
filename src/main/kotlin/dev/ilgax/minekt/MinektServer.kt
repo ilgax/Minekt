@@ -5,6 +5,7 @@ import com.mojang.brigadier.arguments.LongArgumentType
 import com.mojang.brigadier.arguments.StringArgumentType
 import com.mojang.brigadier.context.CommandContext
 import dev.ilgax.minekt.api.server.ServerEvent
+import dev.ilgax.minekt.api.toInfo
 import dev.ilgax.minekt.job.ChatClicks
 import dev.ilgax.minekt.job.ScriptLogs
 import dev.ilgax.minekt.script.CompilerSetup
@@ -17,6 +18,8 @@ import dev.ilgax.minekt.server.ServerScripts
 import net.fabricmc.api.EnvType
 import net.fabricmc.api.ModInitializer
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback
+import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents
@@ -29,6 +32,7 @@ import net.minecraft.commands.Commands
 import net.minecraft.commands.SharedSuggestionProvider
 import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.network.chat.Component
+import net.minecraft.world.entity.Entity
 import org.slf4j.LoggerFactory
 
 /**
@@ -69,6 +73,34 @@ object MinektServer : ModInitializer {
         }
         ServerPlayConnectionEvents.JOIN.register { handler, _, _ -> scripts?.dispatch(ServerEvent.PlayerJoin(handler.player.name.string)) }
         ServerPlayConnectionEvents.DISCONNECT.register { handler, _ -> scripts?.dispatch(ServerEvent.PlayerLeave(handler.player.name.string)) }
+        ServerEntityEvents.ENTITY_LOAD.register { entity, _ ->
+            scripts?.dispatch(ServerEvent.EntitySpawn::class.java) { ServerEvent.EntitySpawn(entity.toInfo(null)) }
+        }
+        ServerEntityEvents.ENTITY_UNLOAD.register { entity, _ ->
+            scripts?.dispatch(ServerEvent.EntityRemoved::class.java) {
+                val reason = when (entity.removalReason) {
+                    Entity.RemovalReason.KILLED -> "killed"
+                    Entity.RemovalReason.DISCARDED -> "discarded"
+                    Entity.RemovalReason.CHANGED_DIMENSION -> "changed_dimension"
+                    else -> "unloaded"
+                }
+                ServerEvent.EntityRemoved(entity.toInfo(null), reason == "killed", reason)
+            }
+        }
+        ServerLivingEntityEvents.AFTER_DAMAGE.register { entity, source, _, taken, _ ->
+            if (taken > 0) scripts?.dispatch(ServerEvent.Damage::class.java) {
+                val attacker = source.entity
+                ServerEvent.Damage(
+                    entity.toInfo(null), taken, entity.health, source.typeHolder().registeredName,
+                    attacker?.toInfo(null), source.directEntity?.takeIf { it !== attacker }?.toInfo(null),
+                )
+            }
+        }
+        ServerLivingEntityEvents.AFTER_DEATH.register { entity, source ->
+            scripts?.dispatch(ServerEvent.Death::class.java) {
+                ServerEvent.Death(entity.toInfo(null), source.typeHolder().registeredName, source.entity?.toInfo(null))
+            }
+        }
         PlayerBlockBreakEvents.AFTER.register { level, player, pos, state, _ ->
             val scripts = scripts ?: return@register
             if (level.isClientSide) return@register

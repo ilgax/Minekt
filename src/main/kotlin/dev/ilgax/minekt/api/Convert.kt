@@ -2,7 +2,6 @@ package dev.ilgax.minekt.api
 
 import net.minecraft.world.phys.Vec3
 import net.minecraft.core.BlockPos
-import net.minecraft.client.KeyMapping
 import net.minecraft.core.Direction
 import net.minecraft.core.component.DataComponents
 import net.minecraft.core.registries.BuiltInRegistries
@@ -12,16 +11,18 @@ import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.Level
 
-// Conversions from live game objects to the plain snapshot types scripts see. Client thread only.
+// Conversions from live game objects to the plain snapshot types scripts see, on the game's thread: the
+// client's or the server's. Used by both sides, so nothing here may touch client classes.
 
-internal fun Entity.toInfo(self: Entity?) = EntityInfo(
+/** [self]: whose distance [EntityInfo.distance] is, or [origin]: from where (else 0). */
+internal fun Entity.toInfo(self: Entity?, origin: Vec3? = null) = EntityInfo(
     id = id,
     uuid = uuid.toString(),
     name = name.string,
     type = BuiltInRegistries.ENTITY_TYPE.getKey(type).toString(),
     position = Vec3(x, y, z),
     health = (this as? LivingEntity)?.health,
-    distance = self?.distanceTo(this)?.toDouble() ?: 0.0,
+    distance = origin?.let { position().distanceTo(it) } ?: self?.distanceTo(this)?.toDouble() ?: 0.0,
     maxHealth = (this as? LivingEntity)?.maxHealth,
     customName = customName?.string,
     isBaby = (this as? LivingEntity)?.isBaby == true,
@@ -39,6 +40,7 @@ internal fun Entity.toInfo(self: Entity?) = EntityInfo(
     glowing = isCurrentlyGlowing,
     onFire = isOnFire,
     vehicleId = vehicle?.id,
+    dimension = level().dimension().identifier().toString(),
 )
 
 internal fun ItemStack.toInfo(slot: Int): ItemStackInfo {

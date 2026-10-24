@@ -74,6 +74,10 @@ class JobManager(private val host: Host) {
     /** Whether any script listens for game events of [type]: check before doing work to make one. */
     fun wantsGame(type: Class<out dev.ilgax.minekt.api.MinektEvent>) = running.values.any { it.wantsGame(type) }
 
+    /** Whether any server script listens for server events of [type]. */
+    fun wantsServer(type: Class<out dev.ilgax.minekt.api.server.ServerEvent>) =
+        running.values.any { job -> job.serverEventTypes.any { it.isAssignableFrom(type) } }
+
 
     /**
      * Game thread, for every key, mouse button, scroll and mouse move: every script's input listeners

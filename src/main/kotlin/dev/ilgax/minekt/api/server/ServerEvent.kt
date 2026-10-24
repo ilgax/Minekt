@@ -1,5 +1,6 @@
 package dev.ilgax.minekt.api.server
 
+import dev.ilgax.minekt.api.EntityInfo
 import net.minecraft.core.BlockPos
 import net.minecraft.world.phys.Vec3
 
@@ -14,6 +15,33 @@ sealed interface ServerEvent {
 
     /** [player] broke [block] (its id, like `minecraft:stone`) at [pos] in [dimension]: `onBlockBreak { (player, pos, block) -> }`. */
     data class BlockBreak(val player: String, val pos: BlockPos, val block: String, val dimension: String) : ServerEvent
+
+    /** An entity came into the world: it spawned, or its chunk loaded. `onEntitySpawn { entity -> }`. */
+    data class EntitySpawn(val entity: EntityInfo) : ServerEvent
+
+    /**
+     * An entity left the world: it [died] (or was killed with a command), or else was removed. [reason] is `killed`,
+     * `discarded` (removed: despawned, picked up, `removeEntity`…), `unloaded` (its chunk unloaded, or its player left) or
+     * `changed_dimension`. `onEntityRemoved { (entity, died, reason) -> }`.
+     */
+    data class EntityRemoved(val entity: EntityInfo, val died: Boolean, val reason: String) : ServerEvent
+
+    /**
+     * A living [entity] lost [amount] health, with [health] left (as after the hit). [cause] is the damage type
+     * (`minecraft:fall`, `minecraft:mob_attack`, `minecraft:arrow`…), [attacker] who's responsible and [projectile]
+     * what hit (an arrow, a fireball), when there is one. `onDamage { (entity, amount, health, cause, attacker) -> }`.
+     */
+    data class Damage(
+        val entity: EntityInfo,
+        val amount: Float,
+        val health: Float,
+        val cause: String,
+        val attacker: EntityInfo? = null,
+        val projectile: EntityInfo? = null,
+    ) : ServerEvent
+
+    /** A living [entity] died of [cause] (a damage type, as in [Damage]); [killer] is who's responsible, if anyone. */
+    data class Death(val entity: EntityInfo, val cause: String, val killer: EntityInfo? = null) : ServerEvent
 }
 
 /** A player on the server, as [ServerMinekt.players] and [ServerMinekt.player] see them. */

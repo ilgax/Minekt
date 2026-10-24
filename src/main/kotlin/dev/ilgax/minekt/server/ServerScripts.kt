@@ -71,6 +71,11 @@ internal class ServerScripts(val server: MinecraftServer) : Host {
 
     fun dispatch(event: ServerEvent) = jobs.dispatch(Job.Event.Server(event))
 
+    /** Dispatch the event [make] builds, only if a script listens for [type]: entity events are frequent. */
+    inline fun <T : ServerEvent> dispatch(type: Class<T>, make: () -> T) {
+        if (jobs.wantsServer(type)) dispatch(make())
+    }
+
     fun log(text: String) = LOGGER.info("[minekt] {}", text)
 
     // ---- Host ---------------------------------------------------------------------------------

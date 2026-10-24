@@ -1,5 +1,6 @@
 package dev.ilgax.minekt.api.server
 
+import dev.ilgax.minekt.api.EntityInfo
 import dev.ilgax.minekt.api.Handler
 import dev.ilgax.minekt.api.ScriptContext
 import dev.ilgax.minekt.job.Job
@@ -129,9 +130,29 @@ class ServerMinekt internal constructor(job: Job) : ScriptContext(job) {
     /** A player broke a block: `onBlockBreak { (player, pos, block, dimension) -> }`. */
     fun onBlockBreak(handler: (ServerEvent.BlockBreak) -> Unit): Handler = on(handler)
 
+    /** An entity came into the world: spawned, or loaded with its chunk. */
+    fun onEntitySpawn(handler: (EntityInfo) -> Unit): Handler = on<ServerEvent.EntitySpawn> { handler(it.entity) }
+
+    /** An entity left the world: `onEntityRemoved { (entity, died, reason) -> }`, see [ServerEvent.EntityRemoved]. */
+    fun onEntityRemoved(handler: (ServerEvent.EntityRemoved) -> Unit): Handler = on(handler)
+
+    /** Any living entity (players too) lost health: `onDamage { (entity, amount, health, cause, attacker, projectile) -> }`. */
+    fun onDamage(handler: (ServerEvent.Damage) -> Unit): Handler = on(handler)
+
+    /** Any living entity (players too) died: `onDeath { (entity, cause, killer) -> }`. */
+    fun onDeath(handler: (ServerEvent.Death) -> Unit): Handler = on(handler)
+
+    /** A player died: `onPlayerDeath { (player, cause, killer) -> echo(player.name, "died of", cause) }`. */
+    fun onPlayerDeath(handler: (ServerEvent.Death) -> Unit): Handler =
+        on<ServerEvent.Death> { if (it.entity.type == "minecraft:player") handler(it) }
+
+    /** Every [ServerEvent]; use `when (event) { is ServerEvent.Damage -> … }`. */
+    fun onEvent(handler: (ServerEvent) -> Unit): Handler = on(handler)
+
     private inline fun <reified T : ServerEvent> on(crossinline handler: (T) -> Unit): Handler {
         job.checkAlive()
         val filtered: (ServerEvent) -> Unit = { if (it is T) handler(it) }
+        job.serverEventTypes += T::class.java
         job.serverHandlers += filtered
         return Handler { job.serverHandlers.remove(filtered) }
     }
@@ -169,14 +190,14 @@ class ServerMinekt internal constructor(job: Job) : ScriptContext(job) {
         (if (s.isDedicatedServer) "server:" else "singleplayer:") + folder
     }
 
-    private fun online(server: MinecraftServer, name: String): ServerPlayer =
+    internal fun online(server: MinecraftServer, name: String): ServerPlayer =
         server.playerList.getPlayerByName(name) ?: throw IllegalArgumentException("$name isn't online")
 
-    private fun level(server: MinecraftServer, dimension: String): ServerLevel =
+    internal fun level(server: MinecraftServer, dimension: String): ServerLevel =
         server.getLevel(ResourceKey.create(Registries.DIMENSION, identifier(dimension)))
             ?: throw IllegalArgumentException("No dimension '$dimension' (there are ${server.levelKeys().joinToString { it.identifier().toString() }})")
 
-    private fun identifier(id: String): Identifier =
+    internal fun identifier(id: String): Identifier =
         Identifier.tryParse(if (':' in id) id else "minecraft:$id") ?: throw IllegalArgumentException("'$id' isn't an id")
 
     private fun info(player: ServerPlayer) = OnlinePlayer(

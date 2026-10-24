@@ -103,6 +103,8 @@ class Job internal constructor(
     internal val gameHandlers = CopyOnWriteArrayList<(MinektEvent) -> Unit>()
     /** Server scripts' `onChat`, `onPlayerJoin`, `onBlockBreak`…, each filtering the events it wants. */
     internal val serverHandlers = CopyOnWriteArrayList<(dev.ilgax.minekt.api.server.ServerEvent) -> Unit>()
+    /** Server event types the handlers above are for (`ServerEvent` itself: all), so the server only builds wanted events. */
+    internal val serverEventTypes: MutableSet<Class<*>> = ConcurrentHashMap.newKeySet()
     /** Event types the handlers above are for (`MinektEvent` itself: all), so unwanted events cost nothing. */
     internal val gameEventTypes: MutableSet<Class<*>> = ConcurrentHashMap.newKeySet()
     /** `awaitEvent` calls in progress: they may want any event. */
