@@ -58,9 +58,9 @@ fun ScriptContext.afterTicks(ticks: Int, action: () -> Unit): Timer = Timer(job.
  * Run [action] whenever the in-game time of day passes [dayTime] (0–23999: 0 is sunrise, 6000 noon,
  * 13000 nightfall, 18000 midnight). Checked every tick; time jumps (`/time set`) count as passing.
  */
-fun Minekt.atDaytime(dayTime: Long, action: () -> Unit): Timer {
+fun ScriptContext.atDaytime(dayTime: Long, action: () -> Unit): Timer {
     require(dayTime in 0..23999) { "dayTime must be 0..23999" }
-    fun now() = game { mc -> mc.level?.let { Math.floorMod(it.defaultClockTime, 24000L) } }
+    fun now() = currentDayTime()
     return Timer(job.launchSerial {
         var previous = now()
         while (true) {

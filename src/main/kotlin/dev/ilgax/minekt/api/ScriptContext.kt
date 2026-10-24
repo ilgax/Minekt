@@ -123,4 +123,7 @@ abstract class ScriptContext internal constructor(internal val job: Job) {
 
     /** Stable id of the current world, for `persistent(perWorld = true)`. */
     internal abstract fun worldKey(): String
+
+    /** The time of day (0–23999) for `atDaytime`, or null when there's no world. */
+    internal abstract fun currentDayTime(): Long?
 }

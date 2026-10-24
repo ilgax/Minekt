@@ -184,6 +184,8 @@ class ServerMinekt internal constructor(job: Job) : ScriptContext(job) {
 
     internal fun writeServerLog(parts: Array<out Any?>) = host.log(plain(parts))
 
+    override fun currentDayTime(): Long? = server { s -> Math.floorMod(s.overworld().defaultClockTime, 24000L) }
+
     /** The world folder: one per dedicated server, or the singleplayer world. */
     override fun worldKey(): String = server { s ->
         val folder = s.getWorldPath(LevelResource.ROOT).toAbsolutePath().normalize().fileName

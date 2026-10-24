@@ -186,25 +186,7 @@ class Minekt internal constructor(job: Job) : ScriptContext(job) {
     /** Everything about the block at [pos]: its state, light, biome, and a sign's text. */
     fun blockAt(pos: BlockPos): BlockInfo = game { mc ->
         val level = mc.level ?: error("Not in a world")
-        val at = pos
-        val state = level.getBlockState(at)
-        val sign = level.getBlockEntity(at) as? net.minecraft.world.level.block.entity.SignBlockEntity
-        fun lines(slot: net.minecraft.world.level.block.entity.SignTextSlot) = sign?.getText(slot)?.getMessages(false)?.map { it.string }
-        BlockInfo(
-            pos = pos,
-            id = BuiltInRegistries.BLOCK.getKey(state.block).toString(),
-            properties = state.values.toList().associate { it.property().name to it.valueName() },
-            biome = level.getBiome(at).registeredName,
-            skyLight = level.getBrightness(net.minecraft.world.level.LightLayer.SKY, at),
-            blockLight = level.getBrightness(net.minecraft.world.level.LightLayer.BLOCK, at),
-            light = level.getMaxLocalRawBrightness(at),
-            isAir = state.isAir,
-            isSolid = state.isSolid,
-            hardness = state.getDestroySpeed(level, at),
-            lightEmission = state.lightEmission,
-            signFront = lines(net.minecraft.world.level.block.entity.SignTextSlot.FRONT),
-            signBack = lines(net.minecraft.world.level.block.entity.SignTextSlot.BACK),
-        )
+        level.blockInfo(pos)
     }
 
     fun blockAt(x: Int, y: Int, z: Int) = blockAt(BlockPos(x, y, z))
@@ -316,6 +298,8 @@ class Minekt internal constructor(job: Job) : ScriptContext(job) {
 
 
     /** The save folder in singleplayer, the address on a server. */
+    override fun currentDayTime(): Long? = game { mc -> mc.level?.let { Math.floorMod(it.defaultClockTime, 24000L) } }
+
     override fun worldKey(): String = game { mc ->
         mc.singleplayerServer?.let { "singleplayer:" + it.getWorldPath(net.minecraft.world.level.storage.LevelResource.ROOT).toAbsolutePath().normalize().fileName }
             ?: mc.currentServer?.let { "server:" + it.ip }
