@@ -16,7 +16,7 @@ fun server(command: String) = game { mc ->
 
 // Wait for terrain.
 var waited = 0
-while (blockId(player.position.blockPos.below()) == "minecraft:void_air" && waited < 1200) { waitTicks(20); waited += 20 }
+while (blockAt(BlockPos.containing(player.position).below()).id == "minecraft:void_air" && waited < 1200) { waitTicks(20); waited += 20 }
 waitTicks(20)
 
 // Record every game event from the start, concurrently with the test body (coroutines).
@@ -34,12 +34,13 @@ waitTicks(20)
 // ---- world info / scan ----
 check("world") { world }
 check("isLoaded here / far away") {
-    val here = isLoaded(position.blockPos.x, position.blockPos.z)
+    val feet = BlockPos.containing(player.position)
+    val here = isLoaded(feet.x, feet.z)
     val far = isLoaded(100_000, 100_000)
     "here=$here far=$far".takeIf { here && !far } ?: "FALSE here=$here far=$far"
 }
 check("scanRegion 96x(full height)x96 for ores") {
-    val p = position.blockPos
+    val p = BlockPos.containing(player.position)
     val started = System.currentTimeMillis()
     val ores = scanRegion(BlockPos(p.x - 48, -64, p.z - 48), BlockPos(p.x + 48, 320, p.z + 48)) { it.endsWith("_ore") }
     "${ores.size} ores in ${System.currentTimeMillis() - started} ms"
@@ -48,14 +49,14 @@ check("scanRegion 96x(full height)x96 for ores") {
 // ---- inventory ----
 check("inventory has the given items") { inventory.map { it.id }.containsAll(listOf("minecraft:stone", "minecraft:chest")) }
 check("ItemGained event") { seen.filterIsInstance<MinektEvent.ItemGained>().joinToString { "${it.id} x${it.count}" }.ifEmpty { false } }
-check("heldItem") { selectSlot(inventory.first { it.id == "minecraft:stone" }.slot); heldItem }
+check("heldItem") { val stone = inventory.first { it.id == "minecraft:stone" }.slot; game { it.player!!.inventory.selectedSlot = stone }; heldItem }
 
 // ---- interaction: place, target, break ----
-val base = position.blockPos
+val base = BlockPos.containing(player.position)
 val spot = base.offset(2, 0, 0)
 server("fill ${spot.x} ${spot.y} ${spot.z - 1} ${spot.x + 2} ${spot.y + 2} ${spot.z + 1} minecraft:air")
 waitTicks(5)
-check("useOn places a block") { useOn(spot.below(), Face.UP) && run { waitTicks(5); blockId(spot) == "minecraft:stone" } }
+check("useOn places a block") { useOn(spot.below(), Face.UP) && run { waitTicks(5); blockAt(spot).id == "minecraft:stone" } }
 check("lookAt + targetedBlock") {
     lookAt(spot.x + 0.5, spot.y + 0.5, spot.z + 0.5)
     waitTicks(2)
@@ -67,8 +68,9 @@ waitTicks(5)
 // ---- containers ----
 val chestPos = spot
 check("place chest") {
-    selectSlot(inventory.first { it.id == "minecraft:chest" }.slot)
-    useOn(chestPos.below(), Face.UP) && run { waitTicks(5); blockId(chestPos) == "minecraft:chest" }
+    val chestSlot = inventory.first { it.id == "minecraft:chest" }.slot
+    game { it.player!!.inventory.selectedSlot = chestSlot }
+    useOn(chestPos.below(), Face.UP) && run { waitTicks(5); blockAt(chestPos).id == "minecraft:chest" }
 }
 check("open chest + awaitScreen") {
     runBlocking {
@@ -89,7 +91,7 @@ check("container / shiftClick stone into chest") {
         .takeIf { chest.any { it.id == "minecraft:stone" } } ?: false
 }
 check("closeScreen + events") {
-    closeScreen()
+    game { it.player!!.closeContainer() }
     waitTicks(5)
     screen == null && saw { it is MinektEvent.ScreenOpen } && saw { it is MinektEvent.ScreenClose }
 }

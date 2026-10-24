@@ -73,7 +73,7 @@ then open a singleplayer world. Each one reports `OK`/`FAIL` lines in chat and c
   `xdo-runner.sh` too.
 - `\draw`: drawing every frame, pressing bindings by name, the player's and other entities' fields, styled and
   clickable chat, and the clipboard.
-- `\fabric`: Fabric API events from scripts (experimental): ticks, hiding a chat message, removal when a
+- `\fabric`: Fabric API events from scripts: ticks, hiding a chat message, removal when a
   script is killed, and the opt-in message.
 - `\examples`: starts every script in `examples/` and checks it runs without errors, then takes a screenshot.
 - `\stopdamage`: `onDamage`'s cause and attacker from real server damage (fall, a zombie, a skeleton's arrow),

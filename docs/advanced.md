@@ -117,15 +117,12 @@ miner.isRunning; miner.await(); miner.kill()
 - Results cross between scripts as they are, so stick to strings, numbers, collections and Minekt's types:
   a class declared in one script isn't the same class in another.
 
-## Fabric API events (experimental)
+## Fabric API events
 
 Scripts can listen to Fabric API events, and other mods' events, written exactly like in a mod (see also
-[Coming from Fabric](from-fabric.md)). Opt in with one
-line at the top:
+[Coming from Fabric](from-fabric.md)). Nothing to opt into: mod code works here as it is.
 
 ```kotlin
-@file:OptIn(ExperimentalFabricEvents::class)
-
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents
 

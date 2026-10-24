@@ -89,7 +89,7 @@ class InputRecorder(private val scriptDir: Path, private val notify: (String) ->
         }
         val yaw = angle(player.yRot)
         val pitch = angle(player.xRot)
-        if (r.ticks == 0) r.actions += Action(0, "selectSlot(${player.inventory.selectedSlot})", initial = true)
+        if (r.ticks == 0) r.actions += Action(0, "game { it.player!!.inventory.selectedSlot = ${player.inventory.selectedSlot} }", initial = true)
         if (yaw != r.yaw || pitch != r.pitch) {
             r.actions += Action(r.ticks, "setOrientation(${yaw}f, ${pitch}f)", initial = r.ticks == 0)
             r.yaw = yaw

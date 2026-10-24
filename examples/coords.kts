@@ -8,7 +8,7 @@ val here = "%d %d %d".format(p.x.toInt(), p.y.toInt(), p.z.toInt())
 
 fun lookAtSaved(name: String) {
     val spot = saved[name] ?: return
-    lookAt(spot)
+    lookAt(spot.x, spot.y, spot.z)
     echo(chatText("Looking at $name", Color.YELLOW), "(${spot.distanceTo(player.position).toInt()} blocks away)")
 }
 

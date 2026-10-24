@@ -2,7 +2,6 @@ package dev.ilgax.minekt.api
 
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
-import net.minecraft.client.gui.screens.inventory.InventoryScreen
 import net.minecraft.world.entity.player.Inventory
 import net.minecraft.world.inventory.ContainerInput
 
@@ -62,19 +61,6 @@ fun Minekt.swapWithHotbar(slot: Int, hotbar: Int) {
 
 /** Drop one item from a slot, or the whole stack with [all]. */
 fun Minekt.dropSlot(slot: Int, all: Boolean = false) = containerInput(slot, if (all) 1 else 0, ContainerInput.THROW)
-
-/** Close the open screen (sends the close packet for containers). */
-fun Minekt.closeScreen() = game { mc ->
-    val player = mc.player
-    if (player != null && player.containerMenu !== player.inventoryMenu) player.closeContainer()
-    else mc.gui.setScreen(null)
-}
-
-/** Open the player's inventory screen. */
-fun Minekt.openInventory() = game { mc ->
-    val player = mc.player ?: error("Not in a world")
-    mc.gui.setScreen(InventoryScreen(player))
-}
 
 private fun Minekt.containerInput(slot: Int, button: Int, input: ContainerInput) = game { mc ->
     val player = mc.player ?: error("Not in a world")

@@ -68,7 +68,7 @@ fun waitFor(seconds: Int, condition: () -> Boolean): Boolean {
 }
 
 var waited = 0
-while (blockId(player.position.blockPos.below()) == "minecraft:void_air" && waited < 1200) { waitTicks(20); waited += 20 }
+while (blockAt(BlockPos.containing(player.position).below()).id == "minecraft:void_air" && waited < 1200) { waitTicks(20); waited += 20 }
 waitTicks(40)
 val me = player.name
 if (world.dimension != "minecraft:overworld") {
@@ -101,7 +101,7 @@ onScoreboardChange { events += MinektEvent.ScoreboardChange(it.title, it.lines) 
 
 // The rest happens in a coroutine, while the handlers above run on the script thread.
 launch {
-    val p = player.position.blockPos
+    val p = BlockPos.containing(player.position)
     fun at(dx: Int, dy: Int, dz: Int) = "${p.x + dx} ${p.y + dy} ${p.z + dz}"
 
     check("onBlockChange sees a block placed and removed") {

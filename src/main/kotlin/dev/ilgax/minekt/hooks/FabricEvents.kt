@@ -18,7 +18,7 @@ import java.lang.reflect.Modifier
 import java.lang.reflect.Proxy
 
 /**
- * Fabric API events from scripts (experimental, opted into with `@file:OptIn(ExperimentalFabricEvents::class)`).
+ * Fabric API events from scripts, on either side.
  *
  * A script writes `ClientTickEvents.END_CLIENT_TICK.register { … }` like a mod. [rewrite] turns those
  * calls in the compiled script into calls to [register] here, which registers a stand-in listener
@@ -31,8 +31,6 @@ object FabricEvents {
     private val logger = LoggerFactory.getLogger("minekt")
     private const val EVENT = "net/fabricmc/fabric/api/event/Event"
     private val SELF = FabricEvents::class.java.name.replace('.', '/')
-    private const val OPT_IN_MESSAGE =
-        "Fabric events from scripts are experimental: add @file:OptIn(ExperimentalFabricEvents::class) at the top to use them"
 
     // ---- called by rewritten script code ---------------------------------------------------------
 
@@ -47,7 +45,6 @@ object FabricEvents {
             if (phase == null) event.register(listener) else event.register(phase, listener)
             return
         }
-        check(job.fabricEventsOptIn) { OPT_IN_MESSAGE }
         job.checkAlive()
         val type = listenerType(listener)
         val handler = StandIn(job, listener)

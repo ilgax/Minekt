@@ -15,7 +15,7 @@ val elsewhere by persistent(key = "homes", perWorld = false) { mutableMapOf<Stri
 launches++
 check("launch") { launches }
 if (launches == 1) {
-    homes["spawn"] = Waypoint("spawn", position.blockPos, null)  // in-place change, saved on exit
+    homes["spawn"] = Waypoint("spawn", BlockPos.containing(player.position), null)  // in-place change, saved on exit
     check("stored") { homes }
 } else {
     check("perWorld value restored") { homes["spawn"]?.let { "${it.name} at ${it.pos}, note=${it.note}, type=${it::class.simpleName}" } ?: false }

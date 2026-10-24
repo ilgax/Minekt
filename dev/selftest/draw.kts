@@ -34,7 +34,7 @@ fun red(color: Int) = color shr 16 and 0xFF
 fun green(color: Int) = color shr 8 and 0xFF
 
 var waited = 0
-while (blockId(player.position.blockPos.below()) == "minecraft:void_air" && waited < 1200) { waitTicks(20); waited += 20 }
+while (blockAt(BlockPos.containing(player.position).below()).id == "minecraft:void_air" && waited < 1200) { waitTicks(20); waited += 20 }
 waitTicks(40)
 val me = player.name
 server("gamemode survival $me")
@@ -47,31 +47,31 @@ waitTicks(20)
 
 // ---- pressing bindings by name ---------------------------------------------------------------
 
-check("bindings lists the game's bindings") {
-    val all = bindings
+check("the game's bindings, by name") {
+    val all = game { mc -> mc.options.keyMappings.map { it.name } }
     ("key.forward" in all && "key.inventory" in all && "key.hotbar.3" in all) then "${all.size} bindings"
 }
 check("press(\"inventory\") opens the inventory, like the key") {
     press("inventory")
     release("inventory")
     val opened = waitFor(3) { screenName() == "InventoryScreen" }
-    closeScreen()
+    game { it.player!!.closeContainer() }
     waitFor(3) { screenName() == null }
     opened then "opened"
 }
 check("press(\"key.hotbar.3\") selects the third slot") {
-    selectSlot(0)
+    game { it.player!!.inventory.selectedSlot = 0 }
     press("key.hotbar.3")
     release("key.hotbar.3")
     waitFor(3) { player.selectedSlot == 2 } then "slot ${player.selectedSlot}"
 }
 check("held bindings: press(\"forward\") walks until released") {
-    val start = position
+    val start = player.position
     press("forward")
     sleep(700)
     release("forward")
     sleep(300)
-    val moved = position.distanceTo(start)
+    val moved = player.position.distanceTo(start)
     (moved > 1.0) then "moved %.2f".format(moved)
 }
 check("an unknown binding is explained") {
@@ -113,10 +113,11 @@ check("player: velocity and sprinting while moving, flying in creative") {
 
 // ---- clipboard -------------------------------------------------------------------------------
 
-check("setClipboard / clipboard") {
+check("the clipboard, through game { }") {
     val text = "minekt clipboard ${System.nanoTime()}"
-    clipboard = text
-    (clipboard == text) then clipboard
+    game { it.keyboardHandler.clipboard = text }
+    val read = game { it.keyboardHandler.clipboard }
+    (read == text) then read
 }
 
 // ---- drawing every frame -------------------------------------------------------------------

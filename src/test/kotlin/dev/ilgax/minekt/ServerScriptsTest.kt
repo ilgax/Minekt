@@ -62,14 +62,14 @@ class ServerScriptsTest {
             subscribe<Int>("count") { writeLog("count", it) }
             launch { awaitTicks(20); waitTicks(1) }
             onTick { }
-            onChat { (player, message) -> if (message == "!spawn") teleport(player, Vec3(0.5, 80.0, 0.5), "overworld") }
-            onPlayerJoin { name -> tell(name, chatText(greeting, Color.GREEN)); give(name, "minecraft:bread", 3) }
+            onChat { (player, message) -> if (message == "!spawn") runCommand("tp " + player + " 0.5 80 0.5") }
+            onPlayerJoin { name -> tell(name, chatText(greeting, Color.GREEN)); inventory(name).give("minecraft:bread", 3) }
             onPlayerLeave { broadcast(it, "left") }
             onBlockBreak { (player, pos, block, dimension) -> if (block == "minecraft:diamond_ore") echo(player, pos, dimension) }
             command("heal", CommandPermission.OPS) { call -> call.reply("healed", call.sender, call.args) }
             val online: Int = server { it.playerList.playerCount }
             setBlock(BlockPos(0, 64, 0), "minecraft:oak_log[axis=x]")
-            echo(players.map { it.name }, player("Steve")?.isOp, blockId(0, 64, 0, "the_nether"), runCommand("time query daytime"))
+            echo(players.map { it.name }, player("Steve")?.isOp, blockAt(BlockPos(0, 64, 0), "the_nether").id, runCommand("time query daytime"))
             val n = eval("1 + 1") as Int
             onStop { save() }
         """.trimIndent()
@@ -108,7 +108,7 @@ class ServerScriptsTest {
     @Test
     fun `server scripts compile against entities, inventories, the world and the power tools`() {
         val code = """
-            @file:OptIn(ExperimentalPackets::class, ExperimentalHooks::class, ExperimentalFabricEvents::class)
+            @file:OptIn(ExperimentalPackets::class, ExperimentalHooks::class)
             import net.minecraft.network.protocol.game.ServerboundChatPacket
             import net.minecraft.network.protocol.game.ClientboundSoundPacket
             import net.minecraft.server.level.ServerPlayer
@@ -122,7 +122,6 @@ class ServerScriptsTest {
             onEntityRemoved { (entity, died, reason) -> echo(entity.name, died, reason) }
             onDamage { (entity, amount, health, cause, attacker, projectile) -> echo(entity.type, amount, health, cause, attacker?.name, projectile?.type) }
             onDeath { (entity, cause, killer) -> echo(entity.name, cause, killer?.name) }
-            onPlayerDeath { (player, cause) -> broadcast(player.name, "died of", cause) }
             onEvent { if (it is ServerEvent.Damage) echo(it.amount) }
 
             val inv = inventory("Steve")
@@ -131,8 +130,8 @@ class ServerScriptsTest {
             echo(inv.items.map { it.enchantments }, inv[0]?.durability, inv.size, inv.count("minecraft:diamond"))
             enderChest("Steve").give("minecraft:apple"); container(BlockPos(1, 64, 1), "overworld")?.items
 
-            val w: WorldInfo = world("the_nether"); setTime(13000); setWeather("thunder", 60); echo(dayTime, weather, w.isRaining)
-            val info: BlockInfo = blockAt(BlockPos(0, 64, 0)); blockAt(0, 64, 0, "the_end").signFront
+            val w: WorldInfo = world("the_nether"); echo(w.timeOfDay, w.isRaining, w.isThundering)
+            val info: BlockInfo = blockAt(BlockPos(0, 64, 0)); blockAt(BlockPos(0, 64, 0), "the_end").signFront
             findBlocks(BlockPos(0, 64, 0), 16) { it == "minecraft:chest" }.forEach { echo(it.pos) }
             when (val hit = raycast("Steve", 50.0)) { is RayHit.Block -> echo(hit.id, hit.face); is RayHit.Entity -> echo(hit.entity.name); null -> Unit }
             raycast(Vec3(0.0, 80.0, 0.0), Vec3(0.0, 0.0, 0.0), dimension = "overworld", entities = false)
@@ -169,7 +168,7 @@ class ServerScriptsTest {
             onEntitySpawn { echo("spawn", it.name, it.dimension) }
             onEntityRemoved { (entity, died, reason) -> echo("removed", entity.name, died, reason) }
             onDamage { (entity, amount, health, cause, attacker) -> echo("damage", entity.name, amount, health, cause, attacker?.name) }
-            onPlayerDeath { (player, cause, killer) -> echo("player death", player.name, cause, killer?.name) }
+            onDeath { (entity, cause, killer) -> if (entity.type == "minecraft:player") echo("player death", entity.name, cause, killer?.name) }
             echo("ready")
         """.trimIndent().toScriptSource("entities.kts"))
         assertEquals("ready", host.next())
@@ -214,13 +213,13 @@ class ServerScriptsTest {
             """
             runCommand("op Steve") // gives away op
             setBlock(0, 64, 0, "minecraft:tnt")
-            give("Steve", "minecraft:diamond", 64)
+            inventory("Steve").give("minecraft:diamond", 64)
             command("heal") { }
             """.trimIndent(),
             server = true,
         )
         assertEquals(
-            listOf("run any command as the server console", "change the world: blocks, entities, time and weather", "change players' items and move players", "add commands for players"),
+            listOf("run any command as the server console", "change the world: blocks and entities", "change items in players' inventories and containers", "add commands for players"),
             caps,
         )
     }

@@ -38,11 +38,6 @@ class Minekt internal constructor(job: Job) : ScriptContext(job) {
     /** Run a command (leading `/` optional). */
     fun execute(command: String) = chat(if (command.startsWith("/")) command else "/$command")
 
-    /** The text on the system clipboard ("" if there's none); set it to copy text. */
-    var clipboard: String
-        get() = game { mc -> mc.keyboardHandler.clipboard }
-        set(text) = game { mc -> mc.keyboardHandler.clipboard = text }
-
     // ---- raw access ---------------------------------------------------------------------------
 
     /**
@@ -94,8 +89,6 @@ class Minekt internal constructor(job: Job) : ScriptContext(job) {
             )
         }
 
-    val position: Vec3 get() = player.position
-
     fun setOrientation(yaw: Float, pitch: Float) = game { mc ->
         val p = mc.player ?: error("Not in a world")
         p.yRot = yaw
@@ -116,12 +109,10 @@ class Minekt internal constructor(job: Job) : ScriptContext(job) {
         p.setYHeadRot(yaw)
     }
 
-    fun lookAt(pos: Vec3) = lookAt(pos.x, pos.y, pos.z)
-
     /**
      * Hold down one of the game's bindings, whatever key it's on, until [release]. By the binding's name,
      * as in `options.txt` with or without `key.`: `"forward"`, `"jump"`, `"inventory"`, `"hotbar.3"`,
-     * `"key.pickItem"`, or a binding another mod adds ([bindings] lists them). It also counts as a click,
+     * `"key.pickItem"`, or a binding another mod adds (`game { it.options.keyMappings }` lists them). It also counts as a click,
      * like a real key press (so `"inventory"` opens the inventory and `"attack"` swings). Held bindings
      * are released when the script ends.
      */
@@ -130,11 +121,8 @@ class Minekt internal constructor(job: Job) : ScriptContext(job) {
     /** Let go of a binding held with [press]. */
     fun release(binding: String) = game { mc -> press(mapping(binding), false) }
 
-    /** The names of all the game's bindings, for [press]: `key.forward`, `key.inventory`, … */
-    val bindings: List<String> get() = game { mc -> mc.options.keyMappings.map { it.name } }
-
     private fun mapping(binding: String): KeyMapping = KeyMapping.get(binding) ?: KeyMapping.get("key.$binding")
-        ?: throw IllegalArgumentException("No binding named '$binding' (bindings lists them)")
+        ?: throw IllegalArgumentException("No binding named '$binding' (game { it.options.keyMappings } lists them)")
 
     private fun press(mapping: KeyMapping, down: Boolean) {
         if (down && !mapping.isDown) (mapping as KeyMappingAccessor).run { `minekt$setClickCount`(`minekt$getClickCount`() + 1) }
@@ -155,11 +143,6 @@ class Minekt internal constructor(job: Job) : ScriptContext(job) {
         heldKeys.clear()
     }
 
-    fun selectSlot(slot: Int) = game { mc ->
-        require(slot in 0..8) { "Hotbar slot must be 0..8" }
-        mc.player?.inventory?.selectedSlot = slot
-    }
-
     /** All non-empty inventory slots. */
     val inventory: List<ItemStackInfo> get() = game { mc ->
         val inv = mc.player?.inventory ?: error("Not in a world")
@@ -172,24 +155,11 @@ class Minekt internal constructor(job: Job) : ScriptContext(job) {
 
     // ---- world --------------------------------------------------------------------------------
 
-    /**
-     * Just the id of the block at a position, e.g. `minecraft:stone` (unloaded chunks read as
-     * `minecraft:void_air`). Cheaper than [blockAt], for loops over many blocks.
-     */
-    fun blockId(x: Int, y: Int, z: Int): String = game { mc ->
-        val level = mc.level ?: error("Not in a world")
-        BuiltInRegistries.BLOCK.getKey(level.getBlockState(BlockPos(x, y, z)).block).toString()
-    }
-
-    fun blockId(pos: BlockPos) = blockId(pos.x, pos.y, pos.z)
-
     /** Everything about the block at [pos]: its state, light, biome, and a sign's text. */
     fun blockAt(pos: BlockPos): BlockInfo = game { mc ->
         val level = mc.level ?: error("Not in a world")
         level.blockInfo(pos)
     }
-
-    fun blockAt(x: Int, y: Int, z: Int) = blockAt(BlockPos(x, y, z))
 
     /** Every block within [radius] of the player whose id matches [predicate]. One game-thread hop. */
     fun findBlocks(radius: Int, predicate: (String) -> Boolean): List<FoundBlock> = game { mc ->

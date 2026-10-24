@@ -346,7 +346,6 @@ kotlin {
             include { byNames.add("dev.ilgax.minekt.api.**") }
             exclude {
                 annotatedWith.addAll(
-                    "dev.ilgax.minekt.api.ExperimentalFabricEvents",
                     "dev.ilgax.minekt.api.ExperimentalPackets",
                     "dev.ilgax.minekt.api.ExperimentalHooks",
                     "dev.ilgax.minekt.api.ExperimentalVisuals",

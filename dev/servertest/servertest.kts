@@ -1,6 +1,6 @@
 // Dedicated-server smoke test, run by `./gradlew serverSmokeTest` (or by hand from autorun.txt): prints
 // OK/FAIL lines and DONE to the server log, then stops the server. The Gradle task reads those lines.
-@file:OptIn(ExperimentalHooks::class, ExperimentalFabricEvents::class, ExperimentalPackets::class)
+@file:OptIn(ExperimentalHooks::class, ExperimentalPackets::class)
 
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents
 import net.minecraft.network.protocol.game.ServerboundChatPacket
@@ -26,8 +26,8 @@ try {
     waitTicks(20)
     check("ticks") { ticks >= 10 }
     check("players") { players.isEmpty() }
-    check("setBlock/blockId") { setBlock(3, 100, 3, "minecraft:oak_log[axis=x]"); blockId(3, 100, 3) == "minecraft:oak_log" }
-    check("nether") { blockId(0, 200, 0, "the_nether") == "minecraft:air" }
+    check("setBlock/blockAt") { setBlock(3, 100, 3, "minecraft:oak_log[axis=x]"); blockAt(BlockPos(3, 100, 3)).id == "minecraft:oak_log" }
+    check("nether") { blockAt(BlockPos(0, 200, 0), "the_nether").id == "minecraft:air" }
     check("runCommand") { "time" in runCommand("time query daytime").lowercase() }
     check("command") {
         val handle = command("greet", CommandPermission.OPS) { call -> call.reply("hi", call.sender) }
@@ -42,20 +42,20 @@ try {
 
     // ---- world ----
     runCommand("forceload add 0 0 16 16")
-    check("blockAt") { blockAt(3, 100, 3).let { it.id == "minecraft:oak_log" && it.properties["axis"] == "x" && it.biome.isNotEmpty() } }
+    check("blockAt") { blockAt(BlockPos(3, 100, 3)).let { it.id == "minecraft:oak_log" && it.properties["axis"] == "x" && it.biome.isNotEmpty() } }
     check("findBlocks") { findBlocks(BlockPos(3, 100, 3), 3) { it == "minecraft:oak_log" }.map { it.pos } == listOf(BlockPos(3, 100, 3)) }
     check("raycast") { (raycast(Vec3(3.5, 110.0, 3.5), Vec3(3.5, 90.0, 3.5), entities = false) as? RayHit.Block)?.id == "minecraft:oak_log" }
-    check("time") { setTime(6000); dayTime in 6000..6100 }
+    check("time") { runCommand("time set 6000"); world().timeOfDay in 6000..6100 }
     check("weather") {
-        setWeather("rain")
-        val raining = weather == "rain" && world().isRaining
-        setWeather("clear")
-        raining && weather == "clear"
+        runCommand("weather rain")
+        val raining = world().isRaining
+        runCommand("weather clear")
+        raining && !world().isRaining
     }
     check("atDaytime") {
         var passed = false
         val timer = atDaytime(6010) { passed = true }
-        setTime(6000)
+        runCommand("time set 6000")
         waitFor { passed }.also { timer.cancel() }
     }
 

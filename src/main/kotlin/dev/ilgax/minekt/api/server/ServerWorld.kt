@@ -15,7 +15,7 @@ import net.minecraft.world.phys.Vec3
 //
 //   findBlocks(BlockPos(0, 64, 0), 16) { it == "minecraft:chest" }.forEach { echo(it.pos) }
 //   when (val hit = raycast("Steve", 50.0)) { is RayHit.Block -> echo("Steve looks at", hit.id) … }
-//   if (world().isRaining) setWeather("clear")
+//   if (world().isRaining) runCommand("weather clear")
 //   atDaytime(13000) { broadcast("Night is falling") }
 
 /** Time and weather in [dimension]. Time of day is the overworld's in every dimension that follows it. */
@@ -33,31 +33,10 @@ fun ServerMinekt.world(dimension: String = "minecraft:overworld"): WorldInfo = s
     )
 }
 
-/** The time of day, 0–23999 (0 sunrise, 6000 noon, 13000 nightfall, 18000 midnight). */
-val ServerMinekt.dayTime: Long get() = world().timeOfDay
-
-/** Set the time of day, like `/time set` ([dayTime] 0–23999: 0 sunrise, 6000 noon, 13000 nightfall, 18000 midnight). */
-fun ServerMinekt.setTime(dayTime: Long) {
-    require(dayTime in 0..23999) { "dayTime must be 0..23999" }
-    runCommand("time set $dayTime")
-}
-
-/** `clear`, `rain` or `thunder`. */
-val ServerMinekt.weather: String get() = world().let { if (it.isThundering) "thunder" else if (it.isRaining) "rain" else "clear" }
-
-/** Change the weather, like `/weather`: [weather] is `clear`, `rain` or `thunder`, for [seconds] (or the usual random time). */
-fun ServerMinekt.setWeather(weather: String, seconds: Int? = null) {
-    require(weather in listOf("clear", "rain", "thunder")) { "weather is clear, rain or thunder, not '$weather'" }
-    require(seconds == null || seconds > 0) { "seconds must be positive" }
-    runCommand("weather $weather" + seconds?.let { " ${it}s" }.orEmpty())
-}
-
 /** Everything about the block at [pos] in [dimension]: its state, light, biome, and a sign's text. */
 fun ServerMinekt.blockAt(pos: BlockPos, dimension: String = "minecraft:overworld"): BlockInfo = server { s ->
     level(s, dimension).blockInfo(pos.immutable())
 }
-
-fun ServerMinekt.blockAt(x: Int, y: Int, z: Int, dimension: String = "minecraft:overworld"): BlockInfo = blockAt(BlockPos(x, y, z), dimension)
 
 /**
  * Every block within [radius] (at most 64) of [center] in [dimension] whose id matches [predicate], nearest first.

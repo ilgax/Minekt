@@ -64,7 +64,7 @@ class PersistenceTest {
             |homes["base"] = Vec3(1.5, 64.0, -3.0)""".trimMargin())
         // Typed access (.x on a Vec3) proves it was decoded as Vec3, not as a generic JSON map.
         assertEquals(listOf("1.5 3"), run("homes", """val homes by persistent { mutableMapOf<String, Vec3>() }
-            |echo(homes.getValue("base").x, homes.getValue("base").blockPos.z + 6)""".trimMargin(), JobManager(host)))
+            |echo(homes.getValue("base").x, BlockPos.containing(homes.getValue("base")).z + 6)""".trimMargin(), JobManager(host)))
     }
 
     @Test

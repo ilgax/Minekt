@@ -29,7 +29,7 @@ fun chatLines(): List<String> = game { mc ->
 fun job(name: String) = MinektClient.jobs.jobs.firstOrNull { it.name == name }
 
 var waited = 0
-while (blockId(player.position.blockPos.below()) == "minecraft:void_air" && waited < 1200) { waitTicks(20); waited += 20 }
+while (blockAt(BlockPos.containing(player.position).below()).id == "minecraft:void_air" && waited < 1200) { waitTicks(20); waited += 20 }
 waitTicks(20)
 
 // ---- watchdog ------------------------------------------------------------------------------
@@ -61,7 +61,7 @@ check("game still ticks afterwards") {
 
 data class Stats(val kills: Int, val where: Vec3)
 check("publish / subscribe between scripts") {
-    chat("\\eval data class Stats(val kills: Int, val where: Vec3); publish(\"stats\", Stats(7, position))")
+    chat("\\eval data class Stats(val kills: Int, val where: Vec3); publish(\"stats\", Stats(7, player.position))")
     val got = runBlocking { withTimeoutOrNull(15_000) { awaitMessage<Stats>("stats") } }
     got ?: false
 }

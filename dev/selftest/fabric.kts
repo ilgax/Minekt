@@ -1,4 +1,3 @@
-@file:OptIn(ExperimentalFabricEvents::class)
 // In-game test for Fabric API events from scripts (experimental): registered like in a mod, removed when
 // the script ends. Singleplayer test world.
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
@@ -29,7 +28,7 @@ fun chatLines(): List<String> = game { mc ->
 }
 
 var waited = 0
-while (blockId(player.position.blockPos.below()) == "minecraft:void_air" && waited < 1200) { waitTicks(20); waited += 20 }
+while (blockAt(BlockPos.containing(player.position).below()).id == "minecraft:void_air" && waited < 1200) { waitTicks(20); waited += 20 }
 waitTicks(40)
 val me = player.name
 

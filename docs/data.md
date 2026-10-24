@@ -45,7 +45,7 @@ var motd by persistent(store = "shared") { "" }                         // share
 ## Web requests
 
 ```kotlin
-httpPost(webhookUrl, mapOf("content" to "Found diamonds at ${player.position.toShortString()}"))   // a Discord webhook
+httpPost(webhookUrl, mapOf("content" to "Found diamonds at ${BlockPos.containing(player.position).toShortString()}"))   // a Discord webhook
 data class Weather(val temperature: Double, val description: String)
 val weather = httpGet("https://api.example.com/weather?city=Oslo").json<Weather>()
 val page = httpGet("https://example.com", headers = mapOf("Accept" to "text/html"))

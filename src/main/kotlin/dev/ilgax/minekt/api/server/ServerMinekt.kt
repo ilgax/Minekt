@@ -81,29 +81,7 @@ class ServerMinekt internal constructor(job: Job) : ScriptContext(job) {
         output.joinToString("\n")
     }
 
-    /** Move [player] to [pos], in [dimension] if given (else where they are). */
-    fun teleport(player: String, pos: Vec3, dimension: String? = null) = server { s ->
-        val target = online(s, player)
-        val level = dimension?.let { level(s, it) } ?: target.level()
-        target.teleportTo(level, pos.x, pos.y, pos.z, emptySet(), target.yRot, target.xRot, true)
-        Unit
-    }
-
-    /** Give [player] [count] of [item] (an id like `minecraft:diamond`). Returns false if it didn't all fit in their inventory. */
-    fun give(player: String, item: String, count: Int = 1): Boolean = server { s ->
-        require(count > 0) { "count must be at least 1" }
-        val type = BuiltInRegistries.ITEM.getOptional(identifier(item)).orElseThrow { IllegalArgumentException("No item '$item'") }
-        online(s, player).inventory.add(ItemStack(type, count))
-    }
-
     // ---- world --------------------------------------------------------------------------------
-
-    /** The id of the block at a position, like `minecraft:stone` (unloaded chunks are loaded to read it). */
-    fun blockId(x: Int, y: Int, z: Int, dimension: String = "minecraft:overworld"): String = server { s ->
-        BuiltInRegistries.BLOCK.getKey(level(s, dimension).getBlockState(BlockPos(x, y, z)).block).toString()
-    }
-
-    fun blockId(pos: BlockPos, dimension: String = "minecraft:overworld") = blockId(pos.x, pos.y, pos.z, dimension)
 
     /** Place [block] at a position: an id like `minecraft:stone`, with properties too: `minecraft:oak_log[axis=x]`. */
     fun setBlock(x: Int, y: Int, z: Int, block: String, dimension: String = "minecraft:overworld") = server { s ->
@@ -141,10 +119,6 @@ class ServerMinekt internal constructor(job: Job) : ScriptContext(job) {
 
     /** Any living entity (players too) died: `onDeath { (entity, cause, killer) -> }`. */
     fun onDeath(handler: (ServerEvent.Death) -> Unit): Handler = on(handler)
-
-    /** A player died: `onPlayerDeath { (player, cause, killer) -> echo(player.name, "died of", cause) }`. */
-    fun onPlayerDeath(handler: (ServerEvent.Death) -> Unit): Handler =
-        on<ServerEvent.Death> { if (it.entity.type == "minecraft:player") handler(it) }
 
     /** Every [ServerEvent]; use `when (event) { is ServerEvent.Damage -> … }`. */
     fun onEvent(handler: (ServerEvent) -> Unit): Handler = on(handler)

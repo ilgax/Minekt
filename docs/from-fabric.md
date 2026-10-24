@@ -13,7 +13,7 @@ build, no restart.
 | Build, copy the jar, restart the game | Save, type `\name` in chat |
 | `onInitializeClient()` | The script's body |
 | Code runs on the game thread | The body runs on its own thread; `game { mc -> … }` runs on the game thread ([why](#threads)) |
-| `ClientTickEvents.END_CLIENT_TICK.register { }` | The same, with `@file:OptIn(ExperimentalFabricEvents::class)` ([Fabric API events](advanced.md#fabric-api-events-experimental)); or `onTick { }` |
+| `ClientTickEvents.END_CLIENT_TICK.register { }` | The same ([Fabric API events](advanced.md#fabric-api-events)), taken out again when the script ends; or `onTick { }` |
 | `KeyMappingHelper.registerKeyMapping(KeyMapping(…))` | `keybind("Name", default = "b")`: in the same Controls menu |
 | `ClientCommandRegistrationCallback` + Brigadier | `command("name") { args -> }` |
 | `HudElementRegistry.addLast(…) { graphics, delta -> }` | `onHudRender { g -> }` (`g.raw` is the game's drawing context) |
@@ -77,7 +77,7 @@ restart Minecraft for every change.
 
 ```kotlin
 // quicktools.kts
-@file:OptIn(ExperimentalFabricEvents::class)
+@file:OptIn(ExperimentalHooks::class)
 
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.minecraft.client.player.LocalPlayer
@@ -152,7 +152,7 @@ Hook the class that declares the method, as a mixin targets it: `LivingEntity` f
 
 ### Events
 
-Fabric API events work as in a mod (experimental, opt in with one line). Minekt also has its own events,
+Fabric API events work as in a mod. Minekt also has its own events,
 which keep the script alive and run on the script's thread: `onTick`, `onChat`, `onDamage { (amount, health,
 cause, attacker) -> }`, `onBlockChange`, `onEntityAppear`, `onPacket`… Use whichever reads better; on the client,
 some of Minekt's (like `onDamage`) have no Fabric equivalent.
