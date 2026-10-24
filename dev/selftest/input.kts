@@ -48,7 +48,9 @@ launch {
     }
     check("keyDown(\"e\"); keyUp(\"e\") opens the inventory like the real key") {
         keyDown("e"); keyUp("e")
-        waitFor(5) { screenName() == "InventoryScreen" }.also { keyDown("escape"); keyUp("escape"); waitFor(5) { screenName() == null } } then
+        // The player's inventory: the creative one in creative mode (the test world is in creative).
+        waitFor(5) { screenName() in setOf("InventoryScreen", "CreativeModeInventoryScreen") }
+            .also { keyDown("escape"); keyUp("escape"); waitFor(5) { screenName() == null } } then
             keys.filter { it.synthetic }.map { "${it.key} ${it.action}" }.take(2)
     }
     check("cancelling E in onRawKey stops the real key from opening the inventory") {

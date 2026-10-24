@@ -41,6 +41,26 @@ fun count(name: String, test: (Int, Int, Int) -> Boolean): Int {
     return n
 }
 
+fun shot(name: String): java.awt.image.BufferedImage {
+    sleep(250)
+    return ImageIO.read(screenshot(name).toFile())
+}
+
+/** Pixels of [after] that moved towards a color compared with [before]: [shift] gets the change in r, g, b. */
+fun towards(before: java.awt.image.BufferedImage, after: java.awt.image.BufferedImage, shift: (Int, Int, Int) -> Boolean): Int {
+    var n = 0
+    for (y in 0 until minOf(before.height, after.height)) for (x in 0 until minOf(before.width, after.width)) {
+        val a = before.getRGB(x, y)
+        val b = after.getRGB(x, y)
+        if (shift((b shr 16 and 0xFF) - (a shr 16 and 0xFF), (b shr 8 and 0xFF) - (a shr 8 and 0xFF), (b and 0xFF) - (a and 0xFF))) n++
+    }
+    return n
+}
+
+// Towards Color.YELLOW (255, 230, 64): red and green up, blue not; towards Color.GREEN (64, 255, 64): green up most.
+val yellowward = { dr: Int, dg: Int, db: Int -> dr > 25 && dg > 20 && db < dr - 25 }
+val greenward = { dr: Int, dg: Int, db: Int -> dg > 25 && dr < dg - 25 && db < dg - 25 }
+
 fun pixel(name: String, x: Int, y: Int): Int {
     sleep(250)
     val image = ImageIO.read(screenshot(name).toFile())
@@ -87,14 +107,16 @@ check("glow(entity) outlines it in its color, through a wall") {
 check("highlight outlines a block through a wall, in its shape, and recolors") {
     server("setblock 0 200 6 minecraft:oak_slab")
     waitTicks(5)
-    val before = count("vz-gb-0", yellowish)
+    // The game blends a highlight's edges and fill with what's behind it, so its pixels are tinted, never the pure
+    // color: count the pixels that moved towards it compared with the same view without it.
+    val base = shot("vz-gb-0")
     val g = highlight(0, 200, 6, Color.YELLOW)
-    val with = count("vz-gb-1", yellowish)
+    val with = towards(base, shot("vz-gb-1"), yellowward)
     g.color = Color.GREEN
-    val green = count("vz-gb-1g", greenish)
+    val green = towards(base, shot("vz-gb-1g"), greenward)
     g.remove()
-    val after = count("vz-gb-2", yellowish)
-    (before < 20 && with > 100 && green > 100 && after < 20) then "yellow px: $before -> $with -> $after; green after recolor: $green"
+    val after = towards(base, shot("vz-gb-2"), yellowward)
+    (with > 100 && green > 100 && after < 20) then "px tinted yellow: $with, then green after recolor: $green, after remove: $after"
 }
 server("fill -2 200 3 2 203 3 minecraft:air")
 server("kill @e[tag=vz]")
