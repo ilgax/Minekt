@@ -208,6 +208,48 @@ object MinektServer : ModInitializer {
                     }),
                 )
                 .then(
+                    Commands.literal("install").requires(allowed(Node.INSTALL))
+                        .then(Commands.literal("confirm").executes(command { ctx, scripts -> scripts.management.answer(ctx.source, true, null) })
+                            .then(Commands.argument("token", StringArgumentType.word()).executes(command { ctx, scripts ->
+                                scripts.management.answer(ctx.source, true, StringArgumentType.getString(ctx, "token"))
+                            })))
+                        .then(Commands.literal("cancel").executes(command { ctx, scripts -> scripts.management.answer(ctx.source, false, null) })
+                            .then(Commands.argument("token", StringArgumentType.word()).executes(command { ctx, scripts ->
+                                scripts.management.answer(ctx.source, false, StringArgumentType.getString(ctx, "token"))
+                            })))
+                        .then(Commands.argument("link", StringArgumentType.greedyString()).executes(command { ctx, scripts ->
+                            val parts = StringArgumentType.getString(ctx, "link").trim().split(' ').filter { it.isNotEmpty() }
+                            scripts.management.install(ctx.source, parts[0], parts.getOrNull(1))
+                        })),
+                )
+                .then(
+                    Commands.literal("share").requires(allowed(Node.SHARE)).then(
+                        Commands.argument("script", StringArgumentType.word()).suggests(scriptNames).executes(command { ctx, scripts ->
+                            scripts.management.share(ctx.source, StringArgumentType.getString(ctx, "script"))
+                        }),
+                    ),
+                )
+                .then(
+                    Commands.literal("settings").requires(allowed(Node.SETTINGS)).then(
+                        Commands.argument("script", StringArgumentType.word()).suggests(scriptNames)
+                            .executes(command { ctx, scripts -> scripts.management.showSettings(ctx.source, StringArgumentType.getString(ctx, "script")) })
+                            .then(
+                                Commands.argument("key", StringArgumentType.word())
+                                    .suggests { ctx, builder ->
+                                        SharedSuggestionProvider.suggest(scripts?.management?.settingKeys(StringArgumentType.getString(ctx, "script")).orEmpty(), builder)
+                                    }
+                                    .then(Commands.argument("value", StringArgumentType.greedyString()).executes(command { ctx, scripts ->
+                                        scripts.management.changeSetting(
+                                            ctx.source,
+                                            StringArgumentType.getString(ctx, "script"),
+                                            StringArgumentType.getString(ctx, "key"),
+                                            StringArgumentType.getString(ctx, "value"),
+                                        )
+                                    })),
+                            ),
+                    ),
+                )
+                .then(
                     // Clickable chat text made with ChatClick.run, which goes to the players who get scripts' messages.
                     Commands.literal("click").requires(allowed(Node.NOTIFY)).then(
                         Commands.argument("id", LongArgumentType.longArg()).executes(command { ctx, _ ->
@@ -218,16 +260,21 @@ object MinektServer : ModInitializer {
         )
     }
 
+    /** The subcommands [source] may use. */
     private fun help(source: CommandSourceStack, scripts: ServerScripts) {
+        reply(source, "Minekt server scripts, from ${scripts.scriptDir}")
+        val runAny = MksPermissions.mayRunAny(source, scripts.jobs.availableScripts())
         listOf(
-            "Minekt server scripts, from ${scripts.scriptDir}",
-            "/mks run <script> [args]  run <script>.kts",
-            "/mks eval <code>          run a line of Kotlin",
-            "/mks jobs                 list running scripts",
-            "/mks log <script>         show a script's recent log",
-            "/mks kill <id|all>        stop scripts",
-            "/mks scripts              list available scripts",
-        ).forEach { reply(source, it) }
+            runAny to "/mks run <script> [args]  run <script>.kts",
+            runAny to "/mks scripts              list the scripts you may run",
+            MksPermissions.allows(source, Node.EVAL) to "/mks eval <code>          run a line of Kotlin",
+            MksPermissions.allows(source, Node.JOBS) to "/mks jobs                 list running scripts",
+            MksPermissions.allows(source, Node.LOG) to "/mks log <script>         show a script's recent log",
+            MksPermissions.allows(source, Node.KILL) to "/mks kill <id|all>        stop scripts",
+            MksPermissions.allows(source, Node.SETTINGS) to "/mks settings <script> [key value]  show or change a script's settings",
+            MksPermissions.allows(source, Node.INSTALL) to "/mks install <url> [name]  install a script from a link (then /mks install confirm)",
+            MksPermissions.allows(source, Node.SHARE) to "/mks share <script>       copy a script so others can install it",
+        ).filter { it.first }.forEach { reply(source, it.second) }
     }
 
     private fun reply(source: CommandSourceStack, text: String, color: ChatFormatting = ChatFormatting.GRAY) =

@@ -2,6 +2,7 @@
 package dev.ilgax.minekt.share
 
 import dev.ilgax.minekt.script.ScriptCompiler
+import dev.ilgax.minekt.script.TemplateCompiler
 import java.io.ByteArrayOutputStream
 import java.net.InetAddress
 import java.net.URI
@@ -27,6 +28,10 @@ import kotlin.script.experimental.host.toScriptSource
 class ScriptInstaller(
     private val scriptDir: Path,
     private val fetch: (URI) -> String = ::download,
+    /** Checks that scripts compile: the client's compiler, or a server's. */
+    private val compiler: TemplateCompiler = ScriptCompiler,
+    /** Installing server scripts: list what they can do on a server. */
+    private val server: Boolean = false,
 ) {
     data class Pending(
         val token: String,
@@ -107,7 +112,7 @@ class ScriptInstaller(
             source = source,
             lines = lineCount(text),
             replacesLines = existing?.let(::lineCount),
-            capabilities = capabilities(text),
+            capabilities = capabilities(text, server),
             problems = compileProblems(name, text),
             previewFile = preview,
         )
@@ -118,7 +123,7 @@ class ScriptInstaller(
     }
 
     private fun compileProblems(name: String, text: String): List<String> =
-        when (val result = ScriptCompiler.compile(text.toScriptSource("$name.kts"))) {
+        when (val result = compiler.compile(text.toScriptSource("$name.kts"))) {
             is ResultWithDiagnostics.Success -> emptyList()
             is ResultWithDiagnostics.Failure -> result.reports
                 .filter { it.severity >= ScriptDiagnostic.Severity.ERROR }
@@ -195,11 +200,29 @@ class ScriptInstaller(
             """@file:Import""" to "load other script files",
         ).map { (pattern, label) -> Regex(pattern) to label }
 
-        /** Plain-language list of what [text] can do, most sensitive first. Comments are ignored. */
-        fun capabilities(text: String): List<String> {
+        private val SERVER_CAPABILITIES = listOf(
+            """ProcessBuilder|Runtime\s*\.\s*getRuntime""" to "run programs on the server's computer",
+            """java\.io\.|java\.nio\.|\bFile\s*\(|\bFiles\s*\.|\bPaths?\s*\.""" to "read or write files on the server's computer",
+            """java\.net\.|\bHttpClient\b|\bURL\s*\(|\bURI\s*\(|\bSocket\b|\bhttp(Get|Post)?\s*\(""" to "connect to the internet",
+            """\brunCommand\s*\(""" to "run any command as the server console",
+            """\bserver\s*\{""" to "use raw server access (anything the server can do)",
+            """ExperimentalHooks|ExperimentalPackets""" to "change the game's code or players' packets (experimental)",
+            """Class\s*\.\s*forName|getDeclared(Method|Field|Constructor)|setAccessible""" to "use reflection to reach hidden code",
+            """(?m)^\s*import\s+(?!dev\.ilgax\.minekt\.|kotlin\.|kotlinx\.coroutines\.)""" to "use Minecraft's or other mods' code directly",
+            """\b(setBlock|spawn|killEntity|removeEntity|setTime|setWeather)\s*\(""" to "change the world: blocks, entities, time and weather",
+            """\b(give|take|setSlot|clearSlot|teleport)\s*\(""" to "change players' items and move players",
+            """\b(broadcast|tell)\s*\(""" to "send messages to players",
+            """\bcommand\s*\(""" to "add commands for players",
+            """ExperimentalFabricEvents""" to "run code inside Fabric API events (experimental)",
+            """@file:DependsOn""" to "download and run code libraries from Maven (@file:DependsOn)",
+            """@file:Import""" to "load other script files",
+        ).map { (pattern, label) -> Regex(pattern) to label }
+
+        /** Plain-language list of what [text] can do (as a [server] script), most sensitive first. Comments are ignored. */
+        fun capabilities(text: String, server: Boolean = false): List<String> {
             val code = text.replace(Regex("""/\*.*?\*/""", RegexOption.DOT_MATCHES_ALL), "")
                 .lines().joinToString("\n") { it.substringBefore("//") }
-            return CAPABILITIES.filter { (regex, _) -> regex.containsMatchIn(code) }.map { it.second }
+            return (if (server) SERVER_CAPABILITIES else CAPABILITIES).filter { (regex, _) -> regex.containsMatchIn(code) }.map { it.second }
         }
 
         private fun download(uri: URI): String {

@@ -47,6 +47,7 @@ internal class ServerScripts(val server: MinecraftServer) : Host {
 
     val jobs = JobManager(this)
     val commands = ServerCommands(this)
+    val management = ServerManagement(this)
 
     /** The server is up: run `autorun.txt`. */
     fun start() {
@@ -63,6 +64,7 @@ internal class ServerScripts(val server: MinecraftServer) : Host {
     /** The server is stopping: scripts get their `onStop` and save. */
     fun stop() {
         ServerPacketHooks.filter = null
+        management.close()
         jobs.storage.saveAll() // jobs save as they end, but the JVM may exit before they get to
         jobs.killAll()
     }
