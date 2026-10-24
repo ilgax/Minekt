@@ -4,6 +4,7 @@ import dev.ilgax.minekt.api.ScriptContext
 import dev.ilgax.minekt.api.server.CommandPermission
 import dev.ilgax.minekt.api.server.ServerEvent
 import dev.ilgax.minekt.api.server.ServerMinekt
+import dev.ilgax.minekt.hooks.ServerPacketHooks
 import dev.ilgax.minekt.job.Host
 import dev.ilgax.minekt.job.Job
 import dev.ilgax.minekt.job.JobManager
@@ -49,6 +50,7 @@ internal class ServerScripts(val server: MinecraftServer) : Host {
 
     /** The server is up: run `autorun.txt`. */
     fun start() {
+        ServerPacketHooks.filter = ServerPacketHooks.Filter { packet, incoming, player -> jobs.filterPacket(packet, incoming, player) }
         Files.createDirectories(scriptDir)
         val autorun = scriptDir.resolve("autorun.txt")
         if (!autorun.exists()) return
@@ -60,6 +62,7 @@ internal class ServerScripts(val server: MinecraftServer) : Host {
 
     /** The server is stopping: scripts get their `onStop` and save. */
     fun stop() {
+        ServerPacketHooks.filter = null
         jobs.storage.saveAll() // jobs save as they end, but the JVM may exit before they get to
         jobs.killAll()
     }

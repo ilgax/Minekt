@@ -137,17 +137,18 @@ class JobManager(private val host: Host) {
     fun wantsInput(type: Class<out dev.ilgax.minekt.api.InputEvent>) = running.values.any { job -> job.inputHandlers.any { it.type == type } }
 
     /**
-     * Network thread, for every packet the client receives ([incoming]) or sends. Every script's
-     * packet filters run in turn, then listeners are notified. Returns the packet to use (possibly
-     * replaced) or null to drop it.
+     * Network thread, for every packet the client receives ([incoming]) or sends; on a server, every packet from or to
+     * [player]. Every script's packet filters run in turn, then listeners are notified. Returns the packet to use
+     * (possibly replaced) or null to drop it.
      */
-    fun filterPacket(packet: net.minecraft.network.protocol.Packet<*>, incoming: Boolean): net.minecraft.network.protocol.Packet<*>? {
+    fun filterPacket(packet: net.minecraft.network.protocol.Packet<*>, incoming: Boolean, player: String? = null): net.minecraft.network.protocol.Packet<*>? {
+        if (running.isEmpty()) return packet
         var current = packet
         for (job in running.values) {
             for (filter in job.packetFilters) {
                 if (!filter.matches(current, incoming)) continue
                 val result = try {
-                    filter.handler(current)
+                    filter.handler(current, player)
                 } catch (t: Throwable) {
                     job.packetFilters.remove(filter) // a broken filter must not break the connection
                     job.handleThrowable(t)
@@ -156,7 +157,7 @@ class JobManager(private val host: Host) {
                 current = result as? net.minecraft.network.protocol.Packet<*> ?: return null
             }
         }
-        val event = Job.Event.Packet(current, incoming)
+        val event = Job.Event.Packet(current, incoming, player)
         for (job in running.values) job.post(event) // cheap when nobody listens; also wakes awaitPacket
         return current
     }

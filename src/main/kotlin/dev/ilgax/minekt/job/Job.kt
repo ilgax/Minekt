@@ -59,7 +59,8 @@ class Job internal constructor(
         data class Keybind(val id: String, val pressed: Boolean = true) : Event
         data class Game(val event: MinektEvent) : Event
         data class Message(val topic: String, val value: Any?, val from: String) : Event
-        data class Packet(val packet: net.minecraft.network.protocol.Packet<*>, val incoming: Boolean) : Event
+        /** A packet received ([incoming]) or sent; on a server, from or to [player]. */
+        data class Packet(val packet: net.minecraft.network.protocol.Packet<*>, val incoming: Boolean, val player: String? = null) : Event
         data class Setting(val key: String, val value: Any) : Event
         /** Clickable chat text made by this script was clicked. */
         data class Click(val id: Long) : Event
@@ -116,8 +117,8 @@ class Job internal constructor(
     /** Settings this run declared with `by setting(…)`; others are dropped from the file when it ends cleanly. */
     internal val declaredSettings: MutableSet<String> = ConcurrentHashMap.newKeySet()
 
-    /** A packet listener or filter for packets of [type] in one direction. */
-    class PacketHook(val type: Class<*>, val incoming: Boolean, val handler: (net.minecraft.network.protocol.Packet<*>) -> Any?) {
+    /** A packet listener or filter for packets of [type] in one direction; [handler] also gets the player, on a server. */
+    class PacketHook(val type: Class<*>, val incoming: Boolean, val handler: (net.minecraft.network.protocol.Packet<*>, String?) -> Any?) {
         fun matches(packet: net.minecraft.network.protocol.Packet<*>, incoming: Boolean) = incoming == this.incoming && type.isInstance(packet)
     }
 
@@ -436,7 +437,7 @@ class Job internal constructor(
                 is Event.Click -> clickActions[event.id]?.invoke()
                 is Event.Game -> gameHandlers.forEach { it(event.event) }
                 is Event.Message -> messageHandlers[event.topic]?.forEach { it(event.value) }
-                is Event.Packet -> packetHandlers.forEach { if (it.matches(event.packet, event.incoming)) it.handler(event.packet) }
+                is Event.Packet -> packetHandlers.forEach { if (it.matches(event.packet, event.incoming)) it.handler(event.packet, event.player) }
                 is Event.Setting -> settingHandlers.forEach { it(dev.ilgax.minekt.api.SettingChange(event.key, event.value)) }
                 is Event.Server -> serverHandlers.forEach { it(event.event) }
             }

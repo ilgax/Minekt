@@ -53,7 +53,13 @@ class PacketHookHandle internal constructor(private val remove: () -> Unit) {
 
 @PublishedApi
 @ExperimentalPackets
-internal fun Minekt.addPacketHook(type: Class<*>, incoming: Boolean, filter: Boolean, handler: (Packet<*>) -> Any?): PacketHookHandle {
+internal fun Minekt.addPacketHook(type: Class<*>, incoming: Boolean, filter: Boolean, handler: (Packet<*>) -> Any?): PacketHookHandle =
+    packetHook(type, incoming, filter) { packet, _ -> handler(packet) }
+
+/** Packet hooks of either side: [handler] gets the packet and, on a server, the player it's from or to. */
+@PublishedApi
+@ExperimentalPackets
+internal fun ScriptContext.packetHook(type: Class<*>, incoming: Boolean, filter: Boolean, handler: (Packet<*>, String?) -> Any?): PacketHookHandle {
     job.checkAlive()
     val hook = Job.PacketHook(type, incoming, handler)
     val list = if (filter) job.packetFilters else job.packetHandlers
