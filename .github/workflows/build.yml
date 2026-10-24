@@ -17,6 +17,12 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - name: Build and test
         run: ./gradlew build
+      - name: Test reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: build/test-results/test/
       # Real dedicated servers with the full jar and the small jar (first start downloading the compiler, then a
       # cached start). Running the server needs the Minecraft EULA accepted: https://aka.ms/MinecraftEULA
       - name: Server smoke tests
