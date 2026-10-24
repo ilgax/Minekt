@@ -55,7 +55,6 @@ val dir = game { it.gameDirectory.toPath().resolve("minekt") }
 java.nio.file.Files.writeString(
     dir.resolve("fabrichelper.kts"),
     """
-    @file:OptIn(ExperimentalFabricEvents::class)
     net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register {
         System.setProperty("minekt.fabrichelper", ((System.getProperty("minekt.fabrichelper") ?: "0").toInt() + 1).toString())
     }
@@ -77,10 +76,10 @@ check("killing a script takes its listener out of the event") {
 }
 
 java.nio.file.Files.writeString(dir.resolve("fabricnoopt.kts"), "net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register { }")
-check("without the opt-in, the error says how to turn it on") {
+check("Fabric events need no opt-in") {
     val run = startScript("fabricnoopt")
-    val message = runCatching { run.await(kotlin.time.Duration.parse("20s")) }.exceptionOrNull()?.message.orEmpty()
-    ("@file:OptIn(ExperimentalFabricEvents::class)" in message) then message
+    val result = runCatching { run.await(kotlin.time.Duration.parse("20s")) }
+    result.isSuccess then "ran without @file:OptIn"
 }
 
 echo("FE DONE")
