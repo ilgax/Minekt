@@ -60,7 +60,9 @@ internal class ServerCommands(private val scripts: ServerScripts) {
 
     private fun allowed(name: String, source: CommandSourceStack): Boolean {
         val registration = active[name] ?: return false
-        return registration.permission == CommandPermission.EVERYONE || ServerScripts.isOperator(source)
+        return MksPermissions.mayUseCommand(source, name) {
+            registration.permission == CommandPermission.EVERYONE || ServerScripts.isOperator(source)
+        }
     }
 
     private fun install(dispatcher: CommandDispatcher<CommandSourceStack>, name: String) {

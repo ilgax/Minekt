@@ -29,7 +29,7 @@ import kotlin.io.path.exists
 /**
  * Server scripts for one run of [server], from when it has started until it stops: a dedicated server's
  * `minekt` folder, or the singleplayer world's. Scripts get a [ServerMinekt]; their messages go to the
- * operators online and the server log.
+ * players with `minekt:notify` (operators, by default) and the server log.
  *
  * Never touches client classes: dedicated servers don't have them.
  */
@@ -91,7 +91,7 @@ internal class ServerScripts(val server: MinecraftServer) : Host {
     }
 
     private fun toOperators(message: Component) = server.execute {
-        server.playerList.players.filter { isScriptAdmin(it.createCommandSourceStack()) }.forEach { it.sendSystemMessage(message) }
+        server.playerList.players.filter { MksPermissions.allows(it.createCommandSourceStack(), MksPermissions.Node.NOTIFY) }.forEach { it.sendSystemMessage(message) }
     }
 
     override fun clickCommand(id: Long) = "mks click $id"
@@ -115,12 +115,6 @@ internal class ServerScripts(val server: MinecraftServer) : Host {
 
     companion object {
         private val LOGGER = LoggerFactory.getLogger("minekt")
-
-        /**
-         * Who may use `/mks` and see scripts' messages: operators with permission level 4 (like for `/stop`), and
-         * the console. Scripts can do anything the server can, so this is the highest level.
-         */
-        fun isScriptAdmin(source: CommandSourceStack) = source.permissions().hasPermission(Permissions.COMMANDS_OWNER)
 
         /** Operators (permission level 2, like for `/gamemode`), and the console: [CommandPermission.OPS]. */
         fun isOperator(source: CommandSourceStack) = source.permissions().hasPermission(Permissions.COMMANDS_GAMEMASTER)

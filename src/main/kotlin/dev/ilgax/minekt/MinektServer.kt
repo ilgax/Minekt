@@ -11,6 +11,8 @@ import dev.ilgax.minekt.script.CompilerSetup
 import dev.ilgax.minekt.script.ScriptClasspath
 import dev.ilgax.minekt.script.ScriptDependencies
 import dev.ilgax.minekt.script.ServerScriptCompiler
+import dev.ilgax.minekt.server.MksPermissions
+import dev.ilgax.minekt.server.MksPermissions.Node
 import dev.ilgax.minekt.server.ServerScripts
 import net.fabricmc.api.EnvType
 import net.fabricmc.api.ModInitializer
@@ -82,7 +84,10 @@ object MinektServer : ModInitializer {
 
     private const val NOT_RUNNING = "Minekt's server scripts aren't running yet"
 
-    /** `/mks run|kill|jobs|log|eval|scripts`, for operators and the console. */
+    /**
+     * `/mks run|kill|jobs|log|eval|scripts|…`. Each subcommand has its own permission node (see [MksPermissions]),
+     * and is left out of a player's command tree (and Tab completion) when they may not use it.
+     */
     private fun registerMks(dispatcher: CommandDispatcher<CommandSourceStack>) {
         fun command(block: (CommandContext<CommandSourceStack>, ServerScripts) -> Unit): (CommandContext<CommandSourceStack>) -> Int = { ctx ->
             val scripts = scripts
@@ -94,28 +99,39 @@ object MinektServer : ModInitializer {
             1
         }
 
+        fun allowed(node: Node) = { source: CommandSourceStack -> MksPermissions.allows(source, node) }
+        fun available() = scripts?.jobs?.availableScripts().orEmpty()
+        val mayRunAny = { source: CommandSourceStack -> MksPermissions.mayRunAny(source, available()) }
+
         val scriptNames = { _: CommandContext<CommandSourceStack>, builder: com.mojang.brigadier.suggestion.SuggestionsBuilder ->
-            SharedSuggestionProvider.suggest(scripts?.jobs?.availableScripts().orEmpty(), builder)
+            SharedSuggestionProvider.suggest(available(), builder)
+        }
+        val runnableScripts = { ctx: CommandContext<CommandSourceStack>, builder: com.mojang.brigadier.suggestion.SuggestionsBuilder ->
+            SharedSuggestionProvider.suggest(available().filter { MksPermissions.mayRun(ctx.source, it) }, builder)
+        }
+
+        fun run(ctx: CommandContext<CommandSourceStack>, scripts: ServerScripts, args: List<String>) {
+            val script = StringArgumentType.getString(ctx, "script")
+            if (!MksPermissions.mayRun(ctx.source, script)) return reply(ctx.source, "You may not run $script", ChatFormatting.RED)
+            scripts.jobs.runScript(script, args)
         }
 
         dispatcher.register(
             Commands.literal("mks")
-                .requires(ServerScripts::isScriptAdmin)
+                .requires { source -> Node.entries.any { it != Node.NOTIFY && MksPermissions.allows(source, it) } || mayRunAny(source) }
                 .executes(command { ctx, scripts -> help(ctx.source, scripts) })
                 .then(
-                    Commands.literal("run").then(
-                        Commands.argument("script", StringArgumentType.word()).suggests(scriptNames)
-                            .executes(command { ctx, scripts -> scripts.jobs.runScript(StringArgumentType.getString(ctx, "script"), emptyList()) })
+                    Commands.literal("run").requires(mayRunAny).then(
+                        Commands.argument("script", StringArgumentType.word()).suggests(runnableScripts)
+                            .executes(command { ctx, scripts -> run(ctx, scripts, emptyList()) })
                             .then(
                                 Commands.argument("args", StringArgumentType.greedyString())
-                                    .executes(command { ctx, scripts ->
-                                        scripts.jobs.runScript(StringArgumentType.getString(ctx, "script"), splitArgs(StringArgumentType.getString(ctx, "args")))
-                                    }),
+                                    .executes(command { ctx, scripts -> run(ctx, scripts, splitArgs(StringArgumentType.getString(ctx, "args"))) }),
                             ),
                     ),
                 )
                 .then(
-                    Commands.literal("kill").then(
+                    Commands.literal("kill").requires(allowed(Node.KILL)).then(
                         Commands.argument("job", StringArgumentType.word())
                             .suggests { _, builder -> SharedSuggestionProvider.suggest(listOf("all") + scripts?.jobs?.jobs.orEmpty().map { it.id.toString() }, builder) }
                             .executes(command { ctx, scripts ->
@@ -127,7 +143,7 @@ object MinektServer : ModInitializer {
                     ),
                 )
                 .then(
-                    Commands.literal("jobs").executes(command { ctx, scripts ->
+                    Commands.literal("jobs").requires(allowed(Node.JOBS)).executes(command { ctx, scripts ->
                         val running = scripts.jobs.jobs
                         if (running.isEmpty()) reply(ctx.source, "No jobs running")
                         running.forEach { job ->
@@ -137,7 +153,7 @@ object MinektServer : ModInitializer {
                     }),
                 )
                 .then(
-                    Commands.literal("log").then(
+                    Commands.literal("log").requires(allowed(Node.LOG)).then(
                         Commands.argument("script", StringArgumentType.word()).suggests(scriptNames).executes(command { ctx, scripts ->
                             val script = StringArgumentType.getString(ctx, "script")
                             val entries = scripts.jobs.logs.recent(script).takeLast(LOG_LINES)
@@ -147,20 +163,21 @@ object MinektServer : ModInitializer {
                     ),
                 )
                 .then(
-                    Commands.literal("eval").then(
+                    Commands.literal("eval").requires(allowed(Node.EVAL)).then(
                         Commands.argument("code", StringArgumentType.greedyString()).executes(command { ctx, scripts ->
                             scripts.jobs.eval(StringArgumentType.getString(ctx, "code"))
                         }),
                     ),
                 )
                 .then(
-                    Commands.literal("scripts").executes(command { ctx, scripts ->
-                        reply(ctx.source, "Scripts in ${scripts.scriptDir}: " + scripts.jobs.availableScripts().joinToString(", ").ifEmpty { "(none)" })
+                    Commands.literal("scripts").requires(mayRunAny).executes(command { ctx, scripts ->
+                        val names = scripts.jobs.availableScripts().filter { MksPermissions.mayRun(ctx.source, it) }
+                        reply(ctx.source, "Scripts in ${scripts.scriptDir}: " + names.joinToString(", ").ifEmpty { "(none)" })
                     }),
                 )
                 .then(
-                    // Clickable chat text made with ChatClick.run.
-                    Commands.literal("click").then(
+                    // Clickable chat text made with ChatClick.run, which goes to the players who get scripts' messages.
+                    Commands.literal("click").requires(allowed(Node.NOTIFY)).then(
                         Commands.argument("id", LongArgumentType.longArg()).executes(command { ctx, _ ->
                             if (!ChatClicks.click(LongArgumentType.getLong(ctx, "id"))) reply(ctx.source, "That script isn't running anymore")
                         }),
