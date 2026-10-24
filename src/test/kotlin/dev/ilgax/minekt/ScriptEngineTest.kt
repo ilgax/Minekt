@@ -1,6 +1,6 @@
 package dev.ilgax.minekt
 
-import dev.ilgax.minekt.job.Host
+import dev.ilgax.minekt.job.ClientHost
 import dev.ilgax.minekt.job.Job
 import dev.ilgax.minekt.job.JobManager
 import dev.ilgax.minekt.job.MessageKind
@@ -17,9 +17,10 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 import kotlin.test.fail
 
-/** Exercises compile → run → events → kill without a running game, via a fake [Host]. */
+/** Exercises compile → run → events → kill without a running game, via a fake [ClientHost]. */
 class ScriptEngineTest {
-    private class FakeHost : Host {
+    private class FakeHost : ClientHost {
+        override val tickClock = dev.ilgax.minekt.job.TickClock()
         override val scriptDir: Path = Files.createTempDirectory("minekt-test")
         val messages = LinkedBlockingQueue<Pair<MessageKind, String>>()
         override fun echo(message: String, kind: MessageKind) { messages.put(kind to message) }

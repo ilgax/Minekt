@@ -4,8 +4,8 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
-/** Counts client ticks so scripts can wait on game time rather than wall-clock time. */
-object TickClock {
+/** Counts game ticks (the client's or a server's) so scripts can wait on game time rather than wall-clock time. */
+class TickClock {
     private val lock = ReentrantLock()
     private val ticked = lock.newCondition()
 

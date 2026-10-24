@@ -43,15 +43,15 @@ class HttpResult(val status: Int, val body: String, val headers: Map<String, Lis
 }
 
 /** GET [url]. */
-fun Minekt.httpGet(url: String, headers: Map<String, String> = emptyMap(), timeout: Duration = 30.seconds): HttpResult =
+fun ScriptContext.httpGet(url: String, headers: Map<String, String> = emptyMap(), timeout: Duration = 30.seconds): HttpResult =
     http("GET", url, null, headers, timeout)
 
 /** POST [body] to [url]: a String is sent as it is, anything else as JSON. */
-fun Minekt.httpPost(url: String, body: Any? = null, headers: Map<String, String> = emptyMap(), timeout: Duration = 30.seconds): HttpResult =
+fun ScriptContext.httpPost(url: String, body: Any? = null, headers: Map<String, String> = emptyMap(), timeout: Duration = 30.seconds): HttpResult =
     http("POST", url, body, headers, timeout)
 
 /** Any request: [method] is GET, POST, PUT, PATCH, DELETE, … [body] as for [httpPost]. */
-fun Minekt.http(method: String, url: String, body: Any? = null, headers: Map<String, String> = emptyMap(), timeout: Duration = 30.seconds): HttpResult {
+fun ScriptContext.http(method: String, url: String, body: Any? = null, headers: Map<String, String> = emptyMap(), timeout: Duration = 30.seconds): HttpResult {
     checkCanWait("http")
     val uri = runCatching { URI(url) }.getOrNull()?.takeIf { it.scheme == "http" || it.scheme == "https" }
         ?: throw IllegalArgumentException("Not a web address: $url")

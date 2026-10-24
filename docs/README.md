@@ -12,4 +12,5 @@
 - [Advanced](advanced.md): packets, method hooks, rewriting classes, Fabric API events (experimental), eval and running scripts, other mods and Baritone, raw access
 - [Errors and logs](errors-and-logs.md)
 - [Installing and sharing scripts](sharing.md)
+- [Server scripts](server.md): scripts on a dedicated server or a singleplayer world's server, `/mks`, the server API
 - [How it works](internals.md): the engine, limitations, building, self-tests

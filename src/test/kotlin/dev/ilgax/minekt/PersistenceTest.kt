@@ -1,6 +1,6 @@
 package dev.ilgax.minekt
 
-import dev.ilgax.minekt.job.Host
+import dev.ilgax.minekt.job.ClientHost
 import dev.ilgax.minekt.job.Job
 import dev.ilgax.minekt.job.JobManager
 import dev.ilgax.minekt.job.MessageKind
@@ -19,7 +19,8 @@ import kotlin.test.fail
 
 /** `by persistent { }`: values survive script runs and "game restarts" (a fresh JobManager on the same folder). */
 class PersistenceTest {
-    private class FakeHost(override val scriptDir: Path) : Host {
+    private class FakeHost(override val scriptDir: Path) : ClientHost {
+        override val tickClock = dev.ilgax.minekt.job.TickClock()
         val messages = LinkedBlockingQueue<Pair<MessageKind, String>>()
         override fun echo(message: String, kind: MessageKind) { messages.put(kind to message) }
         override fun <T> onGameThread(block: (Minecraft) -> T): T = error("no game in tests")

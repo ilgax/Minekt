@@ -2,6 +2,7 @@
 
 package dev.ilgax.minekt.api
 
+import dev.ilgax.minekt.job.clientHost
 import com.mojang.blaze3d.platform.NativeImage
 import dev.ilgax.minekt.job.Job
 import net.minecraft.client.Minecraft
@@ -89,7 +90,7 @@ class Pixels internal constructor(
             Minecraft.getInstance().textureManager.register(newId, created)
             texture = created
             id = newId
-            job.cleanups += { job.host.onGameThread { release() } }
+            job.cleanups += { job.clientHost.onGameThread { release() } }
         }
         if (dirty.getAndSet(false)) upload(tex)
         return id!!

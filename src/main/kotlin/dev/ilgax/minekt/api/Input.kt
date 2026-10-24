@@ -1,8 +1,9 @@
 package dev.ilgax.minekt.api
 
+import dev.ilgax.minekt.job.clientHost
 import com.mojang.blaze3d.platform.InputConstants
 import dev.ilgax.minekt.hooks.InputHooks
-import dev.ilgax.minekt.job.Host
+import dev.ilgax.minekt.job.ClientHost
 import dev.ilgax.minekt.job.Job
 import net.minecraft.client.Minecraft
 import net.minecraft.client.input.CharacterEvent
@@ -140,13 +141,13 @@ private fun Minekt.sendKey(name: String, action: Int) {
             ?.takeIf { it != InputConstants.UNKNOWN && it.type == InputConstants.Type.KEYBOARD }
             ?: throw IllegalArgumentException("Unknown key '$name' (use names like \"e\", \"f3\", \"left.shift\")")
     }
-    held(Release(job.host, key.value, button = false), action)
+    held(Release(job.clientHost, key.value, button = false), action)
     game { mc -> keyEvent(mc, key.value, action) }
 }
 
 private fun Minekt.sendButton(button: Int, action: Int) {
     require(button in 0..7) { "Mouse buttons are 0 to 7" }
-    held(Release(job.host, button, button = true), action)
+    held(Release(job.clientHost, button, button = true), action)
     game { mc -> buttonEvent(mc, button, action) }
 }
 
@@ -155,7 +156,7 @@ private fun Minekt.held(release: Release, action: Int) {
     if (action == InputConstants.PRESS) job.cleanups.addIfAbsent(release) else job.cleanups.remove(release)
 }
 
-private data class Release(val host: Host, val code: Int, val button: Boolean) : () -> Unit {
+private data class Release(val host: ClientHost, val code: Int, val button: Boolean) : () -> Unit {
     override fun invoke() {
         host.onGameThread { mc -> if (button) buttonEvent(mc, code, InputConstants.RELEASE) else keyEvent(mc, code, InputConstants.RELEASE) }
     }

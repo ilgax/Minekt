@@ -2,6 +2,7 @@
 
 package dev.ilgax.minekt.api
 
+import dev.ilgax.minekt.job.clientHost
 import net.minecraft.core.BlockPos
 import dev.ilgax.minekt.hooks.FakeBlocks
 import dev.ilgax.minekt.job.Job
@@ -32,7 +33,7 @@ class FakeBlock internal constructor(
     internal val mcPos: BlockPos = pos.immutable()
 
     /** Show the real block again. */
-    fun remove() = job.host.onGameThread { FakeBlocks.remove(this) }
+    fun remove() = job.clientHost.onGameThread { FakeBlocks.remove(this) }
 }
 
 /**
@@ -54,7 +55,7 @@ fun Minekt.fakeBlocks(blocks: Map<BlockPos, String>): List<FakeBlock> {
         val level = mc.level ?: error("Not in a world")
         for (fake in parsed) {
             // One cleanup per script, however many fakes it shows.
-            if (FakeBlocks.add(level, fake)) job.cleanups += { job.host.onGameThread { FakeBlocks.removeAll(job) } }
+            if (FakeBlocks.add(level, fake)) job.cleanups += { job.clientHost.onGameThread { FakeBlocks.removeAll(job) } }
         }
         parsed
     }

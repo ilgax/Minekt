@@ -20,7 +20,7 @@ class Timer internal constructor(private val coroutine: kotlinx.coroutines.Job) 
 }
 
 /** Run [action] every [interval], first after [initialDelay]. The next wait starts when the action is done. */
-fun Minekt.every(interval: Duration, initialDelay: Duration = interval, action: () -> Unit): Timer {
+fun ScriptContext.every(interval: Duration, initialDelay: Duration = interval, action: () -> Unit): Timer {
     require(interval.isPositive()) { "Interval must be positive" }
     return Timer(job.launchSerial {
         delay(initialDelay)
@@ -32,13 +32,13 @@ fun Minekt.every(interval: Duration, initialDelay: Duration = interval, action: 
 }
 
 /** Run [action] once, after [delay]. */
-fun Minekt.after(delay: Duration, action: () -> Unit): Timer = Timer(job.launchSerial {
+fun ScriptContext.after(delay: Duration, action: () -> Unit): Timer = Timer(job.launchSerial {
     delay(delay)
     action()
 })
 
-/** Run [action] every [ticks] client ticks (20 per second). */
-fun Minekt.everyTicks(ticks: Int, action: () -> Unit): Timer {
+/** Run [action] every [ticks] game ticks (20 per second). */
+fun ScriptContext.everyTicks(ticks: Int, action: () -> Unit): Timer {
     require(ticks > 0) { "ticks must be at least 1" }
     return Timer(job.launchSerial {
         while (true) {
@@ -48,8 +48,8 @@ fun Minekt.everyTicks(ticks: Int, action: () -> Unit): Timer {
     })
 }
 
-/** Run [action] once, after [ticks] client ticks. */
-fun Minekt.afterTicks(ticks: Int, action: () -> Unit): Timer = Timer(job.launchSerial {
+/** Run [action] once, after [ticks] game ticks. */
+fun ScriptContext.afterTicks(ticks: Int, action: () -> Unit): Timer = Timer(job.launchSerial {
     awaitTicks(ticks)
     action()
 })

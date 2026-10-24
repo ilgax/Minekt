@@ -18,7 +18,7 @@ import kotlin.test.fail
 
 class ErrorsAndLogsTest {
     /** Keeps the full reports, which the real game turns into clickable chat. */
-    private class ReportingHost : dev.ilgax.minekt.job.Host by TestHost() {
+    private class ReportingHost : dev.ilgax.minekt.job.ClientHost by TestHost() {
         val reports = LinkedBlockingQueue<ErrorReport>()
         override fun showError(report: ErrorReport) { reports.put(report) }
         fun nextReport(): ErrorReport = reports.poll(60, TimeUnit.SECONDS) ?: fail("no error reported")

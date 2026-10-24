@@ -1,6 +1,8 @@
 # API overview
 
-Everything below is in scope in every script, no imports needed.
+Everything below is in scope in every client script, no imports needed. Server scripts have their own API,
+plus everything here that isn't about your client (output, control, timers, coroutines, messages, settings,
+persistence, HTTP, eval): see [Server scripts](server.md).
 
 | Area | API |
 |---|---|

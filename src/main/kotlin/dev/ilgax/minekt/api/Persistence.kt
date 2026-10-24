@@ -4,7 +4,6 @@ import net.minecraft.world.phys.Vec3
 import com.google.gson.reflect.TypeToken
 import dev.ilgax.minekt.job.MessageKind
 import dev.ilgax.minekt.job.ScriptLogs
-import net.minecraft.world.level.storage.LevelResource
 import java.lang.reflect.Type
 import kotlin.properties.ReadWriteProperty
 import kotlin.reflect.KProperty
@@ -26,7 +25,7 @@ import kotlin.reflect.KProperty
  * @param perWorld keep a separate value per singleplayer world / server.
  * @param store file to keep it in (`<store>.json`); defaults to the script's name.
  */
-inline fun <reified T> Minekt.persistent(
+inline fun <reified T> ScriptContext.persistent(
     key: String? = null,
     perWorld: Boolean = false,
     store: String? = null,
@@ -34,13 +33,13 @@ inline fun <reified T> Minekt.persistent(
 ): PersistentProperty<T> = PersistentProperty(this, key, perWorld, store, object : TypeToken<T>() {}.type, default)
 
 /** Write this script's persistent values to disk now (they're also saved automatically). */
-fun Minekt.save() {
+fun ScriptContext.save() {
     job.checkAlive()
     job.storage.save(job.name)
 }
 
 class PersistentProperty<T> @PublishedApi internal constructor(
-    private val api: Minekt,
+    private val api: ScriptContext,
     private val key: String?,
     private val perWorld: Boolean,
     private val store: String?,
@@ -70,11 +69,4 @@ class PersistentProperty<T> @PublishedApi internal constructor(
     }
 
     private class Holder<T>(@Volatile var value: T)
-}
-
-/** Stable id of the current world: the save folder in singleplayer, the address on a server. */
-internal fun Minekt.worldKey(): String = game { mc ->
-    mc.singleplayerServer?.let { "singleplayer:" + it.getWorldPath(LevelResource.ROOT).toAbsolutePath().normalize().fileName }
-        ?: mc.currentServer?.let { "server:" + it.ip }
-        ?: error("perWorld values need you to be in a world")
 }

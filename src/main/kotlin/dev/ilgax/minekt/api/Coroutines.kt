@@ -17,19 +17,19 @@ import kotlinx.coroutines.launch
 // is imported by default (delay, withTimeout, coroutineScope, ...).
 
 /** Start a coroutine owned by this script. */
-fun Minekt.launch(block: suspend CoroutineScope.() -> Unit): kotlinx.coroutines.Job {
+fun ScriptContext.launch(block: suspend CoroutineScope.() -> Unit): kotlinx.coroutines.Job {
     job.checkAlive()
     return job.scope.launch(block = block)
 }
 
 /** Start a coroutine that produces a value; get it with `.await()`. */
-fun <T> Minekt.async(block: suspend CoroutineScope.() -> T): Deferred<T> {
+fun <T> ScriptContext.async(block: suspend CoroutineScope.() -> T): Deferred<T> {
     job.checkAlive()
     return job.scope.async(block = block)
 }
 
-/** Suspend for [ticks] client ticks. */
-suspend fun Minekt.awaitTicks(ticks: Int = 1) {
+/** Suspend for [ticks] game ticks. */
+suspend fun ScriptContext.awaitTicks(ticks: Int = 1) {
     repeat(ticks) { job.awaitEvent { it == Job.Event.Tick } }
 }
 

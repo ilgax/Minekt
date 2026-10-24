@@ -1,12 +1,19 @@
 # How it works
 
 - `MinektScript` is a Kotlin [script definition](https://kotlinlang.org/docs/custom-script-deps-tutorial.html).
-  The `Minekt` API object is the script's implicit receiver.
+  The `Minekt` API object is the script's implicit receiver. Server scripts use a second definition,
+  `MinektServerScript`, whose receiver is `ServerMinekt`. Both extend `ScriptContext`, which holds what works on
+  either side (output, waiting, timers, messages, settings, persistent values, HTTP, eval); helpers declared on
+  `ScriptContext` are shared, so each side only sees its own calls plus the shared ones.
+- A `Host` is the side a job runs on: the client (`MinektClient`, a `ClientHost` that can reach the game) or one
+  server run (`ServerScripts`). It gives the job its script folder, tick clock, compiler and receiver.
+  `MinektServer` is the main entrypoint, loaded on both sides, so it and everything server scripts use must
+  never load client classes (dedicated servers don't have them).
 - The Kotlin scripting host and embeddable compiler are bundled (jar-in-jar) and run in the game's JVM. A warm-up
   compile at startup means the first script doesn't pay for compiler start-up. Compiled scripts are cached by
   content, so editing a file and re-running it picks up the change without restarting the game.
-- Each run is a **job** on its own thread. API calls marshal onto the client thread and check whether the
-  job was killed.
+- Each run is a **job** on its own thread. API calls marshal onto the client (or server) thread and check
+  whether the job was killed.
 - **Every script can be stopped**, even `while (true) {}`. Java can't force-stop a thread, so the compiled script
   is rewritten (with ASM) to check for `\kill` at every loop iteration. That also covers loops that catch every
   exception, coroutines, and helper functions.
@@ -24,7 +31,7 @@
   (`FabricLauncherBase.addToClassPath`), which a future loader version could change. The full jar doesn't
   use it.
 - No sandbox: scripts can do anything the game can. Only run scripts you trust.
-- Client-only and Fabric-only for now.
+- Fabric-only for now. Server scripts have a smaller API than client scripts.
 - Some servers ban automation mods. Check a server's rules before using it there.
 
 ## Building
@@ -36,6 +43,9 @@ Requires JDK 25.
 ./gradlew runClient -PsmallRun                         # dev client without the compiler, like the small jar
 ./gradlew runClient -PsmallRun -PsmallRunHome=/tmp/x   # …and with Gradle/Maven caches hidden: forces a download
 ./gradlew runClient      # dev client
+./gradlew runServer      # dev dedicated server, in run/server (server scripts in run/server/minekt)
+./gradlew prodServer     # real production server with the built jar, in build/prodserver (accept the EULA first)
+./gradlew serverSmokeTest -PacceptMinecraftEula=true   # dev/servertest/servertest.kts on real servers: full jar, small jar downloading the compiler, small jar again from minekt/lib
 ./gradlew updateKotlinAbi   # after a deliberate change to the stable script API (then commit api/minekt.api)
 ```
 
