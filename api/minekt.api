@@ -1261,7 +1261,6 @@ public final class dev/ilgax/minekt/api/server/ServerEntitiesKt {
 	public static final fun entities (Ldev/ilgax/minekt/api/server/ServerMinekt;Ljava/lang/String;Lnet/minecraft/world/phys/Vec3;DLjava/lang/String;)Ljava/util/List;
 	public static synthetic fun entities$default (Ldev/ilgax/minekt/api/server/ServerMinekt;Ljava/lang/String;Lnet/minecraft/world/phys/Vec3;DLjava/lang/String;ILjava/lang/Object;)Ljava/util/List;
 	public static final fun entity (Ldev/ilgax/minekt/api/server/ServerMinekt;I)Ldev/ilgax/minekt/api/EntityInfo;
-	public static final fun entity (Ldev/ilgax/minekt/api/server/ServerMinekt;Ljava/lang/String;)Ldev/ilgax/minekt/api/EntityInfo;
 	public static final fun killEntity (Ldev/ilgax/minekt/api/server/ServerMinekt;I)Z
 	public static final fun removeEntity (Ldev/ilgax/minekt/api/server/ServerMinekt;I)Z
 	public static final fun spawn (Ldev/ilgax/minekt/api/server/ServerMinekt;Ljava/lang/String;Lnet/minecraft/world/phys/Vec3;Ljava/lang/String;)Ldev/ilgax/minekt/api/EntityInfo;

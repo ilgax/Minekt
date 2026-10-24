@@ -9,7 +9,6 @@ import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.EntitySpawnReason
 import net.minecraft.world.entity.Mob
 import net.minecraft.world.phys.Vec3
-import java.util.UUID
 
 // Entities on the server: every loaded one, in every dimension.
 //
@@ -38,12 +37,6 @@ fun ServerMinekt.entities(
 
 /** The loaded entity with [id] (from [entities] or an event), in any dimension, or null if it's gone. */
 fun ServerMinekt.entity(id: Int): EntityInfo? = server { s -> find(s, id)?.toInfo(null) }
-
-/** The loaded entity with [uuid], in any dimension, or null. */
-fun ServerMinekt.entity(uuid: String): EntityInfo? = server { s ->
-    val key = runCatching { UUID.fromString(uuid) }.getOrElse { throw IllegalArgumentException("'$uuid' isn't a UUID") }
-    s.allLevels.firstNotNullOfOrNull { it.getEntity(key) }?.toInfo(null)
-}
 
 /**
  * Spawn a [type] (like `minecraft:zombie`) at [pos] in [dimension], like `/summon`: mobs get their usual random gear

@@ -117,7 +117,7 @@ class ServerScriptsTest {
 
             val zombies: List<EntityInfo> = entities(type = "zombie", near = Vec3(0.0, 64.0, 0.0), radius = 32.0, dimension = "overworld")
             val cow = spawn("minecraft:cow", Vec3(0.5, 80.0, 0.5))
-            entity(cow.id)?.dimension; entity(cow.uuid)
+            entity(cow.id)?.dimension; entities().find { it.uuid == cow.uuid }
             killEntity(cow.id); removeEntity(zombies.first().id)
             onEvent<ServerEvent.EntitySpawn> { (entity) -> if (entity.type == "minecraft:phantom") removeEntity(entity.id) }
             onEvent<ServerEvent.EntityRemoved> { (entity, died, reason) -> echo(entity.name, died, reason) }

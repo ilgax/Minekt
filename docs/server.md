@@ -156,7 +156,7 @@ And on top, the server API:
 | `findBlocks(center, radius, dimension) { id -> }` | blocks whose id matches, nearest first (radius up to 64, loaded chunks only) |
 | `raycast(from, to, dimension)`, `raycast(player, distance)` | the first block or entity on a line, or what a player looks at |
 | `world(dimension)` | time of day and weather (`runCommand("time set 13000")`, `runCommand("weather rain")` change them) |
-| `entities(dimension, near, radius, type)`, `entity(id)`, `entity(uuid)` | loaded entities (players too), nearest to `near` first |
+| `entities(dimension, near, radius, type)`, `entity(id)` | loaded entities (players too), nearest to `near` first; by UUID: `entities().find { it.uuid == … }` |
 | `spawn("minecraft:zombie", pos, dimension)` | spawn an entity like `/summon`; returns it |
 | `killEntity(id)`, `removeEntity(id)` | kill it (loot, a death), or remove it without dying |
 | `inventory(player)`, `enderChest(player)`, `container(pos, dimension)` | items, with `items`, `inv[slot]`, `count`, `setSlot(slot, item, count, name, lore, enchantments, damage)`, `clearSlot`, `give`, `take` |

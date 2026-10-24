@@ -62,7 +62,7 @@ try {
     // ---- entities, damage and death ----
     check("spawn/entities/killEntity") {
         val cow = spawn("minecraft:cow", Vec3(2.5, 101.0, 2.5))
-        val found = entity(cow.id)?.type == "minecraft:cow" && entity(cow.uuid)?.id == cow.id &&
+        val found = entity(cow.id)?.type == "minecraft:cow" && entities().find { it.uuid == cow.uuid }?.id == cow.id &&
             entities(type = "cow", near = Vec3(2.5, 101.0, 2.5), radius = 4.0).any { it.id == cow.id } &&
             entities(dimension = "the_nether", type = "cow").none { it.id == cow.id }
         found && killEntity(cow.id) && waitFor { entity(cow.id) == null }
