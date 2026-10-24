@@ -27,11 +27,11 @@ import kotlin.script.experimental.host.toScriptSource
  */
 class ScriptInstaller(
     private val scriptDir: Path,
-    private val fetch: (URI) -> String = ::download,
     /** Checks that scripts compile: the client's compiler, or a server's. */
     private val compiler: TemplateCompiler = ScriptCompiler,
     /** Installing server scripts: list what they can do on a server. */
     private val server: Boolean = false,
+    private val fetch: (URI) -> String = ::download,
 ) {
     data class Pending(
         val token: String,

@@ -11,7 +11,7 @@ import net.minecraft.network.protocol.Packet
 // net.minecraft.network.protocol.game.ServerboundChatPacket (received from a player) or ClientboundSetTimePacket
 // (sent to one); import them like any other class.
 //
-//   onPacket<ServerboundSwingPacket> { _, player -> echo(player, "swung") }
+//   onPacket<ServerboundChatPacket> { packet, player -> echo(player, "said", packet.message()) }
 //   interceptPacketSent<ClientboundSoundPacket> { packet, player -> if (player == "Steve") null else packet }
 //   sendPacket("Steve", ClientboundSetTitleTextPacket(Component.literal("Hi")))
 //
