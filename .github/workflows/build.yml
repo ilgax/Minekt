@@ -2,6 +2,7 @@ name: build
 
 on:
   push:
+    branches: ["**"]   # not tags: release.yml builds and tests those itself
   pull_request:
 
 jobs:
