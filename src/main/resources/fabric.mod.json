@@ -11,6 +11,7 @@
     "issues": "https://github.com/ilgax/Minekt/issues"
   },
   "license": "GPL-3.0-or-later",
+  "icon": "assets/minekt/icon.png",
   "environment": "*",
   "entrypoints": {
     "main": [
