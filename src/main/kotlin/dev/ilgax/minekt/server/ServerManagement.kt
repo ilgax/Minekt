@@ -82,7 +82,7 @@ internal class ServerManagement(private val scripts: ServerScripts) {
             .append(button("[Install]", ChatFormatting.GREEN, "Save it as ${p.name}.kts", ClickEvent.RunCommand("mks install confirm ${p.token}")))
             .append(" ")
             .append(button("[Cancel]", ChatFormatting.RED, "Don't install", ClickEvent.RunCommand("mks install cancel ${p.token}")))
-        lines += Component.literal("  Or type /mks install confirm (or cancel). Its source is in ${p.previewFile} until then. Scripts can do anything the server can: only install ones you trust.")
+        lines += Component.literal("  Or type /mks install confirm (or cancel). Its source is in ${p.previewFile} until then. Scripts aren't sandboxed: they can use the server computer's files, programs and network, not just the game. Only install ones you trust.")
             .withStyle(ChatFormatting.DARK_GRAY)
         lines.forEach { send(source, it) }
     }

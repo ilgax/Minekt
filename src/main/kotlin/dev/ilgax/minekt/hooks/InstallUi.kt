@@ -159,7 +159,7 @@ internal class InstallUi(
             .append(button("[View source]", ChatFormatting.AQUA, "Open it in your editor first", ClickEvent.OpenFile(p.previewFile)))
             .append(" ")
             .append(button("[Cancel]", ChatFormatting.RED, "Don't install", ClickEvent.RunCommand("minekt install no ${p.token}")))
-        lines += Component.literal("  Or type \\install yes / \\install no. Scripts have full access to your game: only install ones you trust.")
+        lines += Component.literal("  Or type \\install yes / \\install no. Scripts aren't sandboxed: they can use your files, programs and the internet, not just the game. Only install ones you trust.")
             .withStyle(ChatFormatting.DARK_GRAY)
         lines.forEach(::send)
     }
