@@ -113,3 +113,8 @@ Set `mod_version` in `gradle.properties`, then push a matching tag (`git tag v0.
 `.github/workflows/release.yml` checks the tag matches the version, builds, runs the unit tests and the server smoke
 tests, and publishes a GitHub release with the small and full jars and GitHub's generated notes. Versions below 1.0
 are published as pre-releases (beta).
+
+The same workflow uploads the version to Modrinth (both jars, the small one as the primary file, with Fabric API and
+Fabric Language Kotlin as required dependencies; beta for 0.x) when the repository has a `MODRINTH_TOKEN` secret (a
+Modrinth personal access token with the "Create versions" scope) and a `MODRINTH_PROJECT` variable (the project's
+slug or id). Without them, that step is skipped.

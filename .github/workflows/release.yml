@@ -2,12 +2,19 @@ name: release
 
 # Push a tag like v0.1.0 to build the jars and publish a GitHub release with them. Versions below 1.0 are published
 # as pre-releases (beta), with GitHub's generated notes. The tag must match mod_version in gradle.properties.
+#
+# It also uploads the version to Modrinth when the repository has a MODRINTH_TOKEN secret (a Modrinth personal
+# access token with the "Create versions" scope) and a MODRINTH_PROJECT variable (the project's slug or id).
 on:
   push:
     tags: ["v*"]
 
 permissions:
   contents: write
+
+# Also here, so the Modrinth step can check whether the secret exists.
+env:
+  MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
 
 jobs:
   release:
@@ -40,3 +47,30 @@ jobs:
           case "$VERSION" in 0.*|*-*) prerelease="--prerelease" ;; esac
           gh release create "$GITHUB_REF_NAME" $prerelease --title "Minekt $VERSION" --generate-notes \
             "build/libs/minekt-$VERSION.jar" "build/libs/minekt-$VERSION-full.jar"
+      - name: Upload to Modrinth
+        if: ${{ env.MODRINTH_TOKEN != '' && vars.MODRINTH_PROJECT != '' }}
+        env:
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+          MODRINTH_PROJECT: ${{ vars.MODRINTH_PROJECT }}
+        run: |
+          api=https://api.modrinth.com/v2
+          id_of() { curl -fsS -H "User-Agent: ilgax/Minekt release" "$api/project/$1" | jq -r .id; }
+          project=$(id_of "$MODRINTH_PROJECT")
+          minecraft=$(grep '^minecraft_version=' gradle.properties | cut -d= -f2)
+          type=release
+          case "$VERSION" in 0.*) type=beta ;; *-alpha*) type=alpha ;; *-*) type=beta ;; esac
+          jq -n --arg project "$project" --arg version "$VERSION" --arg type "$type" --arg mc "$minecraft" \
+                --arg api "$(id_of fabric-api)" --arg kotlin "$(id_of fabric-language-kotlin)" \
+                --arg notes "https://github.com/$GITHUB_REPOSITORY/releases/tag/$GITHUB_REF_NAME" '{
+            project_id: $project, version_number: $version, name: ("Minekt " + $version), version_type: $type,
+            changelog: ("Changes: " + $notes), game_versions: [$mc], loaders: ["fabric"], featured: true,
+            dependencies: [
+              {project_id: $api, dependency_type: "required"},
+              {project_id: $kotlin, dependency_type: "required"}
+            ],
+            file_parts: ["small", "full"], primary_file: "small"
+          }' > modrinth.json
+          curl -fsS -X POST "$api/version" -H "Authorization: $MODRINTH_TOKEN" -H "User-Agent: ilgax/Minekt release" \
+            -F "data=@modrinth.json;type=application/json" \
+            -F "small=@build/libs/minekt-$VERSION.jar" \
+            -F "full=@build/libs/minekt-$VERSION-full.jar" | jq -r '"Modrinth version " + .id'
