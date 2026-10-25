@@ -16,6 +16,7 @@ import dev.ilgax.minekt.hooks.LogViewer
 import dev.ilgax.minekt.hooks.SettingsView
 import dev.ilgax.minekt.hooks.InputRecorder
 import dev.ilgax.minekt.hooks.PacketHooks
+import dev.ilgax.minekt.share.BundledExamples
 import dev.ilgax.minekt.share.ScriptInstaller
 import dev.ilgax.minekt.hooks.ScriptCommands
 import dev.ilgax.minekt.hooks.ScriptKeys
@@ -327,15 +328,14 @@ object MinektClient : ClientModInitializer, ClientHost {
         }
     }
 
+    /** Adds new bundled examples and updates the ones the player hasn't changed (see [BundledExamples]). */
     private fun installExamples() {
-        if (scriptDir.exists()) return
-        Files.createDirectories(scriptDir)
-        for (name in EXAMPLES) {
-            javaClass.getResourceAsStream("/minekt-examples/$name.kts")?.use { input ->
-                Files.copy(input, scriptDir.resolve("$name.kts"))
-            }
-        }
-        logger.info("Created {} with example scripts", scriptDir)
+        val shipped = EXAMPLES.mapNotNull { name ->
+            javaClass.getResourceAsStream("/minekt-examples/$name.kts")?.use { name to it.readBytes() }
+        }.toMap()
+        runCatching { BundledExamples(scriptDir, shipped).sync() }
+            .onSuccess { changes -> changes.forEach { logger.info("Example scripts: {}", it) } }
+            .onFailure { logger.warn("Couldn't update the example scripts in {}", scriptDir, it) }
     }
 
     /** Compiler download news: a toast (it may happen before any world is open) and the log. */
