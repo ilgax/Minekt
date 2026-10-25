@@ -14,7 +14,9 @@
   Fabric's permission API (`MksPermissions`).
 - The Kotlin scripting host and embeddable compiler are bundled (jar-in-jar) and run in the game's JVM. A warm-up
   compile at startup means the first script doesn't pay for compiler start-up. Compiled scripts are cached by
-  content, so editing a file and re-running it picks up the change without restarting the game.
+  content, so editing a file and re-running it picks up the change without restarting the game. They're also
+  kept in `minekt/lib/compiled/`, so a script that hasn't changed (nor its imports, nor the mods) starts
+  without compiling after a restart too.
 - Each run is a **job** on its own thread. API calls marshal onto the client (or server) thread and check
   whether the job was killed.
 - **Every script can be stopped**, even `while (true) {}`. Java can't force-stop a thread, so the compiled script

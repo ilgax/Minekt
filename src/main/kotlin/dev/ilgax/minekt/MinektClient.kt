@@ -38,6 +38,7 @@ import dev.ilgax.minekt.hooks.MinektConfig
 import dev.ilgax.minekt.hooks.MinektSettingsView
 import net.minecraft.client.gui.screens.Screen
 import dev.ilgax.minekt.script.ScriptClasspath
+import dev.ilgax.minekt.script.CompiledScriptCache
 import dev.ilgax.minekt.script.CompilerSetup
 import dev.ilgax.minekt.script.ScriptCompiler
 import dev.ilgax.minekt.script.ScriptDependencies
@@ -98,6 +99,7 @@ object MinektClient : ClientModInitializer, ClientHost {
         MinektConfig.load()
         ScriptClasspath.scriptDir = scriptDir
         ScriptDependencies.libDir = scriptDir.resolve("lib")
+        CompiledScriptCache.dir = scriptDir.resolve("lib").resolve("compiled")
         ScriptDependencies.onDownload = { notifyCompiler(it, false) }
         installExamples()
         ScriptHud.register()

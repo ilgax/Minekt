@@ -2,6 +2,7 @@ package dev.ilgax.minekt.script
 
 import dev.ilgax.minekt.hooks.FabricEvents
 import dev.ilgax.minekt.job.Watchdog
+import java.nio.file.Path
 import java.security.MessageDigest
 import java.util.Collections
 import java.util.WeakHashMap
@@ -29,7 +30,7 @@ object ServerScriptCompiler : TemplateCompiler(MinektServerScript::class)
 /** The embedded compiler isn't designed for concurrent use: compiles are serialized, whatever the template. */
 private val compileLock = Any()
 
-/** Compiles scripts against a script [template], caching results by source content. */
+/** Compiles scripts against a script [template], caching results by source content (and on disk: [CompiledScriptCache]). */
 open class TemplateCompiler(private val template: KClass<*>) {
     /**
      * The default host takes its class loader from whichever thread first touched it, which under Fabric
@@ -46,7 +47,8 @@ open class TemplateCompiler(private val template: KClass<*>) {
     private val compiler by lazy { JvmScriptCompiler(host) }
     private val cache = ConcurrentHashMap<String, CompiledScript>()
 
-    fun compile(source: SourceCode): ResultWithDiagnostics<CompiledScript> = compile(source, configuration, cacheKey(source))
+    fun compile(source: SourceCode): ResultWithDiagnostics<CompiledScript> =
+        compile(source, configuration, cacheKey(source), CompiledScriptCache.entryFor(template, source))
 
     /** Compile code for `eval`: like a script, plus whatever [configure] adds (e.g. provided properties). */
     fun compileEval(code: String, configure: ScriptCompilationConfiguration.Builder.() -> Unit): ResultWithDiagnostics<CompiledScript> {
@@ -57,12 +59,22 @@ open class TemplateCompiler(private val template: KClass<*>) {
         return compile(source, config, "eval+" + cacheKey(source))
     }
 
-    private fun compile(source: SourceCode, config: ScriptCompilationConfiguration, key: String): ResultWithDiagnostics<CompiledScript> {
+    /** [entry]: where the result is kept on disk, or null for memory only. */
+    private fun compile(source: SourceCode, config: ScriptCompilationConfiguration, key: String, entry: Path? = null): ResultWithDiagnostics<CompiledScript> {
         cache[key]?.let { return it.asSuccess() }
+        // Scripts with @file:Import depend on other files, so only cache self-contained ones in memory.
+        // On disk, the entry's name covers the imports too.
+        val selfContained = "@file:Import" !in source.text
+        entry?.let(CompiledScriptCache::load)?.let { stored ->
+            if (selfContained) cache[key] = stored
+            return stored.asSuccess()
+        }
         CompilerSetup.awaitReady()
         val result = synchronized(compileLock) { runBlocking { compiler(source, config) } }
-        // Scripts with @file:Import depend on other files, so only cache self-contained ones.
-        if (result is ResultWithDiagnostics.Success && "@file:Import" !in source.text) cache[key] = result.value
+        if (result is ResultWithDiagnostics.Success) {
+            if (selfContained) cache[key] = result.value
+            entry?.let { CompiledScriptCache.store(it, source, result.value) }
+        }
         return result
     }
 
@@ -88,10 +100,12 @@ open class TemplateCompiler(private val template: KClass<*>) {
 
     /**
      * Compile a trivial script so the first real one doesn't pay the compiler's startup cost. Throws when it
-     * doesn't compile: the compiler reports failures as a result, not an exception.
+     * doesn't compile: the compiler reports failures as a result, not an exception. Never from disk, which
+     * would skip the compiler it's meant to start.
      */
     fun warmUp() {
-        val result = compile(warmUpCode.toScriptSource("warmup.kts"))
+        val source = warmUpCode.toScriptSource("warmup.kts")
+        val result = compile(source, configuration, cacheKey(source))
         if (result is ResultWithDiagnostics.Failure) {
             val errors = result.reports.filter { it.severity >= ScriptDiagnostic.Severity.ERROR }.ifEmpty { result.reports }
             error("The warm-up script didn't compile: " + errors.joinToString("; ") { it.message })

@@ -8,6 +8,7 @@ import dev.ilgax.minekt.api.server.ServerEvent
 import dev.ilgax.minekt.api.toInfo
 import dev.ilgax.minekt.job.ChatClicks
 import dev.ilgax.minekt.job.ScriptLogs
+import dev.ilgax.minekt.script.CompiledScriptCache
 import dev.ilgax.minekt.script.CompilerSetup
 import dev.ilgax.minekt.script.ScriptClasspath
 import dev.ilgax.minekt.script.ScriptDependencies
@@ -53,6 +54,7 @@ object MinektServer : ModInitializer {
             val dir = FabricLoader.getInstance().gameDir.resolve("minekt")
             ScriptClasspath.scriptDir = dir
             ScriptDependencies.libDir = dir.resolve("lib")
+            CompiledScriptCache.dir = dir.resolve("lib").resolve("compiled")
             ScriptDependencies.onDownload = { logger.info("[minekt] {}", it) }
             CompilerSetup.startInBackground(dir.resolve("lib"), { message, failed ->
                 if (failed) logger.error("[minekt] Scripts can't run: {}", message) else logger.info("[minekt] {}", message)
