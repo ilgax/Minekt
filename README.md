@@ -50,8 +50,8 @@ With [Mod Menu](https://modrinth.com/mod/modmenu), Minekt's settings are under C
 **On a server:** put the same three jars in the server's `mods` folder. Operators run scripts from the server's
 `minekt/` folder with `/mks run <script>`. See [Server scripts](docs/server.md).
 
-> Scripts can do anything the game can. Only run scripts you trust, and check a server's rules before using
-> automation there.
+> Scripts can do anything on your computer, not just in the game. Only run scripts you trust, and check a server's
+> rules before using automation there.
 
 ## For power users
 

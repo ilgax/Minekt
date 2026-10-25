@@ -35,7 +35,7 @@
 - The small jar adds Minekt's compiler jar to Fabric's class loader through a Fabric Loader internal
   (`FabricLauncherBase.addToClassPath`), which a future loader version could change. The full jar doesn't
   use it.
-- No sandbox: scripts can do anything the game can. Only run scripts you trust.
+- No sandbox: scripts can do anything on your computer, not just in the game. Only run scripts you trust.
 - Fabric-only for now. Server scripts have a smaller API than client scripts.
 - Some servers ban automation mods. Check a server's rules before using it there.
 

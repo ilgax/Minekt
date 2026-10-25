@@ -19,5 +19,5 @@ Then click **[Install]**, **[View source]** (opens it in your editor) or **[Canc
 - **To share** a script, `\share autofarm` copies it to your clipboard. Paste it anywhere: Discord, a gist, a
   message. Others install it with `\install clipboard` (the name comes from its `// \autofarm` first line,
   or add one: `\install clipboard autofarm`).
-- The capability list is a quick scan of the source, not a sandbox. A script can do anything the game can, so
-  only install scripts from people you trust.
+- The capability list is a quick scan of the source, not a sandbox. Scripts can do anything on your computer, not
+  just in the game. Only run scripts you trust.
