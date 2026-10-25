@@ -70,8 +70,8 @@ All the docs: [docs/](docs/README.md).
 ## AI disclosure
 
 A large part of Minekt's code, tests and documentation was written with the help of an AI coding assistant. I
-review and test the changes, and the automated tests, real-server tests and in-game self-tests run before every
-release. Minekt itself uses no AI: it doesn't connect to any AI service.
+review and test the changes, and every release is built only after the automated tests and the real-server tests
+pass. Minekt itself uses no AI: it doesn't connect to any AI service.
 
 ## License
 
