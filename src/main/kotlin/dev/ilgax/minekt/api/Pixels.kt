@@ -66,9 +66,15 @@ class Pixels internal constructor(
 
     /** Fill a rectangle. Parts outside are left out. */
     fun fill(x: Int, y: Int, width: Int, height: Int, color: Int) {
+        if (width <= 0 || height <= 0) return
+        val left = x.coerceIn(0, this.width)
+        val right = (x.toLong() + width).coerceIn(0, this.width.toLong()).toInt()
+        val top = y.coerceIn(0, this.height)
+        val bottom = (y.toLong() + height).coerceIn(0, this.height.toLong()).toInt()
+        if (left >= right || top >= bottom) return
         val c = opaque(color)
-        for (py in maxOf(0, y) until minOf(this.height, y + height)) {
-            data.fill(c, py * this.width + maxOf(0, x), py * this.width + minOf(this.width, x + width))
+        for (py in top until bottom) {
+            data.fill(c, py * this.width + left, py * this.width + right)
         }
         dirty.set(true)
     }

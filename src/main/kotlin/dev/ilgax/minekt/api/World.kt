@@ -49,6 +49,7 @@ fun Minekt.scanRegion(
     blocksPerFrame: Int = 262_144,
     predicate: (String) -> Boolean,
 ): List<FoundBlock> {
+    require(blocksPerFrame > 0) { "blocksPerFrame must be above 0" }
     val minX = min(from.x, to.x); val maxX = max(from.x, to.x)
     val minZ = min(from.z, to.z); val maxZ = max(from.z, to.z)
     val (minY, maxY) = game { mc ->

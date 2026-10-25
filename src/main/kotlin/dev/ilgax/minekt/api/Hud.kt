@@ -227,9 +227,21 @@ internal object ScriptHud {
 
     fun tick() {
         val reloadImages = ++ticks % 20 == 0
+        val images = mutableSetOf<Path>()
         for (panel in panels.values) {
+            val nodes = panel.nodes
+            collectImages(nodes, images)
             if (!panel.visible) continue
-            refresh(panel.job, panel.nodes, reloadImages)
+            refresh(panel.job, nodes, reloadImages)
+        }
+        HudImages.retainOnly(images)
+    }
+
+    private fun collectImages(nodes: List<HudNode>, into: MutableSet<Path>) {
+        for (node in nodes) when (node) {
+            is HudNode.Image -> into.add(node.file)
+            is HudNode.Row -> collectImages(node.nodes, into)
+            else -> Unit
         }
     }
 
@@ -399,6 +411,14 @@ internal object HudImages {
     private val nextId = AtomicLong()
 
     fun loaded(file: Path): Identifier? = loaded[file]?.id
+
+    /** Called on the game thread after panel updates; hidden panels still own their images. */
+    fun retainOnly(files: Set<Path>) {
+        for (file in loaded.keys) {
+            if (file !in files) loaded.remove(file)?.let { Minecraft.getInstance().textureManager.release(it.id) }
+        }
+        failed.retainAll(files)
+    }
 
     /** Load [file] if it isn't yet, or [reload] it if it changed. Problems go to [job]'s log, once. */
     fun get(file: Path, reload: Boolean, job: Job) {

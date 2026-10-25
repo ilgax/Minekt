@@ -35,7 +35,7 @@ inline fun <reified T> ScriptContext.persistent(
 /** Write this script's persistent values to disk now (they're also saved automatically). */
 fun ScriptContext.save() {
     job.checkAlive()
-    job.storage.save(job.name)
+    job.storage.saveOwned(job)
 }
 
 class PersistentProperty<T> @PublishedApi internal constructor(

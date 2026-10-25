@@ -16,6 +16,7 @@ import kotlin.script.experimental.host.toScriptSource
 class JobManager(private val host: Host) {
     private val nextId = AtomicInteger(1)
     private val running = ConcurrentSkipListMap<Int, Job>()
+    private var closed = false
 
     /** Backing files for `by persistent` values, in `<scriptDir>/data`. */
     val storage = PersistentStore(host.scriptDir.resolve("data"))
@@ -47,15 +48,17 @@ class JobManager(private val host: Host) {
     fun eval(code: String): Job = start(Job.EVAL_NAME, emptyList(), code.toScriptSource("eval.kts"))
 
     /** Samples each job's CPU use every few seconds (see [Job.sampleCpu]). */
-    private val cpuMonitor by lazy {
+    private val cpuMonitor = lazy {
         Executors.newSingleThreadScheduledExecutor { r -> Thread(r, "minekt-watchdog").apply { isDaemon = true } }.also {
             it.scheduleWithFixedDelay({ running.values.forEach { job -> runCatching(job::sampleCpu) } }, 0, CPU_SAMPLE_SECONDS, TimeUnit.SECONDS)
         }
     }
 
+    @Synchronized
     fun start(name: String, args: List<String>, source: SourceCode): Job {
-        cpuMonitor
-        val job = Job(nextId.getAndIncrement(), name, args, source, host, storage, bus, logs, settings, this) { running.remove(it.id) }
+        check(!closed) { "This script host has stopped" }
+        cpuMonitor.value
+        val job = Job(nextId.getAndIncrement(), name, args, source, host, storage, bus, logs, settings, this, ::jobExited)
         running[job.id] = job
         job.start()
         return job
@@ -64,6 +67,23 @@ class JobManager(private val host: Host) {
     fun kill(id: Int): Boolean = running[id]?.also(Job::kill) != null
 
     fun killAll() = running.values.forEach(Job::kill)
+
+    /** Stop this host without waiting on jobs that may still need the game thread for cleanup. */
+    @Synchronized
+    fun close() {
+        if (closed) return
+        closed = true
+        if (cpuMonitor.isInitialized()) cpuMonitor.value.shutdownNow()
+        storage.close()
+        killAll()
+        if (running.isEmpty()) logs.close()
+    }
+
+    @Synchronized
+    private fun jobExited(job: Job) {
+        running.remove(job.id)
+        if (closed && running.isEmpty()) logs.close()
+    }
 
     fun availableScripts(): List<String> =
         if (!Files.isDirectory(host.scriptDir)) emptyList()

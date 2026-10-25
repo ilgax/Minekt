@@ -19,7 +19,8 @@ import net.minecraft.world.level.block.state.BlockState
 //
 // The server doesn't know about them: they look and feel solid to you, but standing or walking on
 // one gets you pulled back, and breaking one only shows the real block again. They come off when the
-// script ends (like shapes, they don't keep it running). `blockAt` and `getBlock` see the fake.
+// script ends or the client changes worlds/dimensions (like shapes, they don't keep it running).
+// `blockAt` and `getBlock` see the fake.
 
 /** A block shown only on this client, from [fakeBlock]. */
 @ExperimentalVisuals

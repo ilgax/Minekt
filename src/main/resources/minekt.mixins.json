@@ -7,6 +7,7 @@
   ],
   "client": [
     "ClientLevelMixin",
+    "ClientPacketListenerMixin",
     "ConnectionMixin",
     "EntityRendererMixin",
     "KeyMappingAccessor",

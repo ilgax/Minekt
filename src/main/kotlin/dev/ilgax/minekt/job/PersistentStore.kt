@@ -52,7 +52,8 @@ class PersistentStore(private val dir: Path, private val autosaveSeconds: Long =
 
     private val files = ConcurrentHashMap<String, StoreFile>()
 
-    private val autosave by lazy {
+    private var closed = false
+    private val autosave = lazy {
         Executors.newSingleThreadScheduledExecutor { r -> Thread(r, "minekt-autosave").apply { isDaemon = true } }
             .also { it.scheduleWithFixedDelay(::saveAll, autosaveSeconds, autosaveSeconds, TimeUnit.SECONDS) }
     }
@@ -71,9 +72,10 @@ class PersistentStore(private val dir: Path, private val autosaveSeconds: Long =
     }
 
     /** Start tracking a live value; it is written out on every save of [store] until [release]. */
+    @Synchronized
     fun bind(store: String, key: String, owner: Any, type: Type, current: () -> Any?) {
         file(store).bindings[key] = Binding(owner, type, current)
-        autosave // start the autosave timer on first use
+        if (!closed) autosave.value // start the autosave timer on first use
     }
 
     /** Write [store] now if anything changed. */
@@ -101,6 +103,22 @@ class PersistentStore(private val dir: Path, private val autosaveSeconds: Long =
                 LOGGER.warn("Couldn't save script data '{}' (will retry)", name, e)
             }
         }
+    }
+
+    /** Write every store with values bound by [owner], including custom/shared stores. */
+    fun saveOwned(owner: Any) {
+        for ((name, file) in files) {
+            if (file.bindings.values.any { it.owner === owner }) save(name)
+        }
+    }
+
+    /** Stop autosaving and save now; final job cleanup may still save its values afterwards. */
+    @Synchronized
+    fun close() {
+        if (closed) return
+        closed = true
+        if (autosave.isInitialized()) autosave.value.shutdownNow()
+        saveAll()
     }
 
     /** Final save of everything [owner] bound, then stop tracking it. */

@@ -8,7 +8,12 @@ import dev.ilgax.minekt.job.Job
 import net.minecraft.client.Minecraft
 import net.minecraft.client.multiplayer.ClientLevel
 import net.minecraft.world.level.block.Block
+import net.minecraft.world.level.block.EntityBlock
+import net.minecraft.world.level.block.entity.BlockEntity
+import net.minecraft.world.level.block.entity.BlockEntityType
 import net.minecraft.world.level.block.state.BlockState
+import net.minecraft.world.level.chunk.LevelChunk
+import java.util.Optional
 
 /**
  * Blocks that scripts show only on this client (`fakeBlock`). Game thread only.
@@ -21,12 +26,14 @@ import net.minecraft.world.level.block.state.BlockState
  */
 object FakeBlocks {
     private data class Key(val dimension: String, val pos: BlockPos)
+    private class RealBlock(val state: BlockState, val entity: BlockEntity?)
+    private var currentLevel: ClientLevel? = null
 
     /** Fakes per block, newest last. */
     private val fakes = LinkedHashMap<Key, ArrayDeque<FakeBlock>>()
 
     /** What the server says is really there. */
-    private val real = HashMap<Key, BlockState>()
+    private val real = HashMap<Key, RealBlock>()
 
     /** Where each fake is. */
     private val keys = java.util.IdentityHashMap<FakeBlock, Key>()
@@ -46,8 +53,9 @@ object FakeBlocks {
 
     /** Show [fake]; returns false if it was this script's first. */
     internal fun add(level: ClientLevel, fake: FakeBlock): Boolean {
+        useLevel(level)
         val key = Key(dimension(level), fake.mcPos)
-        if (key !in real) real[key] = level.getBlockState(fake.mcPos)
+        if (key !in real) real[key] = capture(level, fake.mcPos)
         fakes.getOrPut(key) { ArrayDeque() } += fake
         keys[fake] = key
         active = true
@@ -57,6 +65,7 @@ object FakeBlocks {
 
     internal fun remove(fake: FakeBlock) {
         val level = Minecraft.getInstance().level
+        useLevel(level)
         val key = keys.remove(fake) ?: return
         perJob.computeIfPresent(fake.job) { _, n -> (n - 1).takeIf { it > 0 } }
         val stack = fakes[key] ?: return
@@ -65,7 +74,7 @@ object FakeBlocks {
         if (stack.isEmpty()) {
             fakes.remove(key)
             val original = real.remove(key)
-            if (here && original != null) set(level, key.pos, original)
+            if (here && original != null) restore(level, key.pos, original)
         } else if (here) {
             set(level, key.pos, stack.last().state)
         }
@@ -83,29 +92,78 @@ object FakeBlocks {
     @JvmStatic
     fun serverUpdate(level: ClientLevel, pos: BlockPos, state: BlockState): Boolean {
         if (!active) return false
+        useLevel(level)
         val key = Key(dimension(level), pos)
         if (key !in fakes) return false
-        real[key] = state
+        val previous = real.getValue(key)
+        val entity = if (previous.state.block === state.block) previous.entity
+            else (state.block as? EntityBlock)?.newBlockEntity(pos, state)
+        entity?.let { it.blockState = state; it.setLevel(level) }
+        real[key] = RealBlock(state, entity)
         return true
     }
 
-    /** Put fakes back where something else replaced them. Every tick. */
-    fun tick(level: ClientLevel) {
+    /** Server data belongs to the real block entity, even when a fake hides it. */
+    @JvmStatic
+    @Suppress("UNCHECKED_CAST")
+    fun <T : BlockEntity> blockEntityForUpdate(level: ClientLevel, pos: BlockPos, type: BlockEntityType<T>): Optional<T> {
+        useLevel(level)
+        val original = real[Key(dimension(level), pos)] ?: return level.getBlockEntity(pos, type)
+        val entity = original.entity
+        return if (entity != null && entity.type === type) Optional.of(entity as T) else Optional.empty()
+    }
+
+    /** Chunk packets replace both states and block entities, including ones with the fake's state. */
+    fun chunkLoaded(level: ClientLevel, chunk: LevelChunk) {
+        useLevel(level)
         if (!active) return
+        for ((key, stack) in fakes) {
+            if (key.pos.x shr 4 != chunk.pos.x() || key.pos.z shr 4 != chunk.pos.z()) continue
+            real[key] = capture(level, key.pos)
+            set(level, key.pos, stack.last().state)
+        }
+    }
+
+    /** Put fakes back where something else replaced them. Every tick. */
+    fun tick(level: ClientLevel?) {
+        useLevel(level)
+        if (level == null || !active) return
         val dimension = dimension(level)
         for ((key, stack) in fakes) {
             if (key.dimension != dimension || !level.isLoaded(key.pos)) continue
             val fake = stack.last().state
             val now = level.getBlockState(key.pos)
             if (now != fake) {
-                real[key] = now
+                real[key] = capture(level, key.pos)
                 set(level, key.pos, fake)
             }
         }
     }
 
     /** The real state at [pos], ignoring fakes (null if not faked). */
-    internal fun realState(level: ClientLevel, pos: BlockPos): BlockState? = real[Key(dimension(level), pos)]
+    internal fun realState(level: ClientLevel, pos: BlockPos): BlockState? =
+        if (level === currentLevel) real[Key(dimension(level), pos)]?.state else null
+
+    private fun capture(level: ClientLevel, pos: BlockPos) = RealBlock(level.getBlockState(pos), level.getBlockEntity(pos))
+
+    private fun restore(level: ClientLevel, pos: BlockPos, original: RealBlock) {
+        set(level, pos, original.state)
+        original.entity?.let { entity ->
+            entity.blockState = original.state
+            level.setBlockEntity(entity)
+        }
+    }
+
+    /** ClientLevel identity changes across connections and dimensions; old handles become inert. */
+    private fun useLevel(level: ClientLevel?) {
+        if (currentLevel === level) return
+        fakes.clear()
+        real.clear()
+        keys.clear()
+        perJob.clear()
+        active = false
+        currentLevel = level
+    }
 
     private fun set(level: ClientLevel, pos: BlockPos, state: BlockState) {
         applying = true

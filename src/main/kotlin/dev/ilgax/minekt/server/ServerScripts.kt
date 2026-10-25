@@ -65,8 +65,7 @@ internal class ServerScripts(val server: MinecraftServer) : Host {
     fun stop() {
         ServerPacketHooks.filter = null
         management.close()
-        jobs.storage.saveAll() // jobs save as they end, but the JVM may exit before they get to
-        jobs.killAll()
+        jobs.close()
     }
 
     fun tick() {

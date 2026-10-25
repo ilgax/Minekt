@@ -47,6 +47,7 @@ import net.fabricmc.api.ClientModInitializer
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback
 import net.fabricmc.fabric.api.client.command.v2.ClientCommands
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientChunkEvents
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents
 import net.fabricmc.fabric.api.client.message.v1.ClientSendMessageEvents
@@ -118,6 +119,7 @@ object MinektClient : ClientModInitializer, ClientHost {
             jobs.dispatch(Job.Event.Chat(ChatMessage(message.string, sender?.name)))
         }
         val gameEvents = GameEventSource(jobs, onJoin = { runAutorun(it, joined = true) }, onDimensionChange = { runAutorun(it, joined = false) }).apply { register() }
+        ClientChunkEvents.CHUNK_LOAD.register(FakeBlocks::chunkLoaded)
         InputHooks.filter = jobs::filterInput
         InputHooks.observer = { recorder.input(Minecraft.getInstance(), it) }
         PacketHooks.filter = PacketHooks.Filter { packet, incoming ->
@@ -129,7 +131,7 @@ object MinektClient : ClientModInitializer, ClientHost {
             ScriptKeys.tick(mc)
             InputHooks.listening = jobs.wantsInput(RawKey::class.java) || jobs.wantsInput(RawMouseButton::class.java) || jobs.wantsInput(RawScroll::class.java) || recorder.isRecording
             InputHooks.listeningToMoves = jobs.wantsInput(RawMouseMove::class.java)
-            mc.level?.let(FakeBlocks::tick)
+            FakeBlocks.tick(mc.level)
             if (mc.level != null) ScriptRenderer.submitTick()
             ScriptHud.tick()
             gameEvents.tick(mc)
@@ -144,8 +146,8 @@ object MinektClient : ClientModInitializer, ClientHost {
         CompilerSetup.startInBackground(scriptDir.resolve("lib"), ::notifyCompiler, ScriptCompiler)
         ClientLifecycleEvents.CLIENT_STARTED.register { runStartup() }
         ClientLifecycleEvents.CLIENT_STOPPING.register {
-            jobs.storage.saveAll() // jobs save as they end, but the JVM may exit before they get to
-            jobs.killAll()
+            jobs.close()
+            FakeBlocks.tick(null)
         }
     }
 

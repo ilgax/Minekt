@@ -37,7 +37,7 @@ class ScriptLogs(val dir: Path) {
             while (entries.size > MAX_RECENT) entries.removeFirst()
         }
         changes.incrementAndGet()
-        writer.execute { runCatching { write(script, entry) } }
+        enqueue { write(script, entry) }
     }
 
     /** This session's entries for [script], oldest first. */
@@ -55,12 +55,23 @@ class ScriptLogs(val dir: Path) {
     fun clear(script: String) {
         recent.remove(script)
         changes.incrementAndGet()
-        writer.execute { runCatching { Files.deleteIfExists(file(script)); Files.deleteIfExists(oldFile(script)) } }
+        enqueue { Files.deleteIfExists(file(script)); Files.deleteIfExists(oldFile(script)) }
     }
 
     /** Wait until everything added so far is on disk. */
     fun flush() {
-        runCatching { writer.submit {}.get(5, TimeUnit.SECONDS) }
+        val pending = synchronized(writer) {
+            if (writer.isShutdown) return
+            writer.submit {}
+        }
+        runCatching { pending.get(5, TimeUnit.SECONDS) }
+    }
+
+    /** Finish queued writes and release the writer after this host's final job has exited. */
+    fun close() = synchronized(writer) { writer.shutdown() }
+
+    private fun enqueue(write: () -> Unit) = synchronized(writer) {
+        if (!writer.isShutdown) writer.execute { runCatching(write) }
     }
 
     private fun oldFile(script: String) = dir.resolve("$script.old.log")

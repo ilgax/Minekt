@@ -102,11 +102,12 @@ class ScriptInstaller(
         val existing = scriptDir.resolve("$name.kts").takeIf { it.exists() }?.readText()
         val previewDir = scriptDir.resolve(".pending")
         Files.createDirectories(previewDir)
-        val preview = previewDir.resolve("$name.kts")
+        val token = UUID.randomUUID().toString()
+        val preview = previewDir.resolve("$name-$token.kts")
         Files.writeString(preview, text)
 
         val install = Pending(
-            token = UUID.randomUUID().toString().take(8),
+            token = token,
             name = name,
             text = text,
             source = source,
@@ -134,7 +135,11 @@ class ScriptInstaller(
 
     private fun prune() {
         val cutoff = System.currentTimeMillis() - EXPIRY_MS
-        pending.values.removeIf { it.createdAt < cutoff }
+        for ((token, install) in pending) {
+            if (install.createdAt < cutoff && pending.remove(token, install)) {
+                runCatching { Files.deleteIfExists(install.previewFile) }
+            }
+        }
     }
 
     companion object {

@@ -6,16 +6,22 @@ import net.minecraft.core.Direction
 import net.minecraft.core.component.DataComponents
 import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.server.level.ServerPlayer
+import net.minecraft.server.level.ServerLevel
 import net.minecraft.server.permissions.Permissions
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.EquipmentSlot
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.ClipContext
+import net.minecraft.world.level.BlockGetter
 import net.minecraft.world.level.Level
 import net.minecraft.world.level.LightLayer
 import net.minecraft.world.level.block.entity.SignBlockEntity
 import net.minecraft.world.level.block.entity.SignTextSlot
+import net.minecraft.world.level.block.entity.BlockEntity
+import net.minecraft.world.level.block.Blocks
+import net.minecraft.world.level.block.state.BlockState
+import net.minecraft.world.level.material.FluidState
 import net.minecraft.world.phys.AABB
 import net.minecraft.world.phys.HitResult
 import net.minecraft.world.phys.shapes.CollisionContext
@@ -112,9 +118,11 @@ internal fun Level.raycast(
     if (blocks) {
         val shape = if (solidOnly) ClipContext.Block.COLLIDER else ClipContext.Block.OUTLINE
         val fluid = if (fluids) ClipContext.Fluid.ANY else ClipContext.Fluid.NONE
-        val hit = clip(ClipContext(from, to, shape, fluid, CollisionContext.empty()))
+        val view = if (this is ServerLevel) LoadedBlockView(this) else this
+        val hit = view.clip(ClipContext(from, to, shape, fluid, CollisionContext.empty()))
         if (hit.type == HitResult.Type.BLOCK) {
-            best = RayHit.Block(hit.blockPos.immutable(), blockId(hit.blockPos), hit.direction.toApi(), hit.location, from.distanceTo(hit.location))
+            val id = BuiltInRegistries.BLOCK.getKey(view.getBlockState(hit.blockPos).block).toString()
+            best = RayHit.Block(hit.blockPos.immutable(), id, hit.direction.toApi(), hit.location, from.distanceTo(hit.location))
         }
     }
     if (entities) {
@@ -127,6 +135,21 @@ internal fun Level.raycast(
         }
     }
     return best
+}
+
+/** Shape queries may read neighboring blocks too: none of these lookups may load a server chunk. */
+private class LoadedBlockView(private val level: ServerLevel) : BlockGetter {
+    override fun getBlockState(pos: BlockPos): BlockState =
+        level.chunkSource.getChunkNow(pos.x shr 4, pos.z shr 4)?.getBlockState(pos) ?: Blocks.AIR.defaultBlockState()
+
+    override fun getFluidState(pos: BlockPos): FluidState = getBlockState(pos).fluidState
+
+    override fun getBlockEntity(pos: BlockPos): BlockEntity? =
+        level.chunkSource.getChunkNow(pos.x shr 4, pos.z shr 4)?.getBlockEntity(pos)
+
+    override fun getHeight(): Int = level.height
+
+    override fun getMinY(): Int = level.minY
 }
 
 
