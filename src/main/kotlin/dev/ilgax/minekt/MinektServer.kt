@@ -254,8 +254,8 @@ object MinektServer : ModInitializer {
                 .then(
                     // Clickable chat text made with ChatClick.run, which goes to the players who get scripts' messages.
                     Commands.literal("click").requires(allowed(Node.NOTIFY)).then(
-                        Commands.argument("id", LongArgumentType.longArg()).executes(command { ctx, _ ->
-                            if (!ChatClicks.click(LongArgumentType.getLong(ctx, "id"))) reply(ctx.source, "That script isn't running anymore")
+                        Commands.argument("id", LongArgumentType.longArg()).executes(command { ctx, scripts ->
+                            if (!ChatClicks.click(LongArgumentType.getLong(ctx, "id"), scripts)) reply(ctx.source, "That script isn't running anymore")
                         }),
                     ),
                 ),

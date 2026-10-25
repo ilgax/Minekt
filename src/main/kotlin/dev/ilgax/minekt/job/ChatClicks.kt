@@ -18,9 +18,10 @@ object ChatClicks {
         return id
     }
 
-    /** The player clicked [id]: false if its script has ended. */
-    fun click(id: Long): Boolean {
+    /** The player clicked [id] on [host]: callbacks never cross client/server instances. */
+    fun click(id: Long, host: Host): Boolean {
         val job = owners[id] ?: return false
+        if (job.host !== host) return false
         if (job.state == Job.State.DONE) {
             owners.remove(id)
             return false

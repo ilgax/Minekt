@@ -247,6 +247,35 @@ class ScriptEngineTest {
     }
 
     @Test
+    fun `await predicate errors return to the script without interrupting other jobs`() {
+        val waiting = jobs.eval(
+            """
+            runBlocking {
+                launch(start = CoroutineStart.UNDISPATCHED) {
+                    try {
+                        awaitChat { error("bad predicate") }
+                    } catch (e: IllegalStateException) {
+                        echo("caught", e.message)
+                    }
+                }
+                echo("ready")
+            }
+            """.trimIndent(),
+        )
+        assertEquals(MessageKind.SCRIPT to "ready", host.next())
+        val listening = jobs.eval("""onChat { echo("heard", it.text); stop() }""")
+        awaitListening(listening)
+
+        jobs.dispatch(Job.Event.Chat(dev.ilgax.minekt.api.ChatMessage("hello")))
+        awaitDone(waiting)
+        awaitDone(listening)
+        assertEquals(
+            setOf(MessageKind.SCRIPT to "caught bad predicate", MessageKind.SCRIPT to "heard hello"),
+            setOf(host.next(), host.next()),
+        )
+    }
+
+    @Test
     fun `killing a script cancels its coroutines, even blocked ones`() {
         val job = jobs.eval("""launch { while (true) sleep(10) }; launch { awaitChat() }""")
         awaitListening(job)

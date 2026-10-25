@@ -23,16 +23,18 @@ import kotlin.script.experimental.api.SourceCode
 import kotlin.script.experimental.api.dependencies
 import kotlin.script.experimental.api.importScripts
 import kotlin.script.experimental.host.FileBasedScriptSource
+import kotlin.script.experimental.host.FileScriptSource
 import kotlin.script.experimental.jvm.JvmDependency
 import kotlin.script.experimental.jvm.impl.KJvmCompiledModuleInMemory
 import kotlin.script.experimental.jvm.impl.KJvmCompiledScript
 
 /**
  * Compiled scripts on disk, in `minekt/lib/compiled/`, so a script that hasn't changed starts without
- * compiling, even right after launch. An entry's name is a hash of everything the compiled classes depend
- * on: the script's text, the text of every file it imports (and they import), the template, and the
- * classpath and Kotlin version it was compiled against. Editing a script or an import, or updating a mod,
- * gives a new name, so stale entries are never read; the oldest are deleted once there are too many.
+ * compiling, even right after launch. An entry's name covers the script's location and text, template,
+ * classpath and Kotlin version. Its compiled metadata keeps the source snapshots of every resolved
+ * import, including nested helpers; those are checked against disk before the entry can be used.
+ * Editing a helper invalidates the entry regardless of annotation spelling. The oldest entries are
+ * deleted once there are too many.
  * Anything that can't be stored or read back is simply compiled again.
  */
 object CompiledScriptCache {
@@ -51,12 +53,11 @@ object CompiledScriptCache {
     }
 
     private fun entryIn(dir: Path, template: KClass<*>, source: SourceCode): Path {
-        val baseDir = (source as? FileBasedScriptSource)?.file?.parentFile ?: ScriptClasspath.scriptDir?.toFile()
-        val imports = sortedMapOf<String, String>().also { imports(source.text, baseDir, it) }
         val key = buildString {
             append(FORMAT).append('\n').append(template.java.name).append('\n').append(environment)
-            append(source.locationId).append('\n').append(source.text).append('\n')
-            for ((path, text) in imports) append(path).append('\n').append(text).append('\n')
+            append((source as? FileBasedScriptSource)?.file?.absolutePath ?: source.locationId).append('\n')
+            append(source.name).append('\n').append(source.text).append('\n')
+            if (source !is FileBasedScriptSource) append(ScriptClasspath.scriptDir).append('\n')
         }
         return dir.resolve(sha256(key) + SUFFIX)
     }
@@ -75,21 +76,20 @@ object CompiledScriptCache {
         }
         // @file:DependsOn jars are on its classpath: if one was deleted, resolve them again by compiling.
         if (!dependencyFiles(script).all(File::exists)) return null
+        val imports = importFingerprints(script) ?: return null
+        if (!importsUnchanged(imports)) return null
         runCatching { Files.setLastModifiedTime(entry, FileTime.fromMillis(System.currentTimeMillis())) }
         return script
     }
 
-    /** Write [compiled] (from [source]) to [entry]; failing quietly, since the script still runs. */
-    internal fun store(entry: Path, source: SourceCode, compiled: CompiledScript) {
+    /** Write [compiled] to [entry]; failing quietly, since the script still runs. */
+    internal fun store(entry: Path, compiled: CompiledScript) {
         val dir = entry.parent
         var temp: Path? = null
         try {
             val script = portable(compiled as KJvmCompiledScript) ?: return
-            // Every import the compiler used must be in the entry's name, or editing it wouldn't be noticed.
-            val baseDir = (source as? FileBasedScriptSource)?.file?.parentFile ?: ScriptClasspath.scriptDir?.toFile()
-            val named = mutableMapOf<String, String>().also { imports(source.text, baseDir, it) }.keys
-            val used = importedFiles(script) ?: return
-            if (!named.containsAll(used)) return
+            // Force the actual source snapshots into the serialized metadata; never guess imports from text.
+            if (importFingerprints(script) == null) return
 
             val bytes = ByteArrayOutputStream().also { out -> ObjectOutputStream(out).use { it.writeObject(script) } }.toByteArray()
             Files.createDirectories(dir)
@@ -116,15 +116,30 @@ object CompiledScriptCache {
         return KJvmCompiledScript(script.sourceLocationId, script.compilationConfiguration, script.scriptClassFQName, script.resultField, others, module)
     }
 
-    /** The files the compiler imported into [script] and the scripts it imported, or null if one isn't a file. */
-    private fun importedFiles(script: CompiledScript): Set<String>? {
-        val files = mutableSetOf<String>()
-        for (s in scriptTree(script)) {
-            for (source in s.compilationConfiguration[ScriptCompilationConfiguration.importScripts].orEmpty()) {
-                files += (source as? FileBasedScriptSource)?.file?.absolutePath ?: return null
+    /** Fingerprint the source snapshots the compiler actually read, not today's contents of those files. */
+    internal fun importFingerprints(script: CompiledScript): Map<Path, String>? {
+        return try {
+            val fingerprints = mutableMapOf<Path, String>()
+            for (s in scriptTree(script)) {
+                for (source in s.compilationConfiguration[ScriptCompilationConfiguration.importScripts].orEmpty()) {
+                    val path = (source as? FileBasedScriptSource)?.file?.toPath()?.toAbsolutePath() ?: return null
+                    val hash = sha256(source.text)
+                    val previous = fingerprints.put(path, hash)
+                    if (previous != null && previous != hash) return null
+                }
             }
+            fingerprints
+        } catch (e: Exception) {
+            logger.debug("Couldn't fingerprint imports of {}: {}", script.sourceLocationId, e.toString())
+            null
         }
-        return files
+    }
+
+    /** A fresh source uses the same UTF-8/BOM handling as the compiler. Missing files invalidate the entry. */
+    internal fun importsUnchanged(imports: Map<Path, String>): Boolean = try {
+        imports.all { (path, hash) -> sha256(FileScriptSource(path.toFile()).text) == hash }
+    } catch (_: Exception) {
+        false
     }
 
     private fun dependencyFiles(script: CompiledScript): List<File> = scriptTree(script).flatMap { s ->
@@ -132,24 +147,6 @@ object CompiledScriptCache {
     }.distinct()
 
     private fun scriptTree(script: CompiledScript): List<CompiledScript> = listOf(script) + script.otherScripts.flatMap(::scriptTree)
-
-    /**
-     * The files [text] imports with `@file:Import`, and those they import in turn, with their text: paths
-     * resolve against [baseDir] like the compiler's (see `resolveImports`). A file that's missing counts as
-     * empty (the compiler reports it); one this misses is caught by [store] comparing with the compiler's.
-     */
-    private fun imports(text: String, baseDir: File?, into: MutableMap<String, String>) {
-        for (annotation in IMPORT.findAll(text)) {
-            for (literal in STRING.findAll(annotation.groupValues[1])) {
-                val path = literal.groupValues[1]
-                val file = (File(path).takeIf { it.isAbsolute } ?: File(baseDir, path)).absoluteFile
-                if (file.absolutePath in into) continue
-                val content = runCatching { file.readText() }.getOrDefault("")
-                into[file.absolutePath] = content
-                imports(content, file.parentFile, into)
-            }
-        }
-    }
 
     /** What every entry's name includes: the Kotlin version and the classpath, by file size and modification time. */
     private val environment: String by lazy {
@@ -198,11 +195,9 @@ object CompiledScriptCache {
     private val warned = AtomicBoolean()
 
     /** Bump when what's stored changes shape. */
-    private const val FORMAT = 1
+    private const val FORMAT = 2
     private const val SUFFIX = ".bin"
     private const val MAX_ENTRIES = 256
-    private val IMPORT = Regex("""@file\s*:\s*Import\s*\(([^)]*)\)""")
-    private val STRING = Regex(""""((?:[^"\\]|\\.)*)"""")
 }
 
 /** A compiled script's classes, in a form that can be written to disk. */

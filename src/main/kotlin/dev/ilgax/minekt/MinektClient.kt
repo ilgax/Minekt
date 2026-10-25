@@ -265,7 +265,7 @@ object MinektClient : ClientModInitializer, ClientHost {
                     // Clickable chat text made with ChatClick.run.
                     ClientCommands.literal("click").then(
                         ClientCommands.argument("id", LongArgumentType.longArg()).executes { ctx ->
-                            if (!ChatClicks.click(LongArgumentType.getLong(ctx, "id"))) echo("That script isn't running anymore", MessageKind.INFO)
+                            if (!ChatClicks.click(LongArgumentType.getLong(ctx, "id"), MinektClient)) echo("That script isn't running anymore", MessageKind.INFO)
                             1
                         },
                     ),

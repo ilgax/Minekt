@@ -52,9 +52,10 @@ class ChatTextTest {
         assertEquals("Found [again] here", host.next())
         awaitState(job, Job.State.LISTENING)
         val id = job.clickActions.keys.single()
-        assertTrue(ChatClicks.click(id))
+        assertFalse(ChatClicks.click(id, TestHost()), "another host must not invoke or consume this callback")
+        assertTrue(ChatClicks.click(id, host))
         assertEquals("clicked", host.next())
         awaitState(job, Job.State.DONE)
-        assertFalse(ChatClicks.click(id), "a click after the script ended does nothing")
+        assertFalse(ChatClicks.click(id, host), "a click after the script ended does nothing")
     }
 }

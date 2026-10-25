@@ -297,7 +297,18 @@ class Job internal constructor(
     internal fun post(event: Event) {
         if (state != State.LISTENING && state != State.RUNNING) return
         for (waiter in waiters) {
-            if (waiter.matches(event) && waiter.result.complete(event)) waiters -= waiter
+            if (waiter.result.isCompleted) {
+                waiters -= waiter
+                continue
+            }
+            val matches = try {
+                waiter.matches(event)
+            } catch (t: Throwable) {
+                waiters -= waiter
+                waiter.result.completeExceptionally(t)
+                continue
+            }
+            if (matches && waiter.result.complete(event)) waiters -= waiter
         }
         val wanted = when (event) {
             Event.Tick -> tickHandlers.isNotEmpty() && tickQueued.compareAndSet(false, true)

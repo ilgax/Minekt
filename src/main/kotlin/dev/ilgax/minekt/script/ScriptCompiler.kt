@@ -9,6 +9,7 @@ import java.util.WeakHashMap
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.script.experimental.api.*
 import kotlin.script.experimental.host.ScriptingHostConfiguration
+import kotlin.script.experimental.host.FileBasedScriptSource
 import kotlin.script.experimental.host.createCompilationConfigurationFromTemplate
 import kotlin.script.experimental.host.toScriptSource
 import kotlin.script.experimental.jvm.baseClassLoader
@@ -45,7 +46,8 @@ open class TemplateCompiler(private val template: KClass<*>) {
         createCompilationConfigurationFromTemplate(KotlinType(template), host, template)
     }
     private val compiler by lazy { JvmScriptCompiler(host) }
-    private val cache = ConcurrentHashMap<String, CompiledScript>()
+    private class Cached(val script: CompiledScript, val imports: Map<Path, String>)
+    private val cache = ConcurrentHashMap<String, Cached>()
 
     fun compile(source: SourceCode): ResultWithDiagnostics<CompiledScript> =
         compile(source, configuration, cacheKey(source), CompiledScriptCache.entryFor(template, source))
@@ -54,28 +56,33 @@ open class TemplateCompiler(private val template: KClass<*>) {
     fun compileEval(code: String, configure: ScriptCompilationConfiguration.Builder.() -> Unit): ResultWithDiagnostics<CompiledScript> {
         val source = code.toScriptSource("eval.kts")
         val config = ScriptCompilationConfiguration(configuration, body = configure)
-        // Evals are often generated on the fly: keep the cache from growing without bound.
-        if (cache.size > MAX_CACHED) cache.clear()
         return compile(source, config, "eval+" + cacheKey(source))
     }
 
     /** [entry]: where the result is kept on disk, or null for memory only. */
     private fun compile(source: SourceCode, config: ScriptCompilationConfiguration, key: String, entry: Path? = null): ResultWithDiagnostics<CompiledScript> {
-        cache[key]?.let { return it.asSuccess() }
-        // Scripts with @file:Import depend on other files, so only cache self-contained ones in memory.
-        // On disk, the entry's name covers the imports too.
-        val selfContained = "@file:Import" !in source.text
+        cache[key]?.let { stored ->
+            if (CompiledScriptCache.importsUnchanged(stored.imports)) return stored.script.asSuccess()
+            cache.remove(key, stored)
+        }
         entry?.let(CompiledScriptCache::load)?.let { stored ->
-            if (selfContained) cache[key] = stored
+            remember(key, stored)
             return stored.asSuccess()
         }
         CompilerSetup.awaitReady()
         val result = synchronized(compileLock) { runBlocking { compiler(source, config) } }
         if (result is ResultWithDiagnostics.Success) {
-            if (selfContained) cache[key] = result.value
-            entry?.let { CompiledScriptCache.store(it, source, result.value) }
+            remember(key, result.value)
+            entry?.let { CompiledScriptCache.store(it, result.value) }
         }
         return result
+    }
+
+    /** The compiler's resolved sources cover every annotation spelling and nested helper. */
+    private fun remember(key: String, script: CompiledScript) {
+        val imports = CompiledScriptCache.importFingerprints(script) ?: return
+        if (cache.size >= MAX_CACHED) cache.clear()
+        cache[key] = Cached(script, imports)
     }
 
     private val instrumented = Collections.synchronizedMap(WeakHashMap<CompiledScript, Map<String, ByteArray>>())
@@ -119,7 +126,10 @@ open class TemplateCompiler(private val template: KClass<*>) {
 
     private fun cacheKey(source: SourceCode): String {
         val digest = MessageDigest.getInstance("SHA-256").digest(source.text.toByteArray())
-        return "${source.name}:${digest.joinToString("") { "%02x".format(it) }}"
+        // Identical files in different folders may resolve their relative imports differently.
+        val location = (source as? FileBasedScriptSource)?.file?.absolutePath
+            ?: "${ScriptClasspath.scriptDir}:${source.locationId}"
+        return "$location:${source.name}:${digest.joinToString("") { "%02x".format(it) }}"
     }
 
     private companion object {
