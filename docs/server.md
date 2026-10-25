@@ -196,5 +196,4 @@ disappear when the script ends. A name that's already a command of the game or a
 | Hooks, class rewrites, packets (experimental) | ✔ | ✔ |
 | Moving, looking, keys, clicking, HUD, drawing, screens, glow, fake blocks, Baritone | ✔ | — (they're about your own game) |
 
-> Server scripts aren't sandboxed: they run with the server's own access, so besides the game they can read and change
-> files on the server's computer, run programs and use the network. Only run scripts you trust.
+> Scripts can do anything on the server's computer, not just in the game. Only run scripts you trust.
