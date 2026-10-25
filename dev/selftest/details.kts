@@ -15,7 +15,7 @@ fun server(command: String) = game { mc ->
 }
 
 var waited = 0
-while (blockId(player.position.blockPos.below()) == "minecraft:void_air" && waited < 1200) { waitTicks(20); waited += 20 }
+while (blockAt(BlockPos.containing(player.position).below()).id == "minecraft:void_air" && waited < 1200) { waitTicks(20); waited += 20 }
 waitTicks(40)
 val me = player.name
 server("gamemode survival $me")
@@ -58,24 +58,24 @@ check("container slots carry the same details") {
 }
 
 check("block state: ripe wheat has age 7") {
-    val wheat = blockAt(2, 200, 3)
+    val wheat = blockAt(BlockPos(2, 200, 3))
     (wheat.id == "minecraft:wheat" && wheat.properties["age"] == "7" && !wheat.isSolid) then wheat.properties
 }
 check("light: a torch gives off light, the night sky doesn't") {
-    val torch = blockAt(-2, 200, 3)
-    val nextTo = blockAt(-1, 200, 3)
-    val open = blockAt(5, 200, 12)
+    val torch = blockAt(BlockPos(-2, 200, 3))
+    val nextTo = blockAt(BlockPos(-1, 200, 3))
+    val open = blockAt(BlockPos(5, 200, 12))
     (torch.lightEmission == 14 && nextTo.blockLight == 13 && open.skyLight == 15 && open.light < open.skyLight) then
         "torch emits ${torch.lightEmission}, next to it block light ${nextTo.blockLight}; open ground sky ${open.skyLight}, light now ${open.light}"
 }
 check("a sign's text") {
-    val sign = blockAt(0, 200, 5)
+    val sign = blockAt(BlockPos(0, 200, 5))
     (sign.signFront == listOf("Shop", "Diamonds", "5 each", "") && sign.signBack == listOf("", "", "", "")) then sign.signFront
 }
 check("hardness, air, solid and biome") {
-    val obsidian = blockAt(3, 200, 5)
-    val bedrock = blockAt(4, 200, 5)
-    val air = blockAt(0, 202, 0)
+    val obsidian = blockAt(BlockPos(3, 200, 5))
+    val bedrock = blockAt(BlockPos(4, 200, 5))
+    val air = blockAt(BlockPos(0, 202, 0))
     (obsidian.hardness == 50f && obsidian.isSolid && bedrock.hardness == -1f && air.isAir && air.biome.startsWith("minecraft:")) then
         "obsidian ${obsidian.hardness}, bedrock ${bedrock.hardness}, biome ${air.biome}"
 }

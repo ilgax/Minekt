@@ -17,5 +17,5 @@ for (slot in container.playerSlots.filter { it.id == item }) {
     moved += slot.count
     waitTicks(1)
 }
-closeScreen()
+game { it.player!!.closeContainer() }
 echo("Moved $moved $item into the ${chest.title}")

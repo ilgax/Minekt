@@ -2,11 +2,13 @@
 // display can't show: real frame rates, real mouse and keyboard input, clicking chat. Open a singleplayer
 // world (creative is fine), run \prismcheck and follow the big text on screen. It takes about two minutes.
 // Results go to chat and to minekt/prismcheck-result.txt, to paste back.
-@file:OptIn(ExperimentalFabricEvents::class)
 
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
+
+fun modVersion(id: String): String? =
+    net.fabricmc.loader.api.FabricLoader.getInstance().getModContainer(id).map { it.metadata.version.friendlyString }.orElse(null)
 
 val results = CopyOnWriteArrayList<String>()
 

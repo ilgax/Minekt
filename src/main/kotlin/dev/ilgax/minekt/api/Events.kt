@@ -21,7 +21,7 @@ enum class StopReason {
  * say goodbye. The API still works in it, even after `\kill` (for up to 3 seconds). Doesn't keep the
  * script running.
  */
-fun Minekt.onStop(handler: (reason: StopReason) -> Unit): Handler {
+fun ScriptContext.onStop(handler: (reason: StopReason) -> Unit): Handler {
     job.checkAlive()
     return addHandler(job.stopHandlers, handler)
 }

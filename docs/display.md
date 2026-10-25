@@ -34,7 +34,7 @@ The Glowing effect's outline on any entity, in any color, seen through walls, on
 @file:OptIn(ExperimentalVisuals::class)
 
 for (e in entities(32.0)) if (e.type == "minecraft:zombie") glow(e, Color.RED)
-val g = glow(targetedEntity ?: return, Color.YELLOW)
+val g = glow(entities(8.0).firstOrNull() ?: return, Color.YELLOW)
 g.color = Color.GREEN                                     // change it while it shows
 g.remove()
 ```

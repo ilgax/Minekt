@@ -11,7 +11,7 @@ command("mark") { args ->
 }
 command("goto", completions = listOf("home")) { args ->
     val target = marks[args.firstOrNull() ?: "home"] ?: return@command echo("No such mark")
-    lookAt(target)
+    lookAt(target.x, target.y, target.z)
     echo("%.0f blocks that way".format(player.position.distanceTo(target)))
 }
 echo("Commands ready: /coords, /mark, /goto (\\kill $jobId to remove them)")

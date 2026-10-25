@@ -5,7 +5,8 @@ package dev.ilgax.minekt.api
 import dev.ilgax.minekt.hooks.MethodHooks
 import java.lang.reflect.Method
 
-// Run code before or after any method of the game or another mod, even though it's already loaded:
+// Run code before or after any method of the game or another mod, even though it's already loaded. In client and
+// server scripts alike:
 //
 //   hook<LocalPlayer>("jumpFromGround") { echo("jump!") }
 //   hook<LocalPlayer>("jumpFromGround") { it.cancel() }                     // skip the method
@@ -54,33 +55,33 @@ class MethodHook internal constructor(private val remove: () -> Unit) {
 
 /** Run [handler] before every call of [owner]'s method [name] (pass [parameterTypes] if it's overloaded). */
 @ExperimentalHooks
-fun Minekt.hook(owner: Class<*>, name: String, vararg parameterTypes: Class<*>, handler: (HookCall) -> Unit): MethodHook =
+fun ScriptContext.hook(owner: Class<*>, name: String, vararg parameterTypes: Class<*>, handler: (HookCall) -> Unit): MethodHook =
     addHook(findMethod(owner, name, parameterTypes), after = false, handler)
 
 @ExperimentalHooks
-fun Minekt.hook(className: String, name: String, vararg parameterTypes: Class<*>, handler: (HookCall) -> Unit): MethodHook =
+fun ScriptContext.hook(className: String, name: String, vararg parameterTypes: Class<*>, handler: (HookCall) -> Unit): MethodHook =
     hook(loadClass(className), name, *parameterTypes, handler = handler)
 
 @ExperimentalHooks
-inline fun <reified T> Minekt.hook(name: String, vararg parameterTypes: Class<*>, noinline handler: (HookCall) -> Unit): MethodHook =
+inline fun <reified T> ScriptContext.hook(name: String, vararg parameterTypes: Class<*>, noinline handler: (HookCall) -> Unit): MethodHook =
     hook(T::class.java, name, *parameterTypes, handler = handler)
 
 /** Run [handler] after every call of [owner]'s method [name], with `result` set to what it returned. */
 @ExperimentalHooks
-fun Minekt.hookAfter(owner: Class<*>, name: String, vararg parameterTypes: Class<*>, handler: (HookCall) -> Unit): MethodHook =
+fun ScriptContext.hookAfter(owner: Class<*>, name: String, vararg parameterTypes: Class<*>, handler: (HookCall) -> Unit): MethodHook =
     addHook(findMethod(owner, name, parameterTypes), after = true, handler)
 
 @ExperimentalHooks
-fun Minekt.hookAfter(className: String, name: String, vararg parameterTypes: Class<*>, handler: (HookCall) -> Unit): MethodHook =
+fun ScriptContext.hookAfter(className: String, name: String, vararg parameterTypes: Class<*>, handler: (HookCall) -> Unit): MethodHook =
     hookAfter(loadClass(className), name, *parameterTypes, handler = handler)
 
 @ExperimentalHooks
-inline fun <reified T> Minekt.hookAfter(name: String, vararg parameterTypes: Class<*>, noinline handler: (HookCall) -> Unit): MethodHook =
+inline fun <reified T> ScriptContext.hookAfter(name: String, vararg parameterTypes: Class<*>, noinline handler: (HookCall) -> Unit): MethodHook =
     hookAfter(T::class.java, name, *parameterTypes, handler = handler)
 
-private fun Minekt.loadClass(name: String): Class<*> =
+private fun loadClass(name: String): Class<*> =
     try {
-        Class.forName(name, false, Minekt::class.java.classLoader)
+        Class.forName(name, false, ScriptContext::class.java.classLoader)
     } catch (e: ClassNotFoundException) {
         throw IllegalArgumentException("No class named $name")
     }
@@ -104,7 +105,7 @@ private fun findMethod(owner: Class<*>, name: String, parameterTypes: Array<out 
     }
 }
 
-private fun Minekt.addHook(method: Method, after: Boolean, handler: (HookCall) -> Unit): MethodHook {
+private fun ScriptContext.addHook(method: Method, after: Boolean, handler: (HookCall) -> Unit): MethodHook {
     job.checkAlive()
     return MethodHook(MethodHooks.add(job, method, after, handler))
 }

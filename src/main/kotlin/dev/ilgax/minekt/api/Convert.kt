@@ -2,26 +2,36 @@ package dev.ilgax.minekt.api
 
 import net.minecraft.world.phys.Vec3
 import net.minecraft.core.BlockPos
-import net.minecraft.client.KeyMapping
 import net.minecraft.core.Direction
 import net.minecraft.core.component.DataComponents
 import net.minecraft.core.registries.BuiltInRegistries
+import net.minecraft.server.level.ServerPlayer
+import net.minecraft.server.permissions.Permissions
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.EquipmentSlot
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.item.ItemStack
+import net.minecraft.world.level.ClipContext
 import net.minecraft.world.level.Level
+import net.minecraft.world.level.LightLayer
+import net.minecraft.world.level.block.entity.SignBlockEntity
+import net.minecraft.world.level.block.entity.SignTextSlot
+import net.minecraft.world.phys.AABB
+import net.minecraft.world.phys.HitResult
+import net.minecraft.world.phys.shapes.CollisionContext
 
-// Conversions from live game objects to the plain snapshot types scripts see. Client thread only.
+// Conversions from live game objects to the plain snapshot types scripts see, on the game's thread: the
+// client's or the server's. Used by both sides, so nothing here may touch client classes.
 
-internal fun Entity.toInfo(self: Entity?) = EntityInfo(
+/** [self]: whose distance [EntityInfo.distance] is, or [origin]: from where (else 0). */
+internal fun Entity.toInfo(self: Entity?, origin: Vec3? = null) = EntityInfo(
     id = id,
     uuid = uuid.toString(),
     name = name.string,
     type = BuiltInRegistries.ENTITY_TYPE.getKey(type).toString(),
     position = Vec3(x, y, z),
     health = (this as? LivingEntity)?.health,
-    distance = self?.distanceTo(this)?.toDouble() ?: 0.0,
+    distance = origin?.let { position().distanceTo(it) } ?: self?.distanceTo(this)?.toDouble() ?: 0.0,
     maxHealth = (this as? LivingEntity)?.maxHealth,
     customName = customName?.string,
     isBaby = (this as? LivingEntity)?.isBaby == true,
@@ -39,6 +49,9 @@ internal fun Entity.toInfo(self: Entity?) = EntityInfo(
     glowing = isCurrentlyGlowing,
     onFire = isOnFire,
     vehicleId = vehicle?.id,
+    dimension = level().dimension().identifier().toString(),
+    gameMode = (this as? ServerPlayer)?.gameMode()?.serializedName,
+    isOp = (this as? ServerPlayer)?.permissions()?.hasPermission(Permissions.COMMANDS_GAMEMASTER),
 )
 
 internal fun ItemStack.toInfo(slot: Int): ItemStackInfo {
@@ -61,6 +74,60 @@ internal fun ItemStack.toInfo(slot: Int): ItemStackInfo {
 }
 
 internal fun Level.blockId(pos: BlockPos): String = BuiltInRegistries.BLOCK.getKey(getBlockState(pos).block).toString()
+
+/** Everything about the block at [pos], for `blockAt`. */
+internal fun Level.blockInfo(pos: BlockPos): BlockInfo {
+    val state = getBlockState(pos)
+    val sign = getBlockEntity(pos) as? SignBlockEntity
+    fun lines(slot: SignTextSlot) = sign?.getText(slot)?.getMessages(false)?.map { it.string }
+    return BlockInfo(
+        pos = pos,
+        id = BuiltInRegistries.BLOCK.getKey(state.block).toString(),
+        properties = state.values.toList().associate { it.property().name to it.valueName() },
+        biome = getBiome(pos).registeredName,
+        skyLight = getBrightness(LightLayer.SKY, pos),
+        blockLight = getBrightness(LightLayer.BLOCK, pos),
+        light = getMaxLocalRawBrightness(pos),
+        isAir = state.isAir,
+        isSolid = state.isSolid,
+        hardness = state.getDestroySpeed(this, pos),
+        lightEmission = state.lightEmission,
+        signFront = lines(SignTextSlot.FRONT),
+        signBack = lines(SignTextSlot.BACK),
+    )
+}
+
+/** The first block or entity from [from] to [to] (see `raycast`), never [exclude]; [info] makes the entity's snapshot. */
+internal fun Level.raycast(
+    from: Vec3,
+    to: Vec3,
+    blocks: Boolean,
+    entities: Boolean,
+    fluids: Boolean,
+    solidOnly: Boolean,
+    exclude: Entity?,
+    info: (Entity) -> EntityInfo,
+): RayHit? {
+    var best: RayHit? = null
+    if (blocks) {
+        val shape = if (solidOnly) ClipContext.Block.COLLIDER else ClipContext.Block.OUTLINE
+        val fluid = if (fluids) ClipContext.Fluid.ANY else ClipContext.Fluid.NONE
+        val hit = clip(ClipContext(from, to, shape, fluid, CollisionContext.empty()))
+        if (hit.type == HitResult.Type.BLOCK) {
+            best = RayHit.Block(hit.blockPos.immutable(), blockId(hit.blockPos), hit.direction.toApi(), hit.location, from.distanceTo(hit.location))
+        }
+    }
+    if (entities) {
+        val limit = best?.distance ?: from.distanceTo(to)
+        for (entity in getEntities(exclude, AABB(from, to).inflate(1.0)) { !it.isSpectator && it.isPickable }) {
+            val box = entity.boundingBox.inflate(entity.pickRadius.toDouble())
+            val point = if (box.contains(from)) from else box.clip(from, to).orElse(null) ?: continue
+            val distance = from.distanceTo(point)
+            if (distance < limit && (best == null || distance < best.distance)) best = RayHit.Entity(info(entity), point, distance)
+        }
+    }
+    return best
+}
 
 
 internal fun Face.toMc(): Direction = Direction.valueOf(name)

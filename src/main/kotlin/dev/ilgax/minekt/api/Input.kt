@@ -1,8 +1,9 @@
 package dev.ilgax.minekt.api
 
+import dev.ilgax.minekt.job.clientHost
 import com.mojang.blaze3d.platform.InputConstants
 import dev.ilgax.minekt.hooks.InputHooks
-import dev.ilgax.minekt.job.Host
+import dev.ilgax.minekt.job.ClientHost
 import dev.ilgax.minekt.job.Job
 import net.minecraft.client.Minecraft
 import net.minecraft.client.input.CharacterEvent
@@ -16,10 +17,10 @@ import org.lwjgl.sdl.SDLKeyboard
 //   onRawMouse { if (it is RawScroll) echo("scrolled ${it.y}") }
 //   onMouseMove { if (frozen) it.cancel() }
 //
-//   tapKey("e")                    // press and release: opens the inventory, like the real key
+//   keyDown("e"); keyUp("e")       // press and release: opens the inventory, like the real key
 //   keyDown("w"); sleep(1000); keyUp("w")
 //   typeText("hello")              // into the open screen (chat, a sign, a text box)
-//   clickMouse(); mouseDown(1); mouseUp(1); scrollMouse(-1.0); moveMouse(40.0, 0.0)
+//   mouseDown(); mouseUp(); mouseDown(1); mouseUp(1); scrollMouse(-1.0); moveMouse(40.0, 0.0)
 //
 // Listeners run on the game thread, before the game handles the input: keep them quick. Sent input
 // goes through the same game code as real input (so it also reaches listeners, marked `synthetic`).
@@ -97,12 +98,6 @@ fun Minekt.keyDown(key: String) = sendKey(key, InputConstants.PRESS)
 
 fun Minekt.keyUp(key: String) = sendKey(key, InputConstants.RELEASE)
 
-/** Press and release [key]. */
-fun Minekt.tapKey(key: String) {
-    keyDown(key)
-    keyUp(key)
-}
-
 /** Type [text] into whatever has focus (chat, a sign, a text box), one character at a time. */
 fun Minekt.typeText(text: String) = game { mc ->
     InputHooks.sending { text.codePoints().forEach { mc.keyboardHandler.charTyped(mc.window.handle(), CharacterEvent(it)) } }
@@ -112,12 +107,6 @@ fun Minekt.typeText(text: String) = game { mc ->
 fun Minekt.mouseDown(button: Int = 0) = sendButton(button, InputConstants.PRESS)
 
 fun Minekt.mouseUp(button: Int = 0) = sendButton(button, InputConstants.RELEASE)
-
-/** Click mouse [button] where the cursor is. */
-fun Minekt.clickMouse(button: Int = 0) {
-    mouseDown(button)
-    mouseUp(button)
-}
 
 /** Turn the scroll wheel: positive is away from you (up), [x] is sideways. */
 fun Minekt.scrollMouse(y: Double, x: Double = 0.0) = game { mc ->
@@ -140,13 +129,13 @@ private fun Minekt.sendKey(name: String, action: Int) {
             ?.takeIf { it != InputConstants.UNKNOWN && it.type == InputConstants.Type.KEYBOARD }
             ?: throw IllegalArgumentException("Unknown key '$name' (use names like \"e\", \"f3\", \"left.shift\")")
     }
-    held(Release(job.host, key.value, button = false), action)
+    held(Release(job.clientHost, key.value, button = false), action)
     game { mc -> keyEvent(mc, key.value, action) }
 }
 
 private fun Minekt.sendButton(button: Int, action: Int) {
     require(button in 0..7) { "Mouse buttons are 0 to 7" }
-    held(Release(job.host, button, button = true), action)
+    held(Release(job.clientHost, button, button = true), action)
     game { mc -> buttonEvent(mc, button, action) }
 }
 
@@ -155,7 +144,7 @@ private fun Minekt.held(release: Release, action: Int) {
     if (action == InputConstants.PRESS) job.cleanups.addIfAbsent(release) else job.cleanups.remove(release)
 }
 
-private data class Release(val host: Host, val code: Int, val button: Boolean) : () -> Unit {
+private data class Release(val host: ClientHost, val code: Int, val button: Boolean) : () -> Unit {
     override fun invoke() {
         host.onGameThread { mc -> if (button) buttonEvent(mc, code, InputConstants.RELEASE) else keyEvent(mc, code, InputConstants.RELEASE) }
     }

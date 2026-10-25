@@ -9,7 +9,7 @@ if (game { it.player?.isDeadOrDying == true }) {
     game { it.player!!.respawn() }
     sleep(3000)
 }
-closeScreen()
+game { it.player!!.closeContainer() }
 val me = player.name
 server("difficulty peaceful")
 server("gamemode creative $me")

@@ -1,5 +1,6 @@
 package dev.ilgax.minekt.script
 
+import net.fabricmc.loader.impl.launch.FabricLauncherBase
 import java.nio.file.Path
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ExecutionException
@@ -17,6 +18,7 @@ object CompilerSetup {
 
     private val ready = CompletableFuture<Unit>()
     @Volatile private var started = false
+    private val launched = java.util.concurrent.atomic.AtomicBoolean()
 
     /** What's happening, for messages: null when the compiler is ready. */
     @Volatile var status: String? = "Preparing the Kotlin compiler"
@@ -24,6 +26,35 @@ object CompilerSetup {
 
     fun isPresent(): Boolean =
         runCatching { Class.forName(PROBE, false, CompilerSetup::class.java.classLoader) }.isSuccess
+
+    /**
+     * [run] on a background thread, adding the compiler to Fabric's class loader, then compile a trivial
+     * script with [warmUp] so the first real one starts quickly. Only the first call does anything: on
+     * the client, the integrated server shares the compiler with it.
+     */
+    fun startInBackground(libDir: Path, notify: (String, Boolean) -> Unit, warmUp: TemplateCompiler) {
+        if (!launched.compareAndSet(false, true)) return
+        started = true
+        Thread({
+            run(libDir, addToClassPath = { jar -> FabricLauncherBase.getLauncher().addToClassPath(jar) }, notify = notify)
+            if (status == null) warmUp(warmUp, notify)
+        }, "minekt-compiler").apply {
+            isDaemon = true
+            contextClassLoader = CompilerSetup::class.java.classLoader
+        }.start()
+    }
+
+    /** Compile [compiler]'s warm-up script, saying whether the compiler is ready or what went wrong. */
+    internal fun warmUp(compiler: TemplateCompiler, notify: (String, Boolean) -> Unit): Boolean {
+        val begun = System.nanoTime()
+        return runCatching { compiler.warmUp() }
+            .onSuccess { LOGGER.info("Kotlin script compiler ready in {} ms", (System.nanoTime() - begun) / 1_000_000) }
+            .onFailure {
+                LOGGER.error("Kotlin script compiler warm-up failed", it)
+                notify("The Kotlin compiler doesn't work: ${it.message ?: it.javaClass.simpleName}. See the game log.", true)
+            }
+            .isSuccess
+    }
 
     /**
      * Start (in the calling thread) making the compiler available. [notify] gets short messages

@@ -23,24 +23,43 @@ class ScriptSettings(private val dir: Path) {
         /** [value] made to fit this kind, or null if it can't be. */
         fun fit(value: Any?): Any?
 
+        /** A value typed as [text] (in a command), made to fit, or null if it can't be. */
+        fun parse(text: String): Any? = fit(text)
+
+        /** What values fit, in words, like `on or off` or `1 to 10`. */
+        val describe: String
+
         data object Toggle : Kind {
             override fun fit(value: Any?) = value as? Boolean
+            override fun parse(text: String) = when (text.lowercase()) {
+                "true", "on", "yes" -> true
+                "false", "off", "no" -> false
+                else -> null
+            }
+            override val describe get() = "on or off"
         }
 
         data class Whole(val min: Int, val max: Int) : Kind {
             override fun fit(value: Any?) = (value as? Number)?.toDouble()?.let { Math.round(it).toInt().coerceIn(min, max) }
+            override fun parse(text: String) = fit(text.toDoubleOrNull())
+            override val describe get() = "a whole number from $min to $max"
         }
 
         data class Decimal(val min: Double, val max: Double, val step: Double) : Kind {
             override fun fit(value: Any?) = (value as? Number)?.toDouble()?.takeIf { !it.isNaN() }?.coerceIn(min, max)
+            override fun parse(text: String) = fit(text.toDoubleOrNull())
+            override val describe get() = "a number from $min to $max"
         }
 
         data class Text(val maxLength: Int) : Kind {
             override fun fit(value: Any?) = (value as? String)?.take(maxLength)
+            override val describe get() = "text, up to $maxLength characters"
         }
 
         data class Choice(val options: List<String>) : Kind {
             override fun fit(value: Any?) = (value as? String)?.takeIf { it in options }
+            override fun parse(text: String) = options.firstOrNull { it.equals(text, ignoreCase = true) }
+            override val describe get() = "one of " + options.joinToString(", ")
         }
     }
 

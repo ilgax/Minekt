@@ -14,7 +14,7 @@ launch {
         if (p.food >= eatBelow || game { it.gui.screen() } != null) continue
         val slot = foodSlots().firstOrNull() ?: continue
         val back = p.selectedSlot
-        selectSlot(slot)
+        game { it.player!!.inventory.selectedSlot = slot }
         press("use")
         // Eating takes 32 ticks; wait until the food bar goes up (or give up after 3 seconds).
         for (tick in 0 until 60) {
@@ -22,7 +22,7 @@ launch {
             awaitTicks(1)
         }
         release("use")
-        selectSlot(back)
+        game { it.player!!.inventory.selectedSlot = back }
     }
 }
 echo("Auto-eat on (below ${eatBelow} food). \\kill to stop.")

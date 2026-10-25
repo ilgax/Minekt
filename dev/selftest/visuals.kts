@@ -41,6 +41,26 @@ fun count(name: String, test: (Int, Int, Int) -> Boolean): Int {
     return n
 }
 
+fun shot(name: String): java.awt.image.BufferedImage {
+    sleep(250)
+    return ImageIO.read(screenshot(name).toFile())
+}
+
+/** Pixels of [after] that moved towards a color compared with [before]: [shift] gets the change in r, g, b. */
+fun towards(before: java.awt.image.BufferedImage, after: java.awt.image.BufferedImage, shift: (Int, Int, Int) -> Boolean): Int {
+    var n = 0
+    for (y in 0 until minOf(before.height, after.height)) for (x in 0 until minOf(before.width, after.width)) {
+        val a = before.getRGB(x, y)
+        val b = after.getRGB(x, y)
+        if (shift((b shr 16 and 0xFF) - (a shr 16 and 0xFF), (b shr 8 and 0xFF) - (a shr 8 and 0xFF), (b and 0xFF) - (a and 0xFF))) n++
+    }
+    return n
+}
+
+// Towards Color.YELLOW (255, 230, 64): red and green up, blue not; towards Color.GREEN (64, 255, 64): green up most.
+val yellowward = { dr: Int, dg: Int, db: Int -> dr > 25 && dg > 20 && db < dr - 25 }
+val greenward = { dr: Int, dg: Int, db: Int -> dg > 25 && dr < dg - 25 && db < dg - 25 }
+
 fun pixel(name: String, x: Int, y: Int): Int {
     sleep(250)
     val image = ImageIO.read(screenshot(name).toFile())
@@ -54,7 +74,7 @@ val greenish = { r: Int, g: Int, b: Int -> g > 180 && r < 90 && b < 90 }
 val yellowish = { r: Int, g: Int, b: Int -> r > 180 && g > 180 && b < 70 }
 
 var waited = 0
-while (blockId(player.position.blockPos.below()) == "minecraft:void_air" && waited < 1200) { waitTicks(20); waited += 20 }
+while (blockAt(BlockPos.containing(player.position).below()).id == "minecraft:void_air" && waited < 1200) { waitTicks(20); waited += 20 }
 waitTicks(40)
 val me = player.name
 server("gamemode creative $me")
@@ -87,14 +107,16 @@ check("glow(entity) outlines it in its color, through a wall") {
 check("highlight outlines a block through a wall, in its shape, and recolors") {
     server("setblock 0 200 6 minecraft:oak_slab")
     waitTicks(5)
-    val before = count("vz-gb-0", yellowish)
+    // The game blends a highlight's edges and fill with what's behind it, so its pixels are tinted, never the pure
+    // color: count the pixels that moved towards it compared with the same view without it.
+    val base = shot("vz-gb-0")
     val g = highlight(0, 200, 6, Color.YELLOW)
-    val with = count("vz-gb-1", yellowish)
+    val with = towards(base, shot("vz-gb-1"), yellowward)
     g.color = Color.GREEN
-    val green = count("vz-gb-1g", greenish)
+    val green = towards(base, shot("vz-gb-1g"), greenward)
     g.remove()
-    val after = count("vz-gb-2", yellowish)
-    (before < 20 && with > 100 && green > 100 && after < 20) then "yellow px: $before -> $with -> $after; green after recolor: $green"
+    val after = towards(base, shot("vz-gb-2"), yellowward)
+    (with > 100 && green > 100 && after < 20) then "px tinted yellow: $with, then green after recolor: $green, after remove: $after"
 }
 server("fill -2 200 3 2 203 3 minecraft:air")
 server("kill @e[tag=vz]")
@@ -104,15 +126,15 @@ server("kill @e[tag=vz]")
 check("fakeBlock shows a block only on this client; remove() brings the real one back") {
     val f = fakeBlock(0, 200, 3, "minecraft:glass")
     waitTicks(2)
-    val shown = blockId(BlockPos(0, 200, 3))
+    val shown = blockAt(BlockPos(0, 200, 3)).id
     val real = serverBlock(0, 200, 3)
     f.remove()
     waitTicks(2)
-    (shown == "minecraft:glass" && real == "minecraft:air" && blockId(BlockPos(0, 200, 3)) == "minecraft:air") then "client $shown, server $real, after remove ${blockId(BlockPos(0, 200, 3))}"
+    (shown == "minecraft:glass" && real == "minecraft:air" && blockAt(BlockPos(0, 200, 3)).id == "minecraft:air") then "client $shown, server $real, after remove ${blockAt(BlockPos(0, 200, 3)).id}"
 }
 check("fake block states parse, like commands") {
     val f = fakeBlock(1, 200, 3, "minecraft:oak_stairs[facing=east,half=top]")
-    val props = blockAt(1, 200, 3).properties
+    val props = blockAt(BlockPos(1, 200, 3)).properties
     f.remove()
     (props["facing"] == "east" && props["half"] == "top") then props
 }
@@ -124,21 +146,21 @@ check("a server change under a fake keeps the fake, and shows after remove") {
     val f = fakeBlock(0, 200, 4, "minecraft:glass")
     server("setblock 0 200 4 minecraft:gold_block")
     waitTicks(10)
-    val during = blockId(BlockPos(0, 200, 4))
+    val during = blockAt(BlockPos(0, 200, 4)).id
     f.remove()
     waitTicks(2)
-    val after = blockId(BlockPos(0, 200, 4))
+    val after = blockAt(BlockPos(0, 200, 4)).id
     server("setblock 0 200 4 minecraft:air")
     (during == "minecraft:glass" && after == "minecraft:gold_block") then "during $during, after $after"
 }
 check("two fakes on one block: the newest shows, then the older, then the real one") {
     val a = fakeBlock(0, 200, 5, "minecraft:glass")
     val b = fakeBlock(0, 200, 5, "minecraft:diamond_block")
-    val top = blockId(BlockPos(0, 200, 5))
+    val top = blockAt(BlockPos(0, 200, 5)).id
     b.remove()
-    val next = blockId(BlockPos(0, 200, 5))
+    val next = blockAt(BlockPos(0, 200, 5)).id
     a.remove()
-    val last = blockId(BlockPos(0, 200, 5))
+    val last = blockAt(BlockPos(0, 200, 5)).id
     (top == "minecraft:diamond_block" && next == "minecraft:glass" && last == "minecraft:air") then "$top, $next, $last"
 }
 check("fakeBlocks: 2000 at once is quick") {
@@ -146,19 +168,19 @@ check("fakeBlocks: 2000 at once is quick") {
     val plan = buildMap { for (x in -4..4) for (y in 201..204) for (z in -3..12) put(BlockPos(x, y + 10, z), "minecraft:glass") }
     val many = fakeBlocks(plan)
     val ms = (System.nanoTime() - started) / 1_000_000
-    val ok = blockId(BlockPos(4, 214, 12)) == "minecraft:glass"
+    val ok = blockAt(BlockPos(4, 214, 12)).id == "minecraft:glass"
     clearFakeBlocks()
-    val cleared = blockId(BlockPos(4, 214, 12)) == "minecraft:air"
+    val cleared = blockAt(BlockPos(4, 214, 12)).id == "minecraft:air"
     (ok && cleared && ms < 2000) then "${many.size} in $ms ms, cleared: $cleared"
 }
 check("fake blocks come off when their script ends") {
     val file = game { it.gameDirectory.toPath().resolve("minekt/vzchild.kts") }
     java.nio.file.Files.writeString(file, "@file:OptIn(ExperimentalVisuals::class)\nfakeBlock(2, 200, 6, \"minecraft:emerald_block\")\nsleep(1500)\nstop()\n")
     val run = startScript("vzchild")
-    val during = waitFor(5) { blockId(BlockPos(2, 200, 6)) == "minecraft:emerald_block" }
+    val during = waitFor(5) { blockAt(BlockPos(2, 200, 6)).id == "minecraft:emerald_block" }
     run.await()
     waitTicks(2)
-    val after = blockId(BlockPos(2, 200, 6))
+    val after = blockAt(BlockPos(2, 200, 6)).id
     java.nio.file.Files.deleteIfExists(file)
     (during && after == "minecraft:air") then "during: $during, after: $after"
 }
@@ -223,7 +245,7 @@ check("Mod Menu finds Minekt's settings screen") {
     }
     waitTicks(5)
     val open = game { it.gui.screen()?.title?.string }
-    closeScreen()
+    game { it.player!!.closeContainer() }
     (title == "Minekt settings" && open == title) then "${factories.size} entry, opens \"$open\""
 }
 check("Done goes back to the screen it came from") {
@@ -235,7 +257,7 @@ check("Done goes back to the screen it came from") {
     game { it.gui.screen()!!.onClose() }
     waitTicks(3)
     val now = game { it.gui.screen()?.javaClass?.simpleName }
-    closeScreen()
+    game { it.player!!.closeContainer() }
     // In creative, the inventory turns into the creative one as it opens.
     (now?.endsWith("InventoryScreen") == true) then now
 }

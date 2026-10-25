@@ -26,7 +26,7 @@ import com.mojang.brigadier.arguments.StringArgumentType
 import dev.ilgax.minekt.job.Autorun
 import dev.ilgax.minekt.job.ChatClicks
 import dev.ilgax.minekt.job.ErrorReport
-import dev.ilgax.minekt.job.Host
+import dev.ilgax.minekt.job.ClientHost
 import dev.ilgax.minekt.job.Job
 import dev.ilgax.minekt.job.JobManager
 import dev.ilgax.minekt.job.MessageKind
@@ -40,7 +40,6 @@ import dev.ilgax.minekt.script.ScriptClasspath
 import dev.ilgax.minekt.script.CompilerSetup
 import dev.ilgax.minekt.script.ScriptCompiler
 import dev.ilgax.minekt.script.ScriptDependencies
-import net.fabricmc.loader.impl.launch.FabricLauncherBase
 import net.minecraft.client.gui.components.toasts.SystemToast
 import net.fabricmc.api.ClientModInitializer
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback
@@ -62,7 +61,7 @@ import java.nio.file.Path
 import java.util.concurrent.ExecutionException
 import kotlin.io.path.exists
 
-object MinektClient : ClientModInitializer, Host {
+object MinektClient : ClientModInitializer, ClientHost {
     private val logger = LoggerFactory.getLogger("minekt")
     private const val RECENT_ERRORS = 5
     private val BUILT_IN_COMMANDS = setOf("help", "jobs", "kill", "eval", "install", "update", "share", "menu", "log", "settings", "record", "scripts")
@@ -71,6 +70,7 @@ object MinektClient : ClientModInitializer, Host {
     private val EXAMPLES = listOf("hello", "whereami", "ores", "autowalk", "chatbot", "hud", "commands", "deathpoint", "stash", "waypoints", "baritone_mine")
 
     override val scriptDir: Path = FabricLoader.getInstance().gameDir.resolve("minekt")
+    override val tickClock = TickClock()
     val jobs = JobManager(this)
     private val installs by lazy { InstallUi(ScriptInstaller(scriptDir), scriptDir, ::echo) }
     private val recorder by lazy { InputRecorder(scriptDir) { echo(it, MessageKind.INFO) } }
@@ -121,7 +121,7 @@ object MinektClient : ClientModInitializer, Host {
             jobs.filterPacket(packet, incoming)?.also { if (incoming) gameEvents.packetReceived(it) }
         }
         ClientTickEvents.END_CLIENT_TICK.register { mc ->
-            TickClock.advance()
+            tickClock.advance()
             jobs.dispatch(Job.Event.Tick)
             ScriptKeys.tick(mc)
             InputHooks.listening = jobs.wantsInput(RawKey::class.java) || jobs.wantsInput(RawMouseButton::class.java) || jobs.wantsInput(RawScroll::class.java) || recorder.isRecording
@@ -138,22 +138,7 @@ object MinektClient : ClientModInitializer, Host {
             }
         }
         // Find (or, in the small build, download) the compiler while the game loads, then warm it up.
-        Thread({
-            CompilerSetup.run(
-                libDir = scriptDir.resolve("lib"),
-                addToClassPath = { jar -> FabricLauncherBase.getLauncher().addToClassPath(jar) },
-                notify = ::notifyCompiler,
-            )
-            if (CompilerSetup.status == null) {
-                val started = System.nanoTime()
-                runCatching { ScriptCompiler.warmUp() }
-                    .onSuccess { logger.info("Kotlin script compiler ready in {} ms", (System.nanoTime() - started) / 1_000_000) }
-                    .onFailure { logger.error("Kotlin script compiler warm-up failed", it) }
-            }
-        }, "minekt-compiler").apply {
-            isDaemon = true
-            contextClassLoader = MinektClient::class.java.classLoader
-        }.start()
+        CompilerSetup.startInBackground(scriptDir.resolve("lib"), ::notifyCompiler, ScriptCompiler)
         ClientLifecycleEvents.CLIENT_STARTED.register { runStartup() }
         ClientLifecycleEvents.CLIENT_STOPPING.register {
             jobs.storage.saveAll() // jobs save as they end, but the JVM may exit before they get to
@@ -433,7 +418,3 @@ object MinektClient : ClientModInitializer, Host {
         }
     }
 }
-
-/** Whitespace-separated, with "double quotes" grouping. */
-internal fun splitArgs(line: String): List<String> =
-    Regex("\"([^\"]*)\"|(\\S+)").findAll(line).map { it.groupValues[1].ifEmpty { it.groupValues[2] } }.toList()

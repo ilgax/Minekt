@@ -18,28 +18,33 @@ import kotlin.script.experimental.jvm.impl.KJvmCompiledModuleInMemory
 import kotlin.script.experimental.jvm.impl.KJvmCompiledScript
 import kotlin.script.experimental.jvmhost.JvmScriptCompiler
 import kotlinx.coroutines.runBlocking
+import kotlin.reflect.KClass
 
-/** Compiles scripts against [MinektScript], caching results by source content. */
-object ScriptCompiler {
+/** Compiles client scripts, against [MinektScript]. */
+object ScriptCompiler : TemplateCompiler(MinektScript::class)
+
+/** Compiles server scripts, against [MinektServerScript]. */
+object ServerScriptCompiler : TemplateCompiler(MinektServerScript::class)
+
+/** The embedded compiler isn't designed for concurrent use: compiles are serialized, whatever the template. */
+private val compileLock = Any()
+
+/** Compiles scripts against a script [template], caching results by source content. */
+open class TemplateCompiler(private val template: KClass<*>) {
     /**
      * The default host takes its class loader from whichever thread first touched it, which under Fabric
      * can be none. The compiler then can't load `@file:Import`/`@DependsOn` and silently ignores them.
      */
     private val host by lazy {
         ScriptingHostConfiguration(defaultJvmScriptingHostConfiguration) {
-            jvm { baseClassLoader(MinektScript::class.java.classLoader) }
+            jvm { baseClassLoader(template.java.classLoader) }
         }
     }
     private val configuration by lazy {
-        createCompilationConfigurationFromTemplate(
-            KotlinType(MinektScript::class),
-            host,
-            MinektScript::class,
-        )
+        createCompilationConfigurationFromTemplate(KotlinType(template), host, template)
     }
     private val compiler by lazy { JvmScriptCompiler(host) }
     private val cache = ConcurrentHashMap<String, CompiledScript>()
-    private val lock = Any()
 
     fun compile(source: SourceCode): ResultWithDiagnostics<CompiledScript> = compile(source, configuration, cacheKey(source))
 
@@ -55,14 +60,11 @@ object ScriptCompiler {
     private fun compile(source: SourceCode, config: ScriptCompilationConfiguration, key: String): ResultWithDiagnostics<CompiledScript> {
         cache[key]?.let { return it.asSuccess() }
         CompilerSetup.awaitReady()
-        // The embedded compiler isn't designed for concurrent use; compiles are serialized.
-        val result = synchronized(lock) { runBlocking { compiler(source, config) } }
+        val result = synchronized(compileLock) { runBlocking { compiler(source, config) } }
         // Scripts with @file:Import depend on other files, so only cache self-contained ones.
         if (result is ResultWithDiagnostics.Success && "@file:Import" !in source.text) cache[key] = result.value
         return result
     }
-
-    private const val MAX_CACHED = 500
 
     private val instrumented = Collections.synchronizedMap(WeakHashMap<CompiledScript, Map<String, ByteArray>>())
 
@@ -79,20 +81,34 @@ object ScriptCompiler {
         }
         val module = object : KJvmCompiledModule {
             override fun createClassLoader(baseClassLoader: ClassLoader?): ClassLoader =
-                ScriptClassLoader(classes, baseClassLoader ?: ScriptCompiler::class.java.classLoader)
+                ScriptClassLoader(classes, baseClassLoader ?: TemplateCompiler::class.java.classLoader)
         }
         return KJvmCompiledScript(script.sourceLocationId, script.compilationConfiguration, script.scriptClassFQName, script.resultField, script.otherScripts, module)
     }
 
-    /** Compile a trivial script so the first real one doesn't pay the compiler's startup cost. */
+    /**
+     * Compile a trivial script so the first real one doesn't pay the compiler's startup cost. Throws when it
+     * doesn't compile: the compiler reports failures as a result, not an exception.
+     */
     fun warmUp() {
-        compile("Unit".toScriptSource("warmup.kts"))
+        val result = compile(warmUpCode.toScriptSource("warmup.kts"))
+        if (result is ResultWithDiagnostics.Failure) {
+            val errors = result.reports.filter { it.severity >= ScriptDiagnostic.Severity.ERROR }.ifEmpty { result.reports }
+            error("The warm-up script didn't compile: " + errors.joinToString("; ") { it.message })
+        }
     }
+
+    /** The script [warmUp] compiles. */
+    protected open val warmUpCode = "Unit"
 
     fun clearCache() = cache.clear()
 
     private fun cacheKey(source: SourceCode): String {
         val digest = MessageDigest.getInstance("SHA-256").digest(source.text.toByteArray())
         return "${source.name}:${digest.joinToString("") { "%02x".format(it) }}"
+    }
+
+    private companion object {
+        const val MAX_CACHED = 500
     }
 }

@@ -1,6 +1,8 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import java.security.MessageDigest
 import java.util.zip.ZipFile
+import java.time.Instant
+import java.util.concurrent.atomic.AtomicReference
 
 plugins {
     id("net.fabricmc.fabric-loom")
@@ -180,6 +182,9 @@ tasks.test {
     useJUnitPlatform()
 }
 
+// The dev server (`./gradlew runServer`) gets a folder of its own, so its minekt/ (server scripts) isn't the dev client's.
+loom.runs.named("server") { runDir("run/server") }
+
 // `./gradlew runClient -PsmallRun` runs the dev client like the small build: without the compiler on
 // its classpath, so Minekt has to find or download it. `-PsmallRunHome=<dir>` also hides the Gradle
 // and Maven caches (they're looked up under the user's home), forcing a real download.
@@ -201,11 +206,133 @@ dependencies {
 }
 for ((name, jar) in listOf("prodClient" to tasks.jar.flatMap { it.archiveFile }, "prodClientSmall" to smallJar.flatMap { it.archiveFile })) {
     tasks.register<net.fabricmc.loom.task.prod.ClientProductionRunTask>(name) {
-        mods.from(prodMods, jar)
+        mods.setFrom(prodMods, jar)
         runDir = layout.buildDirectory.dir("prodrun")
         useXVFB = false
         providers.gradleProperty("prodArgs").orNull?.let { programArgs.addAll(it.split(' ')) }
     }
+}
+
+// `./gradlew prodServer` starts a real dedicated server (the vanilla server jar, no client classes) with the full jar,
+// in build/prodserver: server scripts go in build/prodserver/minekt. Accept the EULA in build/prodserver/eula.txt first.
+val prodServerMods: Configuration by configurations.creating { isTransitive = false }
+dependencies {
+    prodServerMods("net.fabricmc.fabric-api:fabric-api:${property("fabric_api_version")}")
+    prodServerMods("net.fabricmc:fabric-language-kotlin:${property("fabric_kotlin_version")}")
+}
+tasks.register<net.fabricmc.loom.task.prod.ServerProductionRunTask>("prodServer") {
+    mods.setFrom(prodServerMods, tasks.jar.flatMap { it.archiveFile })
+    runDir = layout.buildDirectory.dir("prodserver")
+    programArgs.add("nogui")
+}
+
+/**
+ * Starts a real dedicated server with a Minekt jar, runs dev/servertest/servertest.kts from autorun.txt and fails
+ * on any FAIL line, a missing DONE, a timeout, a class that couldn't be loaded or a client class.
+ * The server's EULA must be accepted with -PacceptMinecraftEula=true (or already in the run folder's eula.txt).
+ */
+abstract class ServerSmokeTest : net.fabricmc.loom.task.prod.ServerProductionRunTask() {
+    @get:InputFile abstract val script: RegularFileProperty
+    @get:Input abstract val port: Property<Int>
+    @get:Input abstract val timeoutSeconds: Property<Long>
+    /** Run with an empty minekt/lib and no Gradle or Maven caches, so the small jar has to download the compiler. */
+    @get:Input abstract val freshCompilerDownload: Property<Boolean>
+    /** Whether the log must show the compiler being downloaded (true), loaded from minekt/lib (false), or bundled (null). */
+    @get:Input @get:Optional abstract val expectDownload: Property<Boolean>
+    @get:Input abstract val acceptEula: Property<Boolean>
+
+    @TaskAction
+    override fun run() {
+        val dir = runDir.get().asFile
+        val minekt = dir.resolve("minekt")
+        if (freshCompilerDownload.get()) minekt.resolve("lib").deleteRecursively()
+        minekt.mkdirs()
+        script.get().asFile.copyTo(minekt.resolve("servertest.kts"), overwrite = true)
+        minekt.resolve("autorun.txt").writeText("servertest\n")
+        val eula = dir.resolve("eula.txt")
+        if (acceptEula.get()) eula.writeText("eula=true\n")
+        if (!eula.isFile || "eula=true" !in eula.readText()) throw GradleException("Accept the Minecraft EULA first: -PacceptMinecraftEula=true")
+        dir.resolve("server.properties").writeText("server-port=${port.get()}\nlevel-type=minecraft\\:flat\nspawn-protection=0\n")
+        val log = dir.resolve("logs/latest.log")
+        log.delete()
+
+        // The server stops itself at the end of the script; if it doesn't (the script didn't compile, a hang), kill it.
+        val started = Instant.now()
+        val stopReason = AtomicReference<String>()
+        val timeout = timeoutSeconds.get()
+        val watchdog = Thread {
+            val deadline = System.nanoTime() + timeout * 1_000_000_000
+            while (System.nanoTime() < deadline) {
+                try { Thread.sleep(1000) } catch (_: InterruptedException) { return@Thread }
+                val text = if (log.isFile) log.readText() else ""
+                if ("Stopping server" in text) return@Thread
+                if (Regex("\\[minekt] \\[servertest:\\d+").containsMatchIn(text)) { stopReason.set("servertest.kts didn't compile"); break }
+            }
+            stopReason.compareAndSet(null, "timed out after $timeout s")
+            // The JVM this task started (Windows doesn't tell a process's arguments, so it's found by start time).
+            ProcessHandle.current().descendants()
+                .filter { p -> p.info().startInstant().map { !it.isBefore(started) }.orElse(false) }
+                .filter { p -> p.info().command().map { Regex("java(w)?(\\.exe)?$").containsMatchIn(it) }.orElse(false) }
+                .forEach { it.destroyForcibly() }
+        }.apply { isDaemon = true; start() }
+        val failure = runCatching { super.run() }.exceptionOrNull()
+        watchdog.interrupt()
+
+        val text = if (log.isFile) log.readText() else ""
+        val killedBecause = stopReason.get()
+        val problems = buildList {
+            killedBecause?.let { add("The server was stopped: $it") }
+            if (failure != null && killedBecause == null) add("The server failed: $failure")
+            text.lines().filter { "[minekt] FAIL" in it || Regex("\\[minekt] \\[servertest:\\d+").containsMatchIn(it) }.forEach(::add)
+            text.lines().filter { Regex("NoClassDefFoundError|ClassNotFoundException|net[./]minecraft[./]client[./]").containsMatchIn(it) }.forEach(::add)
+            if ("[minekt] DONE servertest" !in text) add("servertest.kts didn't finish (no DONE line)")
+            if ("Kotlin script compiler ready" !in text) add("The compiler never said it was ready")
+            when (expectDownload.orNull) {
+                true -> if ("Kotlin compiler download:" !in text) add("The compiler wasn't downloaded")
+                false -> if ("Kotlin compiler download:" in text || "Using the Kotlin compiler at" !in text) add("The compiler wasn't loaded from minekt/lib")
+                null -> if ("Using the Kotlin compiler at" in text) add("The full jar looked for a separate compiler")
+            }
+        }
+        val oks = text.lines().count { "[minekt] OK " in it }
+        if (problems.isNotEmpty()) throw GradleException("Server smoke test failed ($oks OK), see $log:\n" + problems.joinToString("\n") { "  $it" })
+        logger.lifecycle("Server smoke test passed: $oks checks OK")
+    }
+
+    override fun configureCommand(spec: org.gradle.process.ExecSpec) {
+        super.configureCommand(spec)
+        // The small jar also looks for the compiler in the Gradle cache.
+        if (freshCompilerDownload.get() || expectDownload.orNull == false) spec.environment.remove("GRADLE_USER_HOME")
+    }
+}
+
+// `./gradlew serverSmokeTest`: the full jar, then the small jar downloading the compiler, then starting again from it.
+val serverSmokeTests = listOf(
+    Triple("Full", tasks.jar.flatMap { it.archiveFile }, null),
+    Triple("SmallDownload", smallJar.flatMap { it.archiveFile }, true),
+    Triple("SmallCached", smallJar.flatMap { it.archiveFile }, false),
+).mapIndexed { i, (name, jar, download) ->
+    tasks.register<ServerSmokeTest>("serverSmokeTest$name") {
+        group = "verification"
+        mods.setFrom(prodServerMods, jar)
+        val dir = layout.buildDirectory.dir("smoketest/${if (download == null) "full" else "small"}")
+        runDir = dir
+        programArgs.add("nogui")
+        script = layout.projectDirectory.file("dev/servertest/servertest.kts")
+        port = 25700 + i
+        timeoutSeconds = if (download == true) 900L else 300L
+        freshCompilerDownload = download == true
+        expectDownload = download
+        acceptEula = providers.gradleProperty("acceptMinecraftEula").map { it.toBoolean() }.orElse(false)
+        // No Gradle or Maven caches for the small jar: it must find the compiler in minekt/lib or download it.
+        if (download != null) jvmArgs.add("-Duser.home=${dir.get().asFile.resolve("home")}")
+        outputs.upToDateWhen { false }
+    }
+}
+serverSmokeTests[2].configure { mustRunAfter(serverSmokeTests[1]) }
+tasks.register("serverSmokeTest") {
+    group = "verification"
+    description = "Runs dev/servertest/servertest.kts on a real dedicated server with the full and the small jar."
+    dependsOn(serverSmokeTests)
 }
 
 // ---- The stable script API ------------------------------------------------------------------------
@@ -219,7 +346,6 @@ kotlin {
             include { byNames.add("dev.ilgax.minekt.api.**") }
             exclude {
                 annotatedWith.addAll(
-                    "dev.ilgax.minekt.api.ExperimentalFabricEvents",
                     "dev.ilgax.minekt.api.ExperimentalPackets",
                     "dev.ilgax.minekt.api.ExperimentalHooks",
                     "dev.ilgax.minekt.api.ExperimentalVisuals",

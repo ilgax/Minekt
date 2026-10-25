@@ -26,7 +26,7 @@ fun waitFor(seconds: Int, condition: () -> Boolean): Boolean {
 fun mapping(name: String): KeyMapping? = game { mc -> mc.options.keyMappings.firstOrNull { it.name == name } }
 
 var waited = 0
-while (blockId(player.position.blockPos.below()) == "minecraft:void_air" && waited < 1200) { waitTicks(20); waited += 20 }
+while (blockAt(BlockPos.containing(player.position).below()).id == "minecraft:void_air" && waited < 1200) { waitTicks(20); waited += 20 }
 waitTicks(40)
 val dir = game { it.gameDirectory.toPath().resolve("minekt") }
 dir.resolve("settings/keybinds.json").toFile().delete()
@@ -53,7 +53,7 @@ launch {
     check("isDown while the key is held; holding it is one press") {
         xdo("keydown j")
         sleep(1500) // long enough for the keyboard to start repeating
-        val down = ping.isDown
+        val down = waitFor(3) { ping.isDown } // the real key may arrive a moment late
         xdo("keyup j")
         waitFor(3) { !ping.isDown }
         sleep(300)

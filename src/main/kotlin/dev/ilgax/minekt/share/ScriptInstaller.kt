@@ -2,6 +2,7 @@
 package dev.ilgax.minekt.share
 
 import dev.ilgax.minekt.script.ScriptCompiler
+import dev.ilgax.minekt.script.TemplateCompiler
 import java.io.ByteArrayOutputStream
 import java.net.InetAddress
 import java.net.URI
@@ -26,6 +27,10 @@ import kotlin.script.experimental.host.toScriptSource
  */
 class ScriptInstaller(
     private val scriptDir: Path,
+    /** Checks that scripts compile: the client's compiler, or a server's. */
+    private val compiler: TemplateCompiler = ScriptCompiler,
+    /** Installing server scripts: list what they can do on a server. */
+    private val server: Boolean = false,
     private val fetch: (URI) -> String = ::download,
 ) {
     data class Pending(
@@ -107,7 +112,7 @@ class ScriptInstaller(
             source = source,
             lines = lineCount(text),
             replacesLines = existing?.let(::lineCount),
-            capabilities = capabilities(text),
+            capabilities = capabilities(text, server),
             problems = compileProblems(name, text),
             previewFile = preview,
         )
@@ -118,7 +123,7 @@ class ScriptInstaller(
     }
 
     private fun compileProblems(name: String, text: String): List<String> =
-        when (val result = ScriptCompiler.compile(text.toScriptSource("$name.kts"))) {
+        when (val result = compiler.compile(text.toScriptSource("$name.kts"))) {
             is ResultWithDiagnostics.Success -> emptyList()
             is ResultWithDiagnostics.Failure -> result.reports
                 .filter { it.severity >= ScriptDiagnostic.Severity.ERROR }
@@ -186,20 +191,38 @@ class ScriptInstaller(
             """(?m)^\s*import\s+(?!dev\.ilgax\.minekt\.|kotlin\.|kotlinx\.coroutines\.)""" to "use Minecraft's or other mods' code directly",
             """\b(chat|execute)\s*\(""" to "send chat messages or commands as you",
             """\b(attack|interact)\s*\(""" to "attack or interact with mobs and players",
-            """\b(useOn|useItem)\s*\(""" to "break or place blocks and use items",
+            """\buseOn\s*\(""" to "break or place blocks and use items",
             """\b(clickSlot|shiftClick|swapWithHotbar|dropSlot)\s*\(""" to "move or drop items in your inventory",
             """\b(press|setOrientation|lookAt)\s*\(""" to "move you and turn your camera",
-            """ExperimentalFabricEvents""" to "run code inside Fabric API events (experimental)",
+            """\b[A-Z]\w*Events\s*\.\s*[A-Z_]+\s*\.\s*register\b""" to "run code inside Fabric API events",
             """\bbaritone\b""" to "control Baritone",
             """@file:DependsOn""" to "download and run code libraries from Maven (@file:DependsOn)",
             """@file:Import""" to "load other script files",
         ).map { (pattern, label) -> Regex(pattern) to label }
 
-        /** Plain-language list of what [text] can do, most sensitive first. Comments are ignored. */
-        fun capabilities(text: String): List<String> {
+        private val SERVER_CAPABILITIES = listOf(
+            """ProcessBuilder|Runtime\s*\.\s*getRuntime""" to "run programs on the server's computer",
+            """java\.io\.|java\.nio\.|\bFile\s*\(|\bFiles\s*\.|\bPaths?\s*\.""" to "read or write files on the server's computer",
+            """java\.net\.|\bHttpClient\b|\bURL\s*\(|\bURI\s*\(|\bSocket\b|\bhttp(Get|Post)?\s*\(""" to "connect to the internet",
+            """\brunCommand\s*\(""" to "run any command as the server console",
+            """\bserver\s*\{""" to "use raw server access (anything the server can do)",
+            """ExperimentalHooks|ExperimentalPackets""" to "change the game's code or players' packets (experimental)",
+            """Class\s*\.\s*forName|getDeclared(Method|Field|Constructor)|setAccessible""" to "use reflection to reach hidden code",
+            """(?m)^\s*import\s+(?!dev\.ilgax\.minekt\.|kotlin\.|kotlinx\.coroutines\.)""" to "use Minecraft's or other mods' code directly",
+            """\b(setBlock|spawn|killEntity|removeEntity)\s*\(""" to "change the world: blocks and entities",
+            """\b(give|take|setSlot|clearSlot)\s*\(""" to "change items in players' inventories and containers",
+            """\b(broadcast|tell)\s*\(""" to "send messages to players",
+            """\bcommand\s*\(""" to "add commands for players",
+            """\b[A-Z]\w*Events\s*\.\s*[A-Z_]+\s*\.\s*register\b""" to "run code inside Fabric API events",
+            """@file:DependsOn""" to "download and run code libraries from Maven (@file:DependsOn)",
+            """@file:Import""" to "load other script files",
+        ).map { (pattern, label) -> Regex(pattern) to label }
+
+        /** Plain-language list of what [text] can do (as a [server] script), most sensitive first. Comments are ignored. */
+        fun capabilities(text: String, server: Boolean = false): List<String> {
             val code = text.replace(Regex("""/\*.*?\*/""", RegexOption.DOT_MATCHES_ALL), "")
                 .lines().joinToString("\n") { it.substringBefore("//") }
-            return CAPABILITIES.filter { (regex, _) -> regex.containsMatchIn(code) }.map { it.second }
+            return (if (server) SERVER_CAPABILITIES else CAPABILITIES).filter { (regex, _) -> regex.containsMatchIn(code) }.map { it.second }
         }
 
         private fun download(uri: URI): String {

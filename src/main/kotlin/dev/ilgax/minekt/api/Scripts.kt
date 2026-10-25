@@ -2,7 +2,6 @@ package dev.ilgax.minekt.api
 
 import dev.ilgax.minekt.job.Job
 import dev.ilgax.minekt.job.JobKilledException
-import dev.ilgax.minekt.script.ScriptCompiler
 import kotlinx.coroutines.runBlocking
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.TimeUnit
@@ -24,7 +23,7 @@ import kotlin.time.Duration
 //
 //   val n = eval("(1..10).sum()") as Int
 //   eval("echo(greeting.uppercase())", "greeting" to "hi")        // pass values in by name
-//   val ores = runScript("ores", "32")                            // run another script, get its result
+//   val ores = startScript("ores", "32").await()                  // run another script, get its result
 //   val miner = startScript("miner"); …; miner.kill()             // or start it and carry on
 
 /**
@@ -33,7 +32,7 @@ import kotlin.time.Duration
  * [variables] are available in the code by name, typed by their values.
  * A compile error throws [IllegalArgumentException]; an exception in the code is rethrown.
  */
-fun Minekt.eval(code: String, vararg variables: Pair<String, Any?>): Any? {
+fun ScriptContext.eval(code: String, vararg variables: Pair<String, Any?>): Any? {
     job.checkAlive()
     val values = variables.toMap()
     values.keys.forEach { require(it.matches(IDENTIFIER)) { "'$it' can't be a variable name" } }
@@ -44,8 +43,8 @@ fun Minekt.eval(code: String, vararg variables: Pair<String, Any?>): Any? {
     val declarations = values.entries.joinToString("; ") { (name, value) -> "val $name = $EVAL_VARIABLES.get(\"$name\") as ${kotlinType(value)}" }
     val source = if (values.isEmpty()) code else (lines.take(header) + declarations + lines.drop(header)).joinToString("\n")
     fun userLine(line: Int) = if (values.isNotEmpty() && line > header + 1) line - 1 else line
-    val compiled = when (val result = ScriptCompiler.compileEval(source) { if (values.isNotEmpty()) providedProperties(EVAL_VARIABLES to KotlinType(EvalVariables::class)) }) {
-        is ResultWithDiagnostics.Success -> ScriptCompiler.instrumented(result.value)
+    val compiled = when (val result = job.host.compiler.compileEval(source) { if (values.isNotEmpty()) providedProperties(EVAL_VARIABLES to KotlinType(EvalVariables::class)) }) {
+        is ResultWithDiagnostics.Success -> job.host.compiler.instrumented(result.value)
         is ResultWithDiagnostics.Failure -> {
             val errors = result.reports.filter { it.severity >= ScriptDiagnostic.Severity.ERROR }
             throw IllegalArgumentException(
@@ -59,7 +58,7 @@ fun Minekt.eval(code: String, vararg variables: Pair<String, Any?>): Any? {
     val evaluation = ScriptEvaluationConfiguration {
         implicitReceivers(api)
         if (values.isNotEmpty()) providedProperties(EVAL_VARIABLES to EvalVariables(values))
-        jvm { baseClassLoader(Minekt::class.java.classLoader) }
+        jvm { baseClassLoader(ScriptContext::class.java.classLoader) }
     }
     return when (val result = runBlocking { BasicJvmScriptEvaluator()(compiled, evaluation) }) {
         is ResultWithDiagnostics.Failure -> throw IllegalStateException("eval failed: " + result.reports.joinToString("; ") { it.message })
@@ -118,16 +117,12 @@ class ScriptRun internal constructor(private val caller: Job, private val starte
  * Start `minekt/<name>.kts` with [args] as a script of its own, like typing `\name args`, and
  * return right away. It runs in parallel and stays running after this script ends.
  */
-fun Minekt.startScript(name: String, vararg args: String): ScriptRun {
+fun ScriptContext.startScript(name: String, vararg args: String): ScriptRun {
     job.checkAlive()
     require(job.host.scriptDir.resolve("$name.kts").isRegularFile()) { "No script named '$name'" }
     val started = job.jobs.runScript(name, args.toList()) ?: error("Couldn't start $name")
     return ScriptRun(job, started)
 }
-
-/** [startScript] and wait for its result: what its body evaluated to (see [ScriptRun.await]). */
-fun Minekt.runScript(name: String, vararg args: String, timeout: Duration = Duration.INFINITE): Any? =
-    startScript(name, *args).await(timeout)
 
 private val IDENTIFIER = Regex("[A-Za-z_][A-Za-z0-9_]*")
 
@@ -150,7 +145,7 @@ private fun kotlinType(value: Any?): String = when (value) {
     else -> {
         // Classes defined in a script live in that script's own class loader: eval can't name them.
         val cls = value.javaClass
-        val visible = !cls.isAnonymousClass && runCatching { Class.forName(cls.name, false, Minekt::class.java.classLoader) == cls }.getOrDefault(false)
+        val visible = !cls.isAnonymousClass && runCatching { Class.forName(cls.name, false, ScriptContext::class.java.classLoader) == cls }.getOrDefault(false)
         val stars = cls.typeParameters.joinToString(", ", "<", ">") { "*" }.takeIf { cls.typeParameters.isNotEmpty() }.orEmpty()
         if (visible) cls.name.replace('$', '.') + stars else "kotlin.Any"
     }

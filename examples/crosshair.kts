@@ -1,11 +1,13 @@
 // \crosshair — a custom crosshair: a dot that turns red when you're looking at a mob, with its name
 // and health underneath, and your speed in blocks per second.
-// Shows: onHudRender, targetedEntity, player.velocity.
+// Shows: onHudRender, the game's own hit result in game { }, player.velocity.
+
+import net.minecraft.world.phys.EntityHitResult
 
 @Volatile var target: EntityInfo? = null
 @Volatile var speed = 0.0
 onTick {
-    target = targetedEntity
+    target = game { mc -> (mc.hitResult as? EntityHitResult)?.entity?.id }?.let { entity(it) }
     val v = player.velocity
     speed = Math.hypot(v.x, v.z) * 20 // blocks per tick → per second
 }

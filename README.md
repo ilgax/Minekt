@@ -41,6 +41,9 @@ Write Fabric mods? [Coming from Fabric](docs/from-fabric.md) shows the same mod 
   requests, any Maven library. ([Data and the web](docs/data.md))
 - **Go deep:** raw packets, hooking any game method at runtime, rewriting any class's bytecode, other mods' APIs, Baritone. ([Advanced](docs/advanced.md))
 - **Be shared:** `\install <link>` with a preview of what a script can do. ([Sharing](docs/sharing.md))
+- **Run on servers:** the same jar on a dedicated server or in singleplayer runs server scripts, started with
+  `/mks`: greet players, add commands, change blocks, spawn and track entities, edit inventories, react to chat,
+  damage and deaths; with permission nodes for permission managers. ([Server scripts](docs/server.md))
 
 Failing scripts explain themselves in chat, and every script has a log. ([Errors and logs](docs/errors-and-logs.md))
 

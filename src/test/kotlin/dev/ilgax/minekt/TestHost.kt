@@ -1,6 +1,6 @@
 package dev.ilgax.minekt
 
-import dev.ilgax.minekt.job.Host
+import dev.ilgax.minekt.job.ClientHost
 import dev.ilgax.minekt.job.Job
 import dev.ilgax.minekt.job.MessageKind
 import net.minecraft.client.Minecraft
@@ -12,7 +12,8 @@ import java.util.concurrent.TimeUnit
 import kotlin.test.fail
 
 /** Runs `game { }` blocks on a separate "client" thread, like the real game. */
-internal class TestHost : Host {
+internal class TestHost : ClientHost {
+    override val tickClock = dev.ilgax.minekt.job.TickClock()
     override val scriptDir: Path = Files.createTempDirectory("minekt-test")
     val messages = LinkedBlockingQueue<String>()
     val clientThread = Executors.newSingleThreadExecutor { Thread(it, "fake-client").apply { isDaemon = true } }

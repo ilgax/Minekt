@@ -1,11 +1,9 @@
 package dev.ilgax.minekt.job
 
 import dev.ilgax.minekt.api.MinektEvent
-import dev.ilgax.minekt.api.Minekt
 import dev.ilgax.minekt.hooks.ClassRewrites
 import dev.ilgax.minekt.hooks.MethodHooks
 import dev.ilgax.minekt.script.CompilerSetup
-import dev.ilgax.minekt.script.ScriptCompiler
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
@@ -14,7 +12,6 @@ import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import net.minecraft.client.KeyMapping
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.ExecutorService
@@ -56,15 +53,19 @@ class Job internal constructor(
     sealed interface Event {
         data object Tick : Event
         data class Chat(val message: dev.ilgax.minekt.api.ChatMessage) : Event
-        data class Command(val name: String, val args: List<String>) : Event
+        /** `/name args`, typed by [sender] (a player's name, or null for the client's own player or the server console). */
+        data class Command(val name: String, val args: List<String>, val sender: String? = null) : Event
         /** A script keybind went down ([pressed]) or up. */
         data class Keybind(val id: String, val pressed: Boolean = true) : Event
         data class Game(val event: MinektEvent) : Event
         data class Message(val topic: String, val value: Any?, val from: String) : Event
-        data class Packet(val packet: net.minecraft.network.protocol.Packet<*>, val incoming: Boolean) : Event
+        /** A packet received ([incoming]) or sent; on a server, from or to [player]. */
+        data class Packet(val packet: net.minecraft.network.protocol.Packet<*>, val incoming: Boolean, val player: String? = null) : Event
         data class Setting(val key: String, val value: Any) : Event
         /** Clickable chat text made by this script was clicked. */
         data class Click(val id: Long) : Event
+        /** Something happened on the server, for server scripts. */
+        data class Server(val event: dev.ilgax.minekt.api.server.ServerEvent) : Event
     }
 
     enum class State { COMPILING, RUNNING, LISTENING, DONE }
@@ -95,13 +96,16 @@ class Job internal constructor(
 
     internal val tickHandlers = CopyOnWriteArrayList<() -> Unit>()
     internal val chatHandlers = CopyOnWriteArrayList<(dev.ilgax.minekt.api.ChatMessage) -> Unit>()
-    internal val commandHandlers = ConcurrentHashMap<String, (List<String>) -> Unit>()
-    /** `keybind(…).onPress { }`, by keybind id. */
+    internal val commandHandlers = ConcurrentHashMap<String, (Event.Command) -> Unit>()
     /** Keybind id → handlers for it going down (`onPress`) and up (`onRelease`). */
     internal val keybindHandlers = ConcurrentHashMap<String, CopyOnWriteArrayList<KeybindHandler>>()
 
     class KeybindHandler(val onPress: Boolean, val handler: () -> Unit)
     internal val gameHandlers = CopyOnWriteArrayList<(MinektEvent) -> Unit>()
+    /** Server scripts' `onEvent` handlers, each filtering the events it wants. */
+    internal val serverHandlers = CopyOnWriteArrayList<(dev.ilgax.minekt.api.server.ServerEvent) -> Unit>()
+    /** Server event types the handlers above are for (`ServerEvent` itself: all), so the server only builds wanted events. */
+    internal val serverEventTypes: MutableSet<Class<*>> = ConcurrentHashMap.newKeySet()
     /** Event types the handlers above are for (`MinektEvent` itself: all), so unwanted events cost nothing. */
     internal val gameEventTypes: MutableSet<Class<*>> = ConcurrentHashMap.newKeySet()
     /** `awaitEvent` calls in progress: they may want any event. */
@@ -113,8 +117,8 @@ class Job internal constructor(
     /** Settings this run declared with `by setting(…)`; others are dropped from the file when it ends cleanly. */
     internal val declaredSettings: MutableSet<String> = ConcurrentHashMap.newKeySet()
 
-    /** A packet listener or filter for packets of [type] in one direction. */
-    class PacketHook(val type: Class<*>, val incoming: Boolean, val handler: (net.minecraft.network.protocol.Packet<*>) -> Any?) {
+    /** A packet listener or filter for packets of [type] in one direction; [handler] also gets the player, on a server. */
+    class PacketHook(val type: Class<*>, val incoming: Boolean, val handler: (net.minecraft.network.protocol.Packet<*>, String?) -> Any?) {
         fun matches(packet: net.minecraft.network.protocol.Packet<*>, incoming: Boolean) = incoming == this.incoming && type.isInstance(packet)
     }
 
@@ -129,8 +133,8 @@ class Job internal constructor(
 
     internal val inputHandlers = CopyOnWriteArrayList<InputHandler>()
 
-    /** Whether the script opted into experimental Fabric events (`@file:OptIn(ExperimentalFabricEvents::class)`). */
-    internal val fabricEventsOptIn: Boolean by lazy { FABRIC_EVENTS_OPT_IN.containsMatchIn(source.text) }
+    /** Fabric event listeners this script registered: they keep it running, like its own handlers. */
+    internal val fabricListeners = java.util.concurrent.atomic.AtomicInteger()
 
     /** Actions behind this script's clickable chat text, by id (see [ChatClicks]). They don't keep it alive. */
     internal val clickActions = ConcurrentHashMap<Long, () -> Unit>()
@@ -139,8 +143,6 @@ class Job internal constructor(
     internal val hudRenderHandlers = CopyOnWriteArrayList<(dev.ilgax.minekt.api.HudCanvas) -> Unit>()
     internal val worldRenderHandlers = CopyOnWriteArrayList<(dev.ilgax.minekt.api.WorldCanvas) -> Unit>()
 
-    /** Keys the script pressed; released when the job ends so the player doesn't keep walking. */
-    internal val heldKeys: MutableSet<KeyMapping> = ConcurrentHashMap.newKeySet()
     /** Arbitrary cleanup registered by API helpers (unregistering HUD lines, keybind handlers, ...). */
     internal val cleanups = CopyOnWriteArrayList<() -> Unit>()
 
@@ -206,7 +208,7 @@ class Job internal constructor(
             cpuPercent = percent
             if (percent >= CPU_WARN_PERCENT && !warnedCpu) {
                 warnedCpu = true
-                log(ScriptLogs.Level.WARN, "is keeping a CPU core busy ($percent%). \\kill $id stops it.", chat = MessageKind.ERROR)
+                log(ScriptLogs.Level.WARN, "is keeping a CPU core busy ($percent%). ${host.commandPrefix}kill $id stops it.", chat = MessageKind.ERROR)
             }
         }
         lastCpuNanos = if (compiling) -1 else cpu
@@ -307,6 +309,7 @@ class Job internal constructor(
             is Event.Message -> messageHandlers[event.topic]?.isNotEmpty() == true
             is Event.Packet -> packetHandlers.any { it.matches(event.packet, event.incoming) }
             is Event.Setting -> settingHandlers.isNotEmpty()
+            is Event.Server -> serverHandlers.isNotEmpty()
         }
         if (wanted) events.offer(event)
     }
@@ -323,20 +326,20 @@ class Job internal constructor(
             }
             log(ScriptLogs.Level.INFO, "Started" + if (args.isEmpty()) "" else " with ${args.joinToString(" ")}")
             // Watchdog-instrumented, so \kill works even on loops that never call the API.
-            val compiled = when (val result = ScriptCompiler.compile(source)) {
-                is ResultWithDiagnostics.Success -> ScriptCompiler.instrumented(result.value)
+            val compiled = when (val result = host.compiler.compile(source)) {
+                is ResultWithDiagnostics.Success -> host.compiler.instrumented(result.value)
                 is ResultWithDiagnostics.Failure -> {
                     reportDiagnostics(result.reports)
-                    this.result.completeExceptionally(IllegalStateException("$name didn't compile (its errors are in chat and \\log $name)"))
+                    this.result.completeExceptionally(IllegalStateException("$name didn't compile (its errors are in chat and ${host.commandPrefix}log $name)"))
                     return
                 }
             }
             checkAlive()
             state = State.RUNNING
-            val api = Minekt(this)
+            val api = host.receiver(this)
             val evaluation = ScriptEvaluationConfiguration {
                 implicitReceivers(api)
-                jvm { baseClassLoader(Minekt::class.java.classLoader) }
+                jvm { baseClassLoader(Job::class.java.classLoader) }
             }
             val result = runBlocking { BasicJvmScriptEvaluator()(compiled, evaluation) }
             when (result) {
@@ -429,13 +432,14 @@ class Job internal constructor(
                     tickHandlers.forEach { it() }
                 }
                 is Event.Chat -> chatHandlers.forEach { it(event.message) }
-                is Event.Command -> commandHandlers[event.name]?.invoke(event.args)
+                is Event.Command -> commandHandlers[event.name]?.invoke(event)
                 is Event.Keybind -> keybindHandlers[event.id]?.forEach { if (it.onPress == event.pressed) it.handler() }
                 is Event.Click -> clickActions[event.id]?.invoke()
                 is Event.Game -> gameHandlers.forEach { it(event.event) }
                 is Event.Message -> messageHandlers[event.topic]?.forEach { it(event.value) }
-                is Event.Packet -> packetHandlers.forEach { if (it.matches(event.packet, event.incoming)) it.handler(event.packet) }
+                is Event.Packet -> packetHandlers.forEach { if (it.matches(event.packet, event.incoming)) it.handler(event.packet, event.player) }
                 is Event.Setting -> settingHandlers.forEach { it(dev.ilgax.minekt.api.SettingChange(event.key, event.value)) }
+                is Event.Server -> serverHandlers.forEach { it(event.event) }
             }
         } finally {
             delivering = false
@@ -459,10 +463,10 @@ class Job internal constructor(
 
     private fun hasHandlers() =
         tickHandlers.isNotEmpty() || chatHandlers.isNotEmpty() || commandHandlers.isNotEmpty() ||
-            gameHandlers.isNotEmpty() || keybindHandlers.values.any { it.isNotEmpty() } ||
+            gameHandlers.isNotEmpty() || serverHandlers.isNotEmpty() || keybindHandlers.values.any { it.isNotEmpty() } ||
             messageHandlers.values.any { it.isNotEmpty() } || openScreens.get() > 0 || settingHandlers.isNotEmpty() || inputHandlers.isNotEmpty() ||
             hudRenderHandlers.isNotEmpty() || worldRenderHandlers.isNotEmpty() ||
-            packetHandlers.isNotEmpty() || packetFilters.isNotEmpty() || MethodHooks.hasHooks(this) || ClassRewrites.has(this)
+            packetHandlers.isNotEmpty() || packetFilters.isNotEmpty() || fabricListeners.get() > 0 || MethodHooks.hasHooks(this) || ClassRewrites.has(this)
 
     internal fun handleThrowable(t: Throwable) {
         val root = generateSequence(t) { it.cause }.last()
@@ -526,7 +530,7 @@ class Job internal constructor(
         }
         // A broken line often causes several errors: show the first few, the rest are in the log.
         errors.take(MAX_ERRORS_SHOWN).forEach(host::showError)
-        if (errors.size > MAX_ERRORS_SHOWN) host.echo("[$name] …and ${errors.size - MAX_ERRORS_SHOWN} more errors (\\log $name)", MessageKind.ERROR)
+        if (errors.size > MAX_ERRORS_SHOWN) host.echo("[$name] …and ${errors.size - MAX_ERRORS_SHOWN} more errors (${host.commandPrefix}log $name)", MessageKind.ERROR)
         reports.mapNotNull { it.exception }.forEach { LOGGER.error("Script {} compile error", name, it) }
     }
 
@@ -546,10 +550,6 @@ class Job internal constructor(
         }
         cleanups.forEach { runCatching(it) }
         commandHandlers.keys.forEach { name -> runCatching { host.unregisterCommand(name, this) } }
-        if (heldKeys.isNotEmpty()) {
-            runCatching { host.onGameThread { heldKeys.forEach { key -> key.setDown(false) } } }
-            heldKeys.clear()
-        }
     }
 
     private fun rootCause(t: Throwable) = generateSequence(t) { it.cause }.last()
@@ -558,7 +558,6 @@ class Job internal constructor(
         const val EVAL_NAME = "eval"
         /** How long `onStop` handlers may run after a kill. */
         private const val STOP_GRACE_MS = 3000L
-        private val FABRIC_EVENTS_OPT_IN = Regex("""@file\s*:\s*OptIn\s*\([^)]*\bExperimentalFabricEvents\b""")
         private const val CPU_WARN_PERCENT = 90
         private const val MAX_ERRORS_SHOWN = 3
         private val LOGGER = org.slf4j.LoggerFactory.getLogger("minekt")

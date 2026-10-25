@@ -23,15 +23,6 @@ operator fun Vec3.component1(): Double = x
 operator fun Vec3.component2(): Double = y
 operator fun Vec3.component3(): Double = z
 
-/**
- * `12.5, 64.0, -3.2`: for text like `"at ${pos.toShortString()}"`, like BlockPos's own `toShortString()`
- * (`12, 64, -4`). `echo` shows positions this way by itself when they're passed as separate parts.
- */
-fun Vec3.toShortString(decimals: Int = 1): String = "%.${decimals}f, %.${decimals}f, %.${decimals}f".format(x, y, z)
-
-/** The block this position is in. */
-val Vec3.blockPos: BlockPos get() = BlockPos.containing(this)
-
 operator fun BlockPos.plus(other: Vec3i): BlockPos = offset(other)
 operator fun BlockPos.minus(other: Vec3i): BlockPos = subtract(other)
 operator fun BlockPos.component1(): Int = x

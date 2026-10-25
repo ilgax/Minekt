@@ -10,7 +10,7 @@ fun changed() {
     shapes.forEach { it.remove() }
     shapes.clear()
     if (showInWorld) for ((name, pos) in points) {
-        shapes += highlight(pos.blockPos, Color.CYAN)
+        shapes += highlight(BlockPos.containing(pos), Color.CYAN)
         shapes += text(Vec3(pos.x, pos.y + 1.5, pos.z), name, Color.CYAN)
     }
     publish("waypoints", points.toMap())
@@ -34,7 +34,7 @@ fun openMenu() {
         textField("Name", ::newName, maxLength = 32)
         row {
             button("Add here") {
-                points[newName.ifBlank { "waypoint ${points.size + 1}" }] = position
+                points[newName.ifBlank { "waypoint ${points.size + 1}" }] = player.position
                 changed()
                 menu.refresh()
             }
