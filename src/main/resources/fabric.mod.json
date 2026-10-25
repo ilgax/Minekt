@@ -6,7 +6,9 @@
   "description": "Kotlin scripting for Minecraft. Drop .kts files into .minecraft/minekt and run them from chat, like \\\\coords for coords.kts. On servers, operators run scripts from the server's minekt folder with /mks.",
   "authors": ["ilgax"],
   "contact": {
-    "sources": "https://github.com/ilgax/Minekt"
+    "homepage": "https://github.com/ilgax/Minekt",
+    "sources": "https://github.com/ilgax/Minekt",
+    "issues": "https://github.com/ilgax/Minekt/issues"
   },
   "license": "GPL-3.0-or-later",
   "environment": "*",

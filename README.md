@@ -4,7 +4,9 @@
 Kotlin (`.kts`) instead of Python. They run inside the game, with full type checking and direct access to
 Minecraft and every installed mod.
 
-> Proof of concept · Fabric · Minecraft 26.3 · Kotlin 2.4.20 · GPL-3.0-or-later
+> Beta (0.1.0) · Fabric · Minecraft 26.3 · Java 25 · Kotlin 2.4.20 · GPL-3.0-or-later
+>
+> In beta: the script API may still change before 1.0; changes are listed with each [release](https://github.com/ilgax/Minekt/releases).
 
 ```kotlin
 // .minecraft/minekt/ores.kts   →   type  \ores 24  in chat
@@ -16,12 +18,17 @@ findBlocks(radius) { it.endsWith("_ore") }
 
 ## Install
 
-1. Install [Fabric Loader](https://fabricmc.net/use/) for Minecraft 26.3, plus
+Download the jars from the [releases](https://github.com/ilgax/Minekt/releases) page.
+
+1. Install [Fabric Loader](https://fabricmc.net/use/) for Minecraft 26.3 (Java 25), plus
    [Fabric API](https://modrinth.com/mod/fabric-api) and
    [Fabric Language Kotlin](https://modrinth.com/mod/fabric-language-kotlin).
 2. Drop a Minekt jar into `.minecraft/mods`: `minekt-<version>.jar` (small, downloads the Kotlin compiler once)
    or `minekt-<version>-full.jar` (compiler built in, for offline use).
-3. Start the game. Minekt creates `.minecraft/minekt/` with example scripts: type `\hello` in chat.
+3. Start the game. Minekt creates `.minecraft/minekt/` with example scripts: type `\hello` in chat. Updates
+   refresh the examples you haven't changed; for ones you did, the new version appears next to them as `<name>.kts.new`.
+
+On a server, put the same jar (and the same two dependencies) in the server's `mods` folder: see [Server scripts](docs/server.md).
 
 New to it? [Your first scripts](docs/tutorial.md) walks through six short ones, and [examples/](examples/README.md)
 has more to copy from: tracers, a radar, a minimap, a custom crosshair, clickable coordinates and others. `\help` (or `/mk help`) lists the

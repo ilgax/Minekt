@@ -1,0 +1,42 @@
+name: release
+
+# Push a tag like v0.1.0 to build the jars and publish a GitHub release with them. Versions below 1.0 are published
+# as pre-releases (beta), with GitHub's generated notes. The tag must match mod_version in gradle.properties.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 25
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Check the tag matches the version
+        run: |
+          version=$(grep '^mod_version=' gradle.properties | cut -d= -f2)
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "Tag $GITHUB_REF_NAME doesn't match mod_version=$version" >&2
+            exit 1
+          fi
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+      - name: Build and test
+        run: ./gradlew build
+      - name: Server smoke tests
+        run: ./gradlew serverSmokeTest -PacceptMinecraftEula=true
+      - name: Publish the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          prerelease=""
+          case "$VERSION" in 0.*|*-*) prerelease="--prerelease" ;; esac
+          gh release create "$GITHUB_REF_NAME" $prerelease --title "Minekt $VERSION" --generate-notes \
+            "build/libs/minekt-$VERSION.jar" "build/libs/minekt-$VERSION-full.jar"
