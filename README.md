@@ -1,63 +1,71 @@
-# Minekt
+<p align="center"><img src="src/main/resources/assets/minekt/icon.png" alt="Minekt" width="128"></p>
 
-**Kotlin scripting for Minecraft.** Like [Minescript](https://github.com/maxuser0/minescript), but scripts are
-Kotlin (`.kts`) instead of Python. They run inside the game, with full type checking and direct access to
-Minecraft and every installed mod.
+<h1 align="center">Minekt</h1>
 
-> Beta (0.1.0) · Fabric · Minecraft 26.3 · Java 25 · Kotlin 2.4.20 · GPL-3.0-or-later
->
-> In beta: the script API may still change before 1.0; changes are listed with each [release](https://github.com/ilgax/Minekt/releases).
+<p align="center"><b>Kotlin scripts for Minecraft.</b> Write a small <code>.kts</code> file, type its name in chat, and it runs
+inside the game. Edit it and run it again: no restart.</p>
 
-```kotlin
-// .minecraft/minekt/ores.kts   →   type  \ores 24  in chat
-val radius = args.firstOrNull()?.toIntOrNull() ?: 16
-findBlocks(radius) { it.endsWith("_ore") }
-    .groupBy { it.id }
-    .forEach { (id, blocks) -> echo("$id: ${blocks.size}, nearest at ${blocks.first().pos}") }
-```
+<p align="center">Beta 0.1.0 · Fabric · Minecraft 26.3 · Java 25 · GPL-3.0-or-later</p>
+
+> **Beta:** things may still change before 1.0. Each [release](https://github.com/ilgax/Minekt/releases) lists what
+> changed.
 
 ## Install
 
-Download the jars from the [releases](https://github.com/ilgax/Minekt/releases) page.
+1. Install [Fabric Loader](https://fabricmc.net/use/) for Minecraft 26.3 (it needs Java 25).
+2. Put these in `.minecraft/mods`:
+   - [Fabric API](https://modrinth.com/mod/fabric-api)
+   - [Fabric Language Kotlin](https://modrinth.com/mod/fabric-language-kotlin)
+   - Minekt, from [Releases](https://github.com/ilgax/Minekt/releases): `minekt-<version>.jar` (downloads the Kotlin
+     compiler on first start) or `minekt-<version>-full.jar` (has it built in, works offline).
+3. Start the game and open a world. Type `\hello` in chat.
 
-1. Install [Fabric Loader](https://fabricmc.net/use/) for Minecraft 26.3 (Java 25), plus
-   [Fabric API](https://modrinth.com/mod/fabric-api) and
-   [Fabric Language Kotlin](https://modrinth.com/mod/fabric-language-kotlin).
-2. Drop a Minekt jar into `.minecraft/mods`: `minekt-<version>.jar` (small, downloads the Kotlin compiler once)
-   or `minekt-<version>-full.jar` (compiler built in, for offline use).
-3. Start the game. Minekt creates `.minecraft/minekt/` with example scripts: type `\hello` in chat. Updates
-   refresh the examples you haven't changed; for ones you did, the new version appears next to them as `<name>.kts.new`.
+## Your first script
 
-On a server, put the same jar (and the same two dependencies) in the server's `mods` folder: see [Server scripts](docs/server.md).
+Scripts live in `.minecraft/minekt/` (Minekt creates it, with a few examples). Save this as
+`.minecraft/minekt/ores.kts`, then type `\ores` in chat:
 
-New to it? [Your first scripts](docs/tutorial.md) walks through six short ones, and [examples/](examples/README.md)
-has more to copy from: tracers, a radar, a minimap, a custom crosshair, clickable coordinates and others. `\help` (or `/mk help`) lists the
-chat commands, and `\menu` opens the script manager. With [Mod Menu](https://modrinth.com/mod/modmenu), Minekt's
-settings (command prefix, editor) are under Configure. More in [Getting started](docs/getting-started.md).
-Write Fabric mods? [Coming from Fabric](docs/from-fabric.md) shows the same mod both ways.
+```kotlin
+val ores = findBlocks(16) { it.endsWith("_ore") }
+echo("${ores.size} ores nearby")
+ores.firstOrNull()?.let { echo("nearest:", it.id, "at", it.pos) }
+```
 
-## What scripts can do
+Change it, save, and type `\ores` again: it runs the new version. [Your first scripts](docs/tutorial.md) goes on from
+here, and [examples/](examples/README.md) has more to copy: a radar, a minimap, tracers, a custom crosshair…
 
-- **Read and control the game:** the player, inventory and containers, blocks and entities, keys, chat,
-  recording your input as a script. ([Player and world](docs/world.md))
-- **React to things:** chat, ticks, keys, damage, blocks changing, mobs appearing, sounds, the tab list and
-  scoreboard, timers, messages from other scripts, their own `/commands`. ([Events](docs/events.md))
-- **Show things:** HUD panels, shapes drawn in the world, glow outlines through walls, your own drawing every
-  frame down to single pixels, blocks only you can see, real Minecraft screens. ([Drawing and screens](docs/display.md))
-- **Keep and fetch data:** settings the player can change in a menu, values that survive restarts, web
-  requests, any Maven library. ([Data and the web](docs/data.md))
-- **Go deep:** raw packets, hooking any game method at runtime, rewriting any class's bytecode, other mods' APIs, Baritone. ([Advanced](docs/advanced.md))
-- **Be shared:** `\install <link>` with a preview of what a script can do. ([Sharing](docs/sharing.md))
-- **Run on servers:** the same jar on a dedicated server or in singleplayer runs server scripts, started with
-  `/mks`: greet players, add commands, change blocks, spawn and track entities, edit inventories, react to chat,
-  damage and deaths; with permission nodes for permission managers. ([Server scripts](docs/server.md))
+## In-game commands
 
-Failing scripts explain themselves in chat, and every script has a log. ([Errors and logs](docs/errors-and-logs.md))
+| Command | |
+|---|---|
+| `\<script> [args]` | run `<script>.kts` from `.minecraft/minekt/` |
+| `\menu` | the script manager: run, stop, settings and logs |
+| `\jobs`, `\kill <id\|all>` | see and stop running scripts |
+| `\install <link>` | install someone's script, after showing what it can do |
+| `\help` | every command |
 
-All the docs: [docs/](docs/README.md) · [API overview](docs/api.md) · [How it works](docs/internals.md)
+With [Mod Menu](https://modrinth.com/mod/modmenu), Minekt's settings are under Configure. More in
+[Getting started](docs/getting-started.md).
 
-> No sandbox: scripts can do anything the game can. Only run scripts you trust, and check a server's rules
-> before using automation there.
+**On a server:** put the same three jars in the server's `mods` folder. Operators run scripts from the server's
+`minekt/` folder with `/mks run <script>`. See [Server scripts](docs/server.md).
+
+> Scripts can do anything the game can. Only run scripts you trust, and check a server's rules before using
+> automation there.
+
+## For power users
+
+Scripts are full Kotlin with the game and every installed mod on hand, and mod code works in them as it is.
+
+- [API overview](docs/api.md): everything scripts can call, on one page
+- [Player and world](docs/world.md), [Events](docs/events.md), [Drawing and screens](docs/display.md),
+  [Data and the web](docs/data.md), [Errors and logs](docs/errors-and-logs.md), [Sharing](docs/sharing.md)
+- [Advanced](docs/advanced.md): Fabric API events, method hooks, class rewriting, packets, other mods, Baritone
+- [Coming from Fabric](docs/from-fabric.md): the same mod written both ways
+- [Server scripts](docs/server.md): the server API, `/mks`, permission nodes for permission managers
+- [How it works](docs/internals.md): internals, building from source, the tests
+
+All the docs: [docs/](docs/README.md).
 
 ## License
 

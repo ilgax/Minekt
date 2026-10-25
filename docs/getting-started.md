@@ -1,5 +1,9 @@
 # Getting started
 
+Minekt is like [Minescript](https://github.com/maxuser0/minescript), but scripts are Kotlin (`.kts`, Kotlin 2.4.20)
+instead of Python: they run inside the game, with full type checking and direct access to Minecraft and every
+installed mod.
+
 ## Install
 
 1. Install [Fabric Loader](https://fabricmc.net/use/) for Minecraft 26.3, plus
@@ -9,7 +13,9 @@
    - `minekt-<version>.jar` (about 3 MB) gets the Kotlin compiler on first launch (see below).
    - `minekt-<version>-full.jar` (about 56 MB) has the compiler built in: for offline use, or modpacks that
      don't allow downloads.
-3. Start the game. On first launch Minekt creates `.minecraft/minekt/` and fills it with example scripts.
+3. Start the game. On first launch Minekt creates `.minecraft/minekt/` and fills it with example scripts. Later
+   versions update the examples you haven't changed; when you have changed one, the new version appears next to it
+   as `<name>.kts.new`, and an example you deleted stays deleted.
 
 **The compiler (small jar only).** Scripts are compiled by the Kotlin compiler, which is most of Minekt's size,
 so the small jar fetches it once while the game loads. It needs exactly the version Minekt was built with, and
@@ -24,6 +30,8 @@ connect once, or put `kotlin-compiler-embeddable-<version>.jar` from Maven Centr
 shows when a download starts and finishes.
 
 ## Chat commands
+
+Each one also works as `/mk <command>` (`/mk help`), for when the `\` prefix is awkward to type.
 
 | Command | |
 |---|---|
