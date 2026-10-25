@@ -29,15 +29,6 @@ annotation class ExperimentalPackets
 @Target(AnnotationTarget.CLASS, AnnotationTarget.FUNCTION, AnnotationTarget.PROPERTY)
 annotation class ExperimentalHooks
 
-/** Glow outlines on entities, fake blocks and pixels: new, and may still change. */
-@RequiresOptIn(
-    "glow, fake blocks and pixels are experimental and may still change. Add @file:OptIn(ExperimentalVisuals::class) at the top of the script to use them",
-    RequiresOptIn.Level.ERROR,
-)
-@Retention(AnnotationRetention.BINARY)
-@Target(AnnotationTarget.CLASS, AnnotationTarget.FUNCTION, AnnotationTarget.PROPERTY)
-annotation class ExperimentalVisuals
-
 /** The `baritone` helpers: they follow Baritone's own API, which Minekt doesn't control. */
 @RequiresOptIn(
     "The baritone helpers are experimental: they follow Baritone's API. Add @file:OptIn(ExperimentalBaritone::class) at the top of the script to use them",

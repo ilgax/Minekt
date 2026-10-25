@@ -33,9 +33,9 @@ persistence, HTTP, eval): see [Server scripts](server.md).
 | Class rewriting (experimental) | `rewriteClass<Class> { node -> }` (ASM tree), `transformClass(name) { bytes -> newBytes }`, `classBytes<Class>()` |
 | Libraries | `@file:DependsOn("group:artifact:version")`, `@file:Repository("https://…")` |
 | World shapes | `highlight(pos)` (the block's own shape), `box(min, max)`, `line(a, b)`, `arrow(a, b)`, `text(pos, "…")` → `color`, `remove()`; `clearShapes()` |
-| Glow outlines (experimental) | `glow(entity, color)` → `color`, `remove()`; blocks: `highlight(pos)` |
-| Fake blocks (experimental) | `fakeBlock(pos, "minecraft:glass")`, `fakeBlocks(map)`, `clearFakeBlocks()` → `remove()` |
-| Pixels (experimental) | `pixels(w, h)` → `[x, y] = color`, `fill`, `clear`, `data` + `changed()`; drawn with `g.pixels(p, x, y, w, h)` |
+| Glow outlines | `glow(entityId, color)` → `color`, `remove()`; blocks: `highlight(pos)` |
+| Fake blocks | `fakeBlock(pos, "minecraft:glass")`, `fakeBlocks(map)` → `remove()` |
+| Pixels | `pixels(w, h)` → `[x, y] = color`, `fill`, `clear`, `data` + `changed()`; drawn with `g.pixels(p, x, y, w, h)` |
 | Drawing every frame | `onHudRender { g -> g.rect(…); g.text(…); g.item(…); g.image(…) }`, `onWorldRender { w -> w.line(…); w.box(…); w.text(…); w.point(…); w.entityPosition(id) }` |
 | Mods | `baritone.*` (experimental); other mods' classes directly, `FabricLoader` to check what's installed |
 | Raw access | `game { mc -> … }` runs on the client thread with the live `Minecraft` instance |
@@ -61,7 +61,6 @@ checks this against `api/minekt.api`). A few parts aren't settled yet and need a
 |---|---|
 | `@file:OptIn(ExperimentalPackets::class)` | `onPacket`, `interceptPacket`, `sendPacket`, `awaitPacket`: Minecraft's packet classes change every version |
 | `@file:OptIn(ExperimentalHooks::class)` | `hook`, `hookAfter`, `rewriteClass`, `transformClass`, `classBytes`: they name the game's methods |
-| `@file:OptIn(ExperimentalVisuals::class)` | `glow`, `fakeBlock`, `fakeBlocks`, `pixels`: new, may still change |
 | `@file:OptIn(ExperimentalBaritone::class)` | `baritone.*`: follows Baritone's own API |
 
 Several at once: `@file:OptIn(ExperimentalPackets::class, ExperimentalHooks::class)`. Without the line, the

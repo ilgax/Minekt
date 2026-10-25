@@ -26,23 +26,22 @@ clearShapes()                                                   // or drop them 
 - Shapes use Minecraft's built-in gizmo renderer. They're redrawn every tick from data the script sets; for
   drawing that changes every frame, see below.
 
-## Glow outlines (experimental)
+## Glow outlines
 
 The Glowing effect's outline on any entity, in any color, seen through walls, only on your screen:
 
 ```kotlin
-@file:OptIn(ExperimentalVisuals::class)
-
-for (e in entities(32.0)) if (e.type == "minecraft:zombie") glow(e, Color.RED)
-val g = glow(entities(8.0).firstOrNull() ?: return, Color.YELLOW)
+for (e in entities(32.0)) if (e.type == "minecraft:zombie") glow(e.id, Color.RED)
+val g = glow(entities(8.0).firstOrNull()?.id ?: return, Color.YELLOW)
 g.color = Color.GREEN                                     // change it while it shows
 g.remove()
 ```
 
 - It's exactly the game's glowing outline (the newest glow wins if two scripts glow the same one). `glow`
-  takes an entity or its id, so it also works with ids from `onEntityAppear`.
+  takes an entity id, from `entities()` or events like `onEntityAppear`.
 - For blocks, use `highlight(pos)` (above): it outlines a block in its own shape.
-- Like shapes, glows come off when the script ends and don't keep it running on their own.
+- Like shapes, glows come off when the script ends and don't keep it running on their own. They also come
+  off when you change worlds or dimensions, because entity ids only mean something in one world.
 
 ## Drawing every frame
 
@@ -74,13 +73,11 @@ onWorldRender { w ->
 - Colors are `0xRRGGBB` (opaque) or `0xAARRGGBB`, like `Color.RED` or `Color.rgb(r, g, b, a)`.
 - The handlers keep the script alive. One that throws is removed and its error shown in chat.
 
-### Pixels (experimental)
+### Pixels
 
 A grid of pixels you set one by one, drawn on the HUD: images, minimaps, graphs, an emulator's screen.
 
 ```kotlin
-@file:OptIn(ExperimentalVisuals::class)
-
 val screen = pixels(160, 144)                     // all transparent at first
 screen.fill(0x202020)
 screen[10, 20] = Color.RED

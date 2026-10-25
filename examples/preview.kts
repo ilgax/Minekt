@@ -2,7 +2,6 @@
 // only on your screen, to try out a build before placing it. P moves it to where you look now,
 // O swaps in the block in your hand. Stops with \kill, and the real blocks come back.
 // Shows: fakeBlocks (many at once), targetedBlock, keybind.
-@file:OptIn(ExperimentalVisuals::class)
 
 var block = args.getOrNull(0)?.let { if (":" in it) it else "minecraft:$it" } ?: "minecraft:glass"
 val size = args.getOrNull(1)?.toIntOrNull()?.coerceIn(1, 32) ?: 5

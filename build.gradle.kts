@@ -348,7 +348,6 @@ kotlin {
                 annotatedWith.addAll(
                     "dev.ilgax.minekt.api.ExperimentalPackets",
                     "dev.ilgax.minekt.api.ExperimentalHooks",
-                    "dev.ilgax.minekt.api.ExperimentalVisuals",
                     "dev.ilgax.minekt.api.ExperimentalBaritone",
                 )
             }

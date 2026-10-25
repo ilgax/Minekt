@@ -1,20 +1,29 @@
-@file:OptIn(dev.ilgax.minekt.api.ExperimentalVisuals::class)
-
 package dev.ilgax.minekt.hooks
 
 import dev.ilgax.minekt.api.Glow
 import dev.ilgax.minekt.job.Job
+import net.minecraft.client.multiplayer.ClientLevel
 import java.util.concurrent.CopyOnWriteArrayList
 
 /**
  * Glow outlines from scripts (`glow`): the game's own glowing outline, through
- * [dev.ilgax.minekt.mixin.EntityRendererMixin]. The newest glow on an entity wins.
+ * [dev.ilgax.minekt.mixin.EntityRendererMixin]. The newest glow on an entity wins. Entity ids only mean
+ * something in one world, so glows are dropped when the client changes worlds or dimensions.
  */
 object Glows {
     /** Whether any glow exists, so the mixin does nothing otherwise. */
     @JvmField @Volatile var active = false
 
     private val glows = CopyOnWriteArrayList<Glow>()
+    private var currentLevel: ClientLevel? = null
+
+    /** Called every client tick: drops every glow when the world changes. */
+    fun tick(level: ClientLevel?) {
+        if (level === currentLevel) return
+        currentLevel = level
+        glows.clear()
+        active = false
+    }
 
     internal fun add(glow: Glow) {
         glows += glow

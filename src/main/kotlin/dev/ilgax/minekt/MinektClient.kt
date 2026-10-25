@@ -34,6 +34,7 @@ import dev.ilgax.minekt.job.MessageKind
 import dev.ilgax.minekt.job.TickClock
 import dev.ilgax.minekt.api.ChatMessage
 import dev.ilgax.minekt.hooks.FakeBlocks
+import dev.ilgax.minekt.hooks.Glows
 import dev.ilgax.minekt.hooks.MinektConfig
 import dev.ilgax.minekt.hooks.MinektSettingsView
 import net.minecraft.client.gui.screens.Screen
@@ -132,6 +133,7 @@ object MinektClient : ClientModInitializer, ClientHost {
             InputHooks.listening = jobs.wantsInput(RawKey::class.java) || jobs.wantsInput(RawMouseButton::class.java) || jobs.wantsInput(RawScroll::class.java) || recorder.isRecording
             InputHooks.listeningToMoves = jobs.wantsInput(RawMouseMove::class.java)
             FakeBlocks.tick(mc.level)
+            Glows.tick(mc.level)
             if (mc.level != null) ScriptRenderer.submitTick()
             ScriptHud.tick()
             gameEvents.tick(mc)
@@ -148,6 +150,7 @@ object MinektClient : ClientModInitializer, ClientHost {
         ClientLifecycleEvents.CLIENT_STOPPING.register {
             jobs.close()
             FakeBlocks.tick(null)
+            Glows.tick(null)
         }
     }
 

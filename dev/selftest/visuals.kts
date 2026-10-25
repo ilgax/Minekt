@@ -1,6 +1,5 @@
 // In-game test for glow outlines, fake blocks, pixels and Minekt's settings (incl. Mod Menu's entry).
 // Singleplayer test world.
-@file:OptIn(ExperimentalVisuals::class)
 
 import java.util.concurrent.atomic.AtomicInteger
 import javax.imageio.ImageIO
@@ -96,7 +95,7 @@ check("glow(entity) outlines it in its color, through a wall") {
     server("fill -2 200 3 2 203 3 minecraft:stone")
     waitTicks(10)
     val before = count("vz-glow-0", redish)
-    val g = glow(stand, Color.RED)
+    val g = glow(stand.id, Color.RED)
     val with = count("vz-glow-1", redish)
     g.color = Color.GREEN
     val green = count("vz-glow-2", greenish)
@@ -124,7 +123,7 @@ server("kill @e[tag=vz]")
 // ---- fake blocks -------------------------------------------------------------------------------------
 
 check("fakeBlock shows a block only on this client; remove() brings the real one back") {
-    val f = fakeBlock(0, 200, 3, "minecraft:glass")
+    val f = fakeBlock(BlockPos(0, 200, 3), "minecraft:glass")
     waitTicks(2)
     val shown = blockAt(BlockPos(0, 200, 3)).id
     val real = serverBlock(0, 200, 3)
@@ -133,17 +132,17 @@ check("fakeBlock shows a block only on this client; remove() brings the real one
     (shown == "minecraft:glass" && real == "minecraft:air" && blockAt(BlockPos(0, 200, 3)).id == "minecraft:air") then "client $shown, server $real, after remove ${blockAt(BlockPos(0, 200, 3)).id}"
 }
 check("fake block states parse, like commands") {
-    val f = fakeBlock(1, 200, 3, "minecraft:oak_stairs[facing=east,half=top]")
+    val f = fakeBlock(BlockPos(1, 200, 3), "minecraft:oak_stairs[facing=east,half=top]")
     val props = blockAt(BlockPos(1, 200, 3)).properties
     f.remove()
     (props["facing"] == "east" && props["half"] == "top") then props
 }
 check("a bad block name says so") {
-    val e = runCatching { fakeBlock(1, 200, 3, "minecraft:not_a_block") }.exceptionOrNull()
+    val e = runCatching { fakeBlock(BlockPos(1, 200, 3), "minecraft:not_a_block") }.exceptionOrNull()
     (e is IllegalArgumentException && "not_a_block" in e.message.orEmpty()) then e?.message
 }
 check("a server change under a fake keeps the fake, and shows after remove") {
-    val f = fakeBlock(0, 200, 4, "minecraft:glass")
+    val f = fakeBlock(BlockPos(0, 200, 4), "minecraft:glass")
     server("setblock 0 200 4 minecraft:gold_block")
     waitTicks(10)
     val during = blockAt(BlockPos(0, 200, 4)).id
@@ -154,8 +153,8 @@ check("a server change under a fake keeps the fake, and shows after remove") {
     (during == "minecraft:glass" && after == "minecraft:gold_block") then "during $during, after $after"
 }
 check("two fakes on one block: the newest shows, then the older, then the real one") {
-    val a = fakeBlock(0, 200, 5, "minecraft:glass")
-    val b = fakeBlock(0, 200, 5, "minecraft:diamond_block")
+    val a = fakeBlock(BlockPos(0, 200, 5), "minecraft:glass")
+    val b = fakeBlock(BlockPos(0, 200, 5), "minecraft:diamond_block")
     val top = blockAt(BlockPos(0, 200, 5)).id
     b.remove()
     val next = blockAt(BlockPos(0, 200, 5)).id
@@ -169,13 +168,13 @@ check("fakeBlocks: 2000 at once is quick") {
     val many = fakeBlocks(plan)
     val ms = (System.nanoTime() - started) / 1_000_000
     val ok = blockAt(BlockPos(4, 214, 12)).id == "minecraft:glass"
-    clearFakeBlocks()
+    many.forEach { it.remove() }
     val cleared = blockAt(BlockPos(4, 214, 12)).id == "minecraft:air"
     (ok && cleared && ms < 2000) then "${many.size} in $ms ms, cleared: $cleared"
 }
 check("fake blocks come off when their script ends") {
     val file = game { it.gameDirectory.toPath().resolve("minekt/vzchild.kts") }
-    java.nio.file.Files.writeString(file, "@file:OptIn(ExperimentalVisuals::class)\nfakeBlock(2, 200, 6, \"minecraft:emerald_block\")\nsleep(1500)\nstop()\n")
+    java.nio.file.Files.writeString(file, "fakeBlock(BlockPos(2, 200, 6), \"minecraft:emerald_block\")\nsleep(1500)\nstop()\n")
     val run = startScript("vzchild")
     val during = waitFor(5) { blockAt(BlockPos(2, 200, 6)).id == "minecraft:emerald_block" }
     run.await()
@@ -277,7 +276,7 @@ launch {
         val changes = AtomicInteger()
         val at = BlockPos(-1, 200, 5)
         onBlockChange { (pos, _, _) -> if (pos == at) changes.incrementAndGet() }
-        val f = fakeBlock(-1, 200, 5, "minecraft:glass")
+        val f = fakeBlock(BlockPos(-1, 200, 5), "minecraft:glass")
         f.remove()
         server("setblock -1 200 5 minecraft:stone")
         waitFor(3) { changes.get() > 0 }

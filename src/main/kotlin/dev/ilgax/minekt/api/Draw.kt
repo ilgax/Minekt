@@ -1,5 +1,3 @@
-@file:OptIn(dev.ilgax.minekt.api.ExperimentalVisuals::class)
-
 package dev.ilgax.minekt.api
 
 import net.minecraft.world.phys.Vec3
@@ -100,7 +98,6 @@ class HudCanvas internal constructor(
      * Draw [pixels] with the top left at [x], [y], stretched to [width] × [height] (sharp, without
      * blurring: double the size for each pixel to be 2 × 2).
      */
-    @ExperimentalVisuals
     fun pixels(pixels: Pixels, x: Int, y: Int, width: Int = pixels.width, height: Int = pixels.height) {
         val id = pixels.texture()
         raw.blit(RenderPipelines.GUI_TEXTURED, id, x, y, 0f, 0f, width, height, pixels.width, pixels.height, pixels.width, pixels.height)

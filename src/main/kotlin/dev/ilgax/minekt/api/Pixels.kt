@@ -1,5 +1,3 @@
-@file:OptIn(dev.ilgax.minekt.api.ExperimentalVisuals::class)
-
 package dev.ilgax.minekt.api
 
 import dev.ilgax.minekt.job.clientHost
@@ -23,7 +21,6 @@ import java.util.concurrent.atomic.AtomicLong
 // `screen.changed()` after. Only what changed is sent to the graphics card, once per frame.
 
 /** Pixels made with [pixels]; draw them with `g.pixels` in `onHudRender`. */
-@ExperimentalVisuals
 class Pixels internal constructor(
     val width: Int,
     val height: Int,
@@ -126,7 +123,6 @@ class Pixels internal constructor(
 }
 
 /** A [width] × [height] grid of [Pixels], all transparent at first. Freed when the script ends. */
-@ExperimentalVisuals
 fun Minekt.pixels(width: Int, height: Int): Pixels {
     require(width in 1..4096 && height in 1..4096) { "Pixels can be 1 to 4096 wide and high, not $width × $height" }
     job.checkAlive()

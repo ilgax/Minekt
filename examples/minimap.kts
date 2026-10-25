@@ -1,7 +1,6 @@
 // \minimap — a map of the ground around you in the top right, in the colors of real maps, with you
 // as a white dot and north up. Redrawn once a second. Toggle it with M ("Toggle minimap" in Controls).
 // Shows: pixels (a grid drawn on the HUD), reading the world through game { }, setting.
-@file:OptIn(ExperimentalVisuals::class)
 
 import net.minecraft.core.BlockPos
 import net.minecraft.world.level.levelgen.Heightmap
