@@ -9,7 +9,7 @@ installed mod.
 1. Install [Fabric Loader](https://fabricmc.net/use/) for Minecraft 26.3, plus
    [Fabric API](https://modrinth.com/mod/fabric-api) and
    [Fabric Language Kotlin](https://modrinth.com/mod/fabric-language-kotlin).
-2. Drop one of the two Minekt jars into `.minecraft/mods`:
+2. Drop one of the two Minekt jars from [Releases](https://github.com/ilgax/Minekt/releases) into `.minecraft/mods`:
    - `minekt-<version>.jar` (about 3 MB) gets the Kotlin compiler on first launch (see below).
    - `minekt-<version>-full.jar` (about 56 MB) has the compiler built in: for offline use, or modpacks that
      don't allow downloads.

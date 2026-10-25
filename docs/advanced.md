@@ -153,6 +153,8 @@ For Baritone there is also a built-in helper (experimental: `@file:OptIn(Experim
 reflection, so it works with whatever Baritone version is installed, and Minekt runs fine without it:
 
 ```kotlin
+@file:OptIn(ExperimentalBaritone::class)
+
 if (!baritone.isAvailable) stop()
 baritone.goto(100, 64, -20)        // also: mine(…), follow(player), explore(), cancel(), command("…")
 baritone.await()                   // block until Baritone is done

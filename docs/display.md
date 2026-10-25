@@ -32,7 +32,7 @@ The Glowing effect's outline on any entity, in any color, seen through walls, on
 
 ```kotlin
 for (e in entities(32.0)) if (e.type == "minecraft:zombie") glow(e.id, Color.RED)
-val g = glow(entities(8.0).firstOrNull()?.id ?: return, Color.YELLOW)
+val g = glow(entities(8.0).firstOrNull()?.id ?: stop(), Color.YELLOW)
 g.color = Color.GREEN                                     // change it while it shows
 g.remove()
 ```
@@ -147,6 +147,8 @@ panel.move(Anchor.BOTTOM_RIGHT)     // or panel.visible = false, panel.remove()
 Scripts can open real Minecraft screens: settings menus, pickers, little dashboards.
 
 ```kotlin
+@file:OptIn(ExperimentalBaritone::class)   // for the baritone buttons
+
 var autoEat by persistent { true }
 var range by persistent { 32 }
 var mode by persistent { "walk" }

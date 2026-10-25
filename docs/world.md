@@ -43,7 +43,7 @@ counts as a click, so `press("inventory")` opens the inventory and `press("attac
 ```kotlin
 press("forward"); sleep(2000); release("forward")
 press("hotbar.3"); release("hotbar.3")              // select the third hotbar slot
-echo(bindings)                                    // every binding's name, other mods' included
+echo(game { mc -> mc.options.keyMappings.map { it.name } })   // every binding's name, other mods' included
 ```
 
 Names are as in `options.txt`, with or without `key.`: `forward`, `jump`, `inventory`, `hotbar.1` … `hotbar.9`,

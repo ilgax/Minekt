@@ -122,7 +122,7 @@ tick, nothing slow. A script's body runs on its own thread instead, so it can do
 
 ```kotlin
 press("forward"); sleep(2000); release("forward")
-val msg = awaitChat { "ready" in it.text }
+val msg = runBlocking { awaitChat { "ready" in it.text } }   // a suspend call: inside launch { } or runBlocking { }
 ```
 
 and touch the game through `game { mc -> … }`, which runs the block on the game thread and returns its

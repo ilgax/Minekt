@@ -106,3 +106,10 @@ examples (`src/main/resources/minekt-examples`) into `run/minekt/` too: the game
   between scripts, and script screens. The screen part clicks and types for real: run the client with
   `dev/selftest/xdo-runner.sh --quickPlaySingleplayer <world>` (X11 and `xdotool`) or `xdo-runner.py` (Windows), which performs the
   `XDO …` steps the test prints.
+
+## Releasing
+
+Set `mod_version` in `gradle.properties`, then push a matching tag (`git tag v0.1.0 && git push origin v0.1.0`).
+`.github/workflows/release.yml` checks the tag matches the version, builds, runs the unit tests and the server smoke
+tests, and publishes a GitHub release with the small and full jars and GitHub's generated notes. Versions below 1.0
+are published as pre-releases (beta).
