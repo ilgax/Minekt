@@ -53,7 +53,7 @@ launch {
     check("isDown while the key is held; holding it is one press") {
         xdo("keydown j")
         sleep(1500) // long enough for the keyboard to start repeating
-        val down = ping.isDown
+        val down = waitFor(3) { ping.isDown } // the real key may arrive a moment late
         xdo("keyup j")
         waitFor(3) { !ping.isDown }
         sleep(300)

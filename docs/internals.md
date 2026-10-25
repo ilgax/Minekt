@@ -56,7 +56,10 @@ Requires JDK 25.
 fails if it differs from the code, so the API can only change on purpose.
 
 `dev/selftest/` holds in-game self-tests. Copy them into `run/minekt/` and list them in `run/minekt/autorun.txt`,
-then open a singleplayer world. Each one reports `OK`/`FAIL` lines in chat and closes the game.
+then open a singleplayer world. Each one reports `OK`/`FAIL` lines in chat and closes the game. Tests that need real
+key presses and clicks print `XDO …` lines: run them through `dev/selftest/xdo-runner.sh` (Linux, xdotool) or
+`python dev/selftest/xdo-runner.py` (Windows), which start the client and carry those lines out. Copy the bundled
+examples (`src/main/resources/minekt-examples`) into `run/minekt/` too: the game only installs them into a new folder.
 - `\hooktest` then `\selftest`: core API, commands, keys and rendering. When it prints `PRESS KEYS NOW`, press
   J so the keybind hook gets exercised.
 - `\sharing`: feedback, and installing, updating and sharing. Needs a local web server on 127.0.0.1:8765 (see
@@ -67,10 +70,10 @@ then open a singleplayer world. Each one reports `OK`/`FAIL` lines in chat and c
   uses the singleplayer server to give items, deal damage and teleport.
 - `\startuptest` (with `double.kts`): put it under `[startup]` in `autorun.txt` and launch without joining a world;
   it checks it runs on the title screen, with `eval` and `startScript`, then closes the game.
-- `\input`: raw keyboard and mouse input, listened to, cancelled and sent. Needs `xdo-runner.sh`.
+- `\input`: raw keyboard and mouse input, listened to, cancelled and sent. Needs `xdo-runner`.
 - `\rewrite`: rewriting real game classes, reading bytes with mixins applied, hooks on rewritten code.
 - `\more`: timers, packet hooks, method hooks, recording input and playing it back, and the script manager. Needs
-  `xdo-runner.sh` too.
+  `xdo-runner` too.
 - `\draw`: drawing every frame, pressing bindings by name, the player's and other entities' fields, styled and
   clickable chat, and the clipboard.
 - `\fabric`: Fabric API events from scripts: ticks, hiding a chat message, removal when a
@@ -94,10 +97,10 @@ then open a singleplayer world. Each one reports `OK`/`FAIL` lines in chat and c
 - `\visuals`: glow outlines on entities and blocks (counted in screenshots, through a wall), fake blocks
   (states, server updates underneath, several on one block, many at once, removal when the script ends), pixels
   on the HUD, and Minekt's settings screen through Mod Menu's entry point.
-- `\hudlog`: HUD panels, script errors in chat, `\log` and the log viewer. Needs `xdo-runner.sh`.
-- `\events`: settings (real clicks), autorun sections, HTTP and the newer events. Needs `xdo-runner.sh` and the
+- `\hudlog`: HUD panels, script errors in chat, `\log` and the log viewer. Needs `xdo-runner`.
+- `\events`: settings (real clicks), autorun sections, HTTP and the newer events. Needs `xdo-runner` and the
   `autorun.txt` shown at the top of the file.
 - `\ui`: the watchdog (`\kill` on `while (true) {}`, the CPU warning), messages
   between scripts, and script screens. The screen part clicks and types for real: run the client with
-  `dev/selftest/xdo-runner.sh --quickPlaySingleplayer <world>` (needs X11 and `xdotool`), which performs the
+  `dev/selftest/xdo-runner.sh --quickPlaySingleplayer <world>` (X11 and `xdotool`) or `xdo-runner.py` (Windows), which performs the
   `XDO …` steps the test prints.
