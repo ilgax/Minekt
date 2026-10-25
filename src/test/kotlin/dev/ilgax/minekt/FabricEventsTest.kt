@@ -39,6 +39,13 @@ class FabricEventsTest {
         return assertNotNull(jobs.runScript(name, emptyList()))
     }
 
+    /** Listeners of [event], once a finished job's cleanup has had time to run: DONE is set just before it runs. */
+    private fun listenersAfterCleanup(event: net.fabricmc.fabric.api.event.Event<*>): Int {
+        val deadline = System.currentTimeMillis() + 5_000
+        while (TestEvents.listenerCount(event) != 0 && System.currentTimeMillis() < deadline) Thread.sleep(10)
+        return TestEvents.listenerCount(event)
+    }
+
     private fun awaitState(job: Job, state: Job.State) {
         val deadline = System.currentTimeMillis() + 60_000
         while (job.state != state) {
@@ -67,8 +74,8 @@ class FabricEventsTest {
 
         jobs.dispatch(Job.Event.Chat(dev.ilgax.minekt.api.ChatMessage("bye")))
         awaitState(job, Job.State.DONE)
-        assertEquals(0, TestEvents.listenerCount(TestEvents.PING), "the listener is taken out of the event")
-        assertEquals(0, TestEvents.listenerCount(TestEvents.MODIFY))
+        assertEquals(0, listenersAfterCleanup(TestEvents.PING), "the listener is taken out of the event")
+        assertEquals(0, listenersAfterCleanup(TestEvents.MODIFY))
         TestEvents.PING.invoker().run()
         assertEquals("hi", TestEvents.MODIFY.invoker().modify("hi"))
         Thread.sleep(200)
@@ -82,7 +89,7 @@ class FabricEventsTest {
         assertEquals(1, TestEvents.listenerCount(TestEvents.PING))
         job.kill()
         awaitState(job, Job.State.DONE)
-        assertEquals(0, TestEvents.listenerCount(TestEvents.PING))
+        assertEquals(0, listenersAfterCleanup(TestEvents.PING))
     }
 
     @Test
