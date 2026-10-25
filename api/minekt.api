@@ -246,9 +246,6 @@ public abstract interface annotation class dev/ilgax/minekt/api/ExperimentalHook
 public abstract interface annotation class dev/ilgax/minekt/api/ExperimentalPackets : java/lang/annotation/Annotation {
 }
 
-public abstract interface annotation class dev/ilgax/minekt/api/ExperimentalVisuals : java/lang/annotation/Annotation {
-}
-
 public final class dev/ilgax/minekt/api/Face : java/lang/Enum {
 	public static final field DOWN Ldev/ilgax/minekt/api/Face;
 	public static final field EAST Ldev/ilgax/minekt/api/Face;
@@ -259,6 +256,17 @@ public final class dev/ilgax/minekt/api/Face : java/lang/Enum {
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
 	public static fun valueOf (Ljava/lang/String;)Ldev/ilgax/minekt/api/Face;
 	public static fun values ()[Ldev/ilgax/minekt/api/Face;
+}
+
+public final class dev/ilgax/minekt/api/FakeBlock {
+	public final fun getBlock ()Ljava/lang/String;
+	public final fun getPos ()Lnet/minecraft/core/BlockPos;
+	public final fun remove ()V
+}
+
+public final class dev/ilgax/minekt/api/FakeBlocksKt {
+	public static final fun fakeBlock (Ldev/ilgax/minekt/api/Minekt;Lnet/minecraft/core/BlockPos;Ljava/lang/String;)Ldev/ilgax/minekt/api/FakeBlock;
+	public static final fun fakeBlocks (Ldev/ilgax/minekt/api/Minekt;Ljava/util/Map;)Ljava/util/List;
 }
 
 public final class dev/ilgax/minekt/api/FeedbackKt {
@@ -284,6 +292,18 @@ public final class dev/ilgax/minekt/api/FoundBlock {
 	public final fun getPos ()Lnet/minecraft/core/BlockPos;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
+}
+
+public final class dev/ilgax/minekt/api/Glow {
+	public final fun getColor ()I
+	public final fun getEntity ()I
+	public final fun remove ()V
+	public final fun setColor (I)V
+}
+
+public final class dev/ilgax/minekt/api/GlowKt {
+	public static final fun glow (Ldev/ilgax/minekt/api/Minekt;II)Ldev/ilgax/minekt/api/Glow;
+	public static synthetic fun glow$default (Ldev/ilgax/minekt/api/Minekt;IIILjava/lang/Object;)Ldev/ilgax/minekt/api/Glow;
 }
 
 public final class dev/ilgax/minekt/api/Handler {
@@ -339,6 +359,8 @@ public final class dev/ilgax/minekt/api/HudCanvas {
 	public final fun item (Ljava/lang/String;III)V
 	public static synthetic fun item$default (Ldev/ilgax/minekt/api/HudCanvas;Ljava/lang/String;IIIILjava/lang/Object;)V
 	public final fun outline (IIIII)V
+	public final fun pixels (Ldev/ilgax/minekt/api/Pixels;IIII)V
+	public static synthetic fun pixels$default (Ldev/ilgax/minekt/api/HudCanvas;Ldev/ilgax/minekt/api/Pixels;IIIIILjava/lang/Object;)V
 	public final fun rect (IIIII)V
 	public final fun text (Ljava/lang/String;IIIZ)I
 	public static synthetic fun text$default (Ldev/ilgax/minekt/api/HudCanvas;Ljava/lang/String;IIIZILjava/lang/Object;)I
@@ -734,6 +756,23 @@ public final class dev/ilgax/minekt/api/PersistenceKt {
 public final class dev/ilgax/minekt/api/PersistentProperty {
 	public fun <init> (Ldev/ilgax/minekt/api/ScriptContext;Ljava/lang/String;ZLjava/lang/String;Ljava/lang/reflect/Type;Lkotlin/jvm/functions/Function0;)V
 	public final fun provideDelegate (Ljava/lang/Object;Lkotlin/reflect/KProperty;)Lkotlin/properties/ReadWriteProperty;
+}
+
+public final class dev/ilgax/minekt/api/Pixels {
+	public final fun changed ()V
+	public final fun clear ()V
+	public final fun clear (II)V
+	public final fun fill (I)V
+	public final fun fill (IIIII)V
+	public final fun get (II)I
+	public final fun getData ()[I
+	public final fun getHeight ()I
+	public final fun getWidth ()I
+	public final fun set (III)V
+}
+
+public final class dev/ilgax/minekt/api/PixelsKt {
+	public static final fun pixels (Ldev/ilgax/minekt/api/Minekt;II)Ldev/ilgax/minekt/api/Pixels;
 }
 
 public final class dev/ilgax/minekt/api/PlayerInfo {
