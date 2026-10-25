@@ -67,6 +67,12 @@ Scripts are full Kotlin with the game and every installed mod on hand, and mod c
 
 All the docs: [docs/](docs/README.md).
 
+## AI disclosure
+
+A large part of Minekt's code, tests and documentation was written with the help of an AI coding assistant. I
+review and test the changes, and the automated tests, real-server tests and in-game self-tests run before every
+release. Minekt itself uses no AI: it doesn't connect to any AI service.
+
 ## License
 
 GPL-3.0-or-later. See [LICENSE](LICENSE).
