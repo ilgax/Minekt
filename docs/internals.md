@@ -117,4 +117,5 @@ are published as pre-releases (beta).
 The same workflow uploads the version to Modrinth (both jars, the small one as the primary file, with Fabric API and
 Fabric Language Kotlin as required dependencies; beta for 0.x) when the repository has a `MODRINTH_TOKEN` secret (a
 Modrinth personal access token with the "Create versions" scope) and a `MODRINTH_PROJECT` variable (the project's
-slug or id). Without them, that step is skipped.
+slug or id). Without them, that step is skipped. To keep one release off Modrinth, put `[skip modrinth]` in its tag's
+message: `git tag -a v0.1.1 -m "[skip modrinth]" && git push origin v0.1.1`.

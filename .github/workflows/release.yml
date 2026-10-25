@@ -5,6 +5,8 @@ name: release
 #
 # It also uploads the version to Modrinth when the repository has a MODRINTH_TOKEN secret (a Modrinth personal
 # access token with the "Create versions" scope) and a MODRINTH_PROJECT variable (the project's slug or id).
+# To keep one release off Modrinth, put [skip modrinth] in its tag's message:
+#   git tag -a v0.1.1 -m "[skip modrinth]" && git push origin v0.1.1
 on:
   push:
     tags: ["v*"]
@@ -35,6 +37,10 @@ jobs:
             exit 1
           fi
           echo "VERSION=$version" >> "$GITHUB_ENV"
+          git fetch --force origin "refs/tags/$GITHUB_REF_NAME:refs/tags/$GITHUB_REF_NAME"
+          if git tag -l --format='%(contents)' "$GITHUB_REF_NAME" | grep -qiF '[skip modrinth]'; then
+            echo "SKIP_MODRINTH=true" >> "$GITHUB_ENV"
+          fi
       - name: Build and test
         run: ./gradlew build
       - name: Server smoke tests
@@ -48,7 +54,7 @@ jobs:
           gh release create "$GITHUB_REF_NAME" $prerelease --title "Minekt $VERSION" --generate-notes \
             "build/libs/minekt-$VERSION.jar" "build/libs/minekt-$VERSION-full.jar"
       - name: Upload to Modrinth
-        if: ${{ env.MODRINTH_TOKEN != '' && vars.MODRINTH_PROJECT != '' }}
+        if: ${{ env.MODRINTH_TOKEN != '' && vars.MODRINTH_PROJECT != '' && env.SKIP_MODRINTH != 'true' }}
         env:
           MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
           MODRINTH_PROJECT: ${{ vars.MODRINTH_PROJECT }}
