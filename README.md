@@ -62,7 +62,7 @@ Scripts are full Kotlin with the game and every installed mod on hand, and mod c
   [Data and the web](docs/data.md), [Errors and logs](docs/errors-and-logs.md), [Sharing](docs/sharing.md)
 - [Advanced](docs/advanced.md): Fabric API events, method hooks, class rewriting, packets, other mods, Baritone
 - [Coming from Fabric](docs/from-fabric.md): the same mod written both ways
-- [Server scripts](docs/server.md): the server API, `/mks`, permission nodes for permission managers
+- [Server scripts](docs/server.md): the server API, `/mks`, permission nodes for permission managers, and `minekt:host` for other mods
 - [How it works](docs/internals.md): internals, building from source, the tests
 
 All the docs: [docs/](docs/README.md).

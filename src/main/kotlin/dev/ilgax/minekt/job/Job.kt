@@ -81,6 +81,25 @@ class Job internal constructor(
 
     @Volatile private var killed = false
     @Volatile private var stopRequested = false
+    /** Killed because its host is closing (the server is stopping), not by `kill`. */
+    @Volatile private var hostClosing = false
+    /** The chat text of the first error this job showed, for [began] and [ended]. */
+    @Volatile private var firstError: String? = null
+
+    /**
+     * Completes once the script compiled and its body began (with null), or once the job ended before
+     * that (with the chat text of why). For other mods, through `minekt:host`.
+     */
+    internal val began = java.util.concurrent.CompletableFuture<String?>()
+
+    /** How a job ended, for other mods through `minekt:host`. */
+    internal class End(val reason: String, val error: String?, val seconds: Double)
+
+    /** Completes when the job has ended and left [JobManager.jobs]. */
+    internal val ended = java.util.concurrent.CompletableFuture<End>()
+
+    /** Wall-clock start, for `minekt:host`'s job list. */
+    internal val startedAt = System.currentTimeMillis()
     internal val isKilled: Boolean get() = killed
 
     /** Every thread that runs this job's script code (main + coroutine threads), for CPU accounting. */
@@ -147,6 +166,12 @@ class Job internal constructor(
     internal val cleanups = CopyOnWriteArrayList<() -> Unit>()
 
     internal fun start() = thread.start()
+
+    /** [kill] because the host is closing: ends with reason `server_stopping`. */
+    internal fun killForShutdown() {
+        hostClosing = true
+        kill()
+    }
 
     fun kill() {
         killed = true
@@ -332,6 +357,7 @@ class Job internal constructor(
             try {
                 CompilerSetup.awaitReady { status -> host.echo("[$name] $status… the script starts when it's done", MessageKind.INFO) }
             } catch (e: IllegalStateException) {
+                firstError = "[$name] Scripts can't run yet: ${e.message}"
                 log(ScriptLogs.Level.ERROR, "Scripts can't run yet: ${e.message}", chat = MessageKind.ERROR)
                 return
             }
@@ -347,6 +373,7 @@ class Job internal constructor(
             }
             checkAlive()
             state = State.RUNNING
+            began.complete(null)
             val api = host.receiver(this)
             val evaluation = ScriptEvaluationConfiguration {
                 implicitReceivers(api)
@@ -386,15 +413,25 @@ class Job internal constructor(
             runStopHandlers()
             state = State.DONE
             cleanup()
-            logEnd()
+            val seconds = logEnd()
+            began.complete(firstError ?: if (killed) "[$name] Killed before it started" else "[$name] Ended before it started")
             onExit(this)
+            ended.complete(End(endReason(), firstError.takeIf { failed }, seconds))
         }
+    }
+
+    private fun endReason() = when {
+        killed && hostClosing -> "server_stopping"
+        killed -> "killed"
+        failed -> "error"
+        stopRequested -> "stopped"
+        else -> "finished"
     }
 
     private val startedNanos = System.nanoTime()
     @Volatile private var failed = false
 
-    private fun logEnd() {
+    private fun logEnd(): Double {
         val seconds = (System.nanoTime() - startedNanos) / 1e9
         val how = when {
             killed -> "Killed"
@@ -402,6 +439,7 @@ class Job internal constructor(
             else -> "Finished"
         }
         logs.add(name, ScriptLogs.Level.INFO, "%s after %.1f s".format(how, seconds), run = id)
+        return seconds
     }
 
     private fun keepAlive() = !killed && !stopRequested && (hasHandlers() || coroutinesActive())
@@ -493,6 +531,7 @@ class Job internal constructor(
 
     private fun report(t: Throwable) {
         val report = ErrorReport.fromThrowable(name, t, source)
+        if (firstError == null) firstError = report.headline
         logs.add(name, ScriptLogs.Level.ERROR, report.headline.substringAfter("] "), report.detail, id)
         host.showError(report)
         LOGGER.error("Script {} failed", name, t)
@@ -539,6 +578,7 @@ class Job internal constructor(
         errors.forEach { report ->
             logs.add(name, ScriptLogs.Level.ERROR, "line ${report.line ?: "?"}: ${report.summary}", report.detail.takeIf { '\n' in it }, id)
         }
+        if (firstError == null) firstError = errors.firstOrNull()?.headline ?: "[$name] didn't compile"
         // A broken line often causes several errors: show the first few, the rest are in the log.
         errors.take(MAX_ERRORS_SHOWN).forEach(host::showError)
         if (errors.size > MAX_ERRORS_SHOWN) host.echo("[$name] …and ${errors.size - MAX_ERRORS_SHOWN} more errors (${host.commandPrefix}log $name)", MessageKind.ERROR)

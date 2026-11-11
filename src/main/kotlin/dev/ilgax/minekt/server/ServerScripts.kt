@@ -49,10 +49,14 @@ internal class ServerScripts(val server: MinecraftServer) : Host {
     val commands = ServerCommands(this)
     val management = ServerManagement(this)
 
+    /** `minekt:host` in Fabric's object share, for other server-side mods (see [HostShare]). */
+    val hostShare = HostShare.create(scriptDir, jobs)
+
     /** The server is up: run `autorun.txt`. */
     fun start() {
         ServerPacketHooks.filter = ServerPacketHooks.Filter { packet, incoming, player -> jobs.filterPacket(packet, incoming, player) }
         Files.createDirectories(scriptDir)
+        FabricLoader.getInstance().objectShare.put(HostShare.KEY, hostShare)
         val autorun = scriptDir.resolve("autorun.txt")
         if (!autorun.exists()) return
         for (line in autorunLines(Files.readString(autorun))) {
@@ -64,6 +68,8 @@ internal class ServerScripts(val server: MinecraftServer) : Host {
     /** The server is stopping: scripts get their `onStop` and save. */
     fun stop() {
         ServerPacketHooks.filter = null
+        val share = FabricLoader.getInstance().objectShare
+        if (share.get(HostShare.KEY) === hostShare) share.remove(HostShare.KEY)
         management.close()
         jobs.close()
     }

@@ -38,11 +38,16 @@ class JobManager(private val host: Host) {
     fun runScript(name: String, args: List<String>): Job? {
         val file = host.scriptDir.resolve("$name.kts")
         if (!file.isRegularFile()) {
-            val guess = closest(name, availableScripts())?.let { " Did you mean \\$it?" }.orEmpty()
-            host.echo("No script named '$name' (looked for ${file.fileName} in ${host.scriptDir}).$guess", MessageKind.ERROR)
+            host.echo(missingScript(name), MessageKind.ERROR)
             return null
         }
         return start(name, args, FileScriptSource(file.toFile()))
+    }
+
+    /** What [runScript] tells the player when there's no `<name>.kts`. */
+    internal fun missingScript(name: String): String {
+        val guess = closest(name, availableScripts())?.let { " Did you mean \\$it?" }.orEmpty()
+        return "No script named '$name' (looked for $name.kts in ${host.scriptDir}).$guess"
     }
 
     fun eval(code: String): Job = start(Job.EVAL_NAME, emptyList(), code.toScriptSource("eval.kts"))
@@ -75,7 +80,7 @@ class JobManager(private val host: Host) {
         closed = true
         if (cpuMonitor.isInitialized()) cpuMonitor.value.shutdownNow()
         storage.close()
-        killAll()
+        running.values.forEach(Job::killForShutdown)
         if (running.isEmpty()) logs.close()
     }
 

@@ -197,3 +197,82 @@ disappear when the script ends. A name that's already a command of the game or a
 | Moving, looking, keys, clicking, HUD, drawing, screens, glow, fake blocks, Baritone | ✔ | — (they're about your own game) |
 
 > Scripts can do anything on the server's computer, not just in the game. Only run scripts you trust.
+
+## For other mods: `minekt:host`
+
+Another server-side mod (a server panel, a Discord bridge…) can list, run, watch and stop this server's scripts
+without depending on Minekt. While a server runs, Minekt puts one value into Fabric's object share under the key
+`minekt:host`, and removes it when the server stops. It's an unmodifiable `Map<String, Object>`, and everything in it
+is a JDK type, so your mod needs none of Minekt's classes:
+
+| Key | Type | Meaning |
+|---|---|---|
+| `version` | `Integer` | `1`. Changes only add keys; a breaking change bumps it. |
+| `scriptDir` | `Supplier<String>` | absolute path of this server's script folder |
+| `scripts` | `Supplier<List<String>>` | runnable script names (same as `/mks scripts` for the console), sorted |
+| `run` | `BiFunction<String, List<String>, CompletableFuture<Map<String, Object>>>` | starts a script with the args exactly as given (no splitting). Returns at once. The future completes normally (never exceptionally) once the script compiled and its body began, or once it failed before that. |
+| `jobs` | `Supplier<List<Map<String, Object>>>` | running jobs: `id` (Integer), `name`, `args` (List<String>), `startedAt` (Long epoch ms) |
+| `kill` | `Function<Integer, Boolean>` | stops a job; false when no such job |
+| `logTail` | `BiFunction<String, Integer, List<String>>` | the last n lines of `logs/NAME.log`, formatted as in the file, oldest first. Detail lines included. Empty if there is no log. n is capped at 200. |
+
+`run`'s future completes with a map of:
+
+- `started` (Boolean)
+- `job` (Integer, or null if it never got a job)
+- `error` (String or null): the reason in words, the same text the chat message shows. For example
+  `No script named 'x' (looked for x.kts in …)`, `[x] Scripts can't run yet: …` while the compiler is still
+  downloading, or the first compile error with its line, like `[x:3:9] Unresolved reference 'foo'`.
+- `ended` (`CompletableFuture<Map<String, Object>>`, only when `started` is true): completes when the job ends, with
+  `reason` (one of `finished`, `stopped`, `error`, `killed`, `server_stopping`), `error` (String or null, the first
+  error the script showed when `reason` is `error`) and `seconds` (Double, the run time). By then the job is gone
+  from `jobs`.
+
+Everything can be called from any thread and nothing blocks; futures may complete on Minekt's threads, so hop to the
+server thread (`server.execute`) before touching the game. A name that isn't a script in the folder doesn't throw:
+`run` completes with `started = false` and an error. Scripts started this way are like ones the console starts with
+`/mks run`: the same log, the same chat notifications, they're in `/mks jobs`, and `/mks kill` stops them.
+
+There's a new map for every server run (in singleplayer, every time a world opens), so look it up when you need it
+rather than keeping it. `whenAvailable` tells you when the first one appears.
+
+Java:
+
+```java
+@SuppressWarnings("unchecked")
+static void runScript(String name, List<String> args) {
+    var host = (Map<String, Object>) FabricLoader.getInstance().getObjectShare().get("minekt:host");
+    if (host == null) return; // no Minekt, or no server running
+    var run = (BiFunction<String, List<String>, CompletableFuture<Map<String, Object>>>) host.get("run");
+    run.apply(name, args).thenAccept(result -> {
+        if (!(Boolean) result.get("started")) {
+            LOGGER.warn("{} didn't start: {}", name, result.get("error"));
+            return;
+        }
+        var ended = (CompletableFuture<Map<String, Object>>) result.get("ended");
+        ended.thenAccept(end -> LOGGER.info("job {} ended: {}", result.get("job"), end.get("reason")));
+    });
+}
+
+// in onInitialize
+FabricLoader.getInstance().getObjectShare().whenAvailable("minekt:host", (key, value) -> LOGGER.info("Minekt is here"));
+```
+
+Kotlin:
+
+```kotlin
+@Suppress("UNCHECKED_CAST")
+fun minektHost(): Map<String, Any?>? = FabricLoader.getInstance().objectShare.get("minekt:host") as Map<String, Any?>?
+
+@Suppress("UNCHECKED_CAST")
+fun scriptNames(): List<String> = (minektHost()?.get("scripts") as Supplier<List<String>>?)?.get().orEmpty()
+
+@Suppress("UNCHECKED_CAST")
+fun lastLines(script: String): List<String> =
+    (minektHost()?.get("logTail") as BiFunction<String, Int, List<String>>?)?.apply(script, 20).orEmpty()
+
+FabricLoader.getInstance().objectShare.whenAvailable("minekt:host") { _, _ -> logger.info("Minekt is here") }
+```
+
+Version 1 is frozen: these keys keep their types and meaning, and later versions only add keys (a breaking change
+would bump `version`). Everything else in Minekt (`JobManager`, `Job`, `ServerScripts`…) is internal and may change
+in any release.
